@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.keras as keras
 import tensorflow.keras.layers as layers
 
-from . import register_model
+from ficc.models.registration import register_model
 
 
 def yield_spread_model_v1(
