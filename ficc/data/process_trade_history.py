@@ -1,25 +1,21 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-16 10:04:41
+ # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-16 15:10:31
- # @ Description: Code to process trade history from BigQuery
+ # @ Modified time: 2021-12-17 14:49:28
+ # @ Description:
  '''
-import pandas as pd
+
 import os
+import pandas as pd
 import numpy as np
 
-# Pandaralled is a python package that is 
-# used to multi-thread df apply
-from pandarallel import pandarallel
-pandarallel.initialize()
-
-from ficc.utils.ficc_calc_end_date import calc_end_date
-from ficc.utils.yield_curve import yield_curve_params
-from ficc.utils.trade_list_to_array import trade_list_to_array
-from ficc.utils.core import sqltodf
-import ficc.utils.globals as globals
+from ficc.utils.auxiliary_functions import sqltodf
 from ficc.utils.pad_trade_history import pad_trade_history
+import ficc.utils.globals as globals
+from ficc.utils.ficc_calc_end_date import calc_end_date
+from ficc.utils.yield_curve_params import yield_curve_params
+from ficc.utils.trade_list_to_array import trade_list_to_array
 
 def fetch_trade_data(query, client, SEQUENCE_LENGTH, PATH='data.pkl'):
 
@@ -73,8 +69,5 @@ def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES,PATH):
     print("Padding completed")
 
     trade_dataframe.dropna(subset=['trade_history', 'yield_spread'], inplace=True)
-    
-    print(f"Number of samples {len(trade_dataframe)}")
 
     return trade_dataframe
-
