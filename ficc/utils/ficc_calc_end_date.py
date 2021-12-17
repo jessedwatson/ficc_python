@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 # @Author: jesse
 # @Date:   2021-10-04 09:38:00
-# @Last Modified by:   shayaan
+# @Last Modified by:   ahmad
 # @Last Modified time: 2021-12-06 13:49:32
 
-# +
 import pandas as pd
 import numpy as np 
 
@@ -60,6 +59,6 @@ def calc_end_date(trade):
         end_date = trade.maturity_date
     
     return end_date
-# -
+
 
 
