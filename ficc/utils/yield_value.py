@@ -1,9 +1,13 @@
-# -*- coding: utf-8 -*-
-# @Author: Isaac
-# @Date:   2021-08-23
-# @Last Modified by:   ahmad-ficc
-# @Last Modified time: 2021-12-02 11:23:46
-# Modificatoin: Nelson Siegel and standard scalar coefficients fetched from memory store
+'''
+ # @ Author: Issac
+ # @ Create Time: 2021-08-23 13:59:54
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2021-12-16 14:14:29
+ # @ Description: This is an implementation of the Nelson Seigel intereset rate 
+ # model to predic the yield curve. 
+ # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
+ # instead of grabbing them from memory store
+ '''
 
 import numpy as np 
 import pandas as pd
