@@ -22,7 +22,7 @@ WHERE
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
 ORDER BY
   trade_date DESC
-LIMIT 10
+LIMIT 100
             """
 
 bq_client = bigquery.Client()
@@ -32,6 +32,6 @@ if __name__ == "__main__":
                               bq_client,
                               SEQUENCE_LENGTH,
                               NUM_FEATURES,
-                              'tuning.pkl',
+                              'data.pkl',
                               training_features=PREDICTORS)
     print(trade_data.head())
