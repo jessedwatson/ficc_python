@@ -7,3 +7,5 @@ from . import trade_list_to_array
 from . import pad_trade_history
 from . import yield_curve_params
 from . import auxiliary_variables
+from . import diff_in_days
+from . import days_in_interest_payment
