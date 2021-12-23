@@ -50,7 +50,7 @@ if __name__ == "__main__":
                               bq_client,
                               SEQUENCE_LENGTH,
                               NUM_FEATURES,
-                              "S&P",
                               'data.pkl',
+                              "S&P",
                               training_features=PREDICTORS)
     print(trade_data.head())

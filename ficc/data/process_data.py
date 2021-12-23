@@ -24,7 +24,7 @@ from ficc.utils.yield_curve import get_ficc_ycl
 
 
 
-def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,YIELD_CURVE,PATH, **kwargs):
+def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FICC", **kwargs):
     # This global variable is used to be able to process data prallely
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
     trades_df = process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH)
