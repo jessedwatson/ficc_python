@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-20 11:19:38
+ # @ Modified time: 2021-12-22 16:23:00
  # @ Description:
  '''
 
@@ -54,7 +54,7 @@ def fetch_trade_data(query, client, SEQUENCE_LENGTH, PATH='data.pkl'):
 
     return trade_dataframe
 
-def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES,PATH):
+def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH):
     print("Grabbing vield curve params")
     try:
         yield_curve_params(client)

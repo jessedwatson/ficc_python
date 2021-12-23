@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-16 14:05:25
+ # @ Modified time: 2021-12-22 16:26:06
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -28,14 +28,19 @@ def trade_dict_to_list(trade_dict: dict, calc_date) -> list:
         target_date = trade_dict['trade_datetime'].date()
     
     #calculating the time to maturity in years from the trade_date
-    time_to_maturity = (calc_date - target_date).days/365.25
-    global nelson_params
-    global scalar_params
-    yield_at_that_time = yield_curve_level(time_to_maturity,target_date.strftime('%Y-%m-%d'),
-                                           globals.nelson_params, globals.scalar_params)
+    if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
+        time_to_maturity = (calc_date - target_date).days/365.25
+        global nelson_params
+        global scalar_params
+        yield_at_that_time = yield_curve_level(time_to_maturity,target_date.strftime('%Y-%m-%d'),
+                                            globals.nelson_params, globals.scalar_params)
 
     
-    trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
+        trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
+    
+    elif globals.YIELD_CURVE_TO_USE.upper() == "S&P":
+        trade_list.append(trade_dict['yield_spread'] * 100)
+        
     trade_list.append(np.float32(np.log10(trade_dict['par_traded'])))        
     trade_list += trade_type_mapping[trade_dict['trade_type']]
 
