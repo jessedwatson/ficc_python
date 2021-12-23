@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-17 14:49:57
+ # @ Modified time: 2021-12-22 16:23:01
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -24,19 +24,25 @@ from ficc.utils.yield_curve import get_ficc_ycl
 
 
 
-def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH, **kwargs):
-    trades_df = process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES,PATH)
-    
-    # Calculating yield spreads using ficc_ycl
-    trades_df['ficc_ycl'] = trades_df.parallel_apply(get_ficc_ycl,axis=1)
-    trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
+def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,YIELD_CURVE,PATH, **kwargs):
+    # This global variable is used to be able to process data prallely
+    globals.YIELD_CURVE_TO_USE = YIELD_CURVE
+    trades_df = process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH)
+
+    if YIELD_CURVE.upper() == "FICC":
+        # Calculating yield spreads using ficc_ycl
+        trades_df['ficc_ycl'] = trades_df.parallel_apply(get_ficc_ycl,axis=1)
+        trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
+    elif YIELD_CURVE.upper() == "S&P":
+        # Converting the yield spread to basis points
+        trades_df['yield_spread'] = trades_df['yield_spread'] * 100
 
     # Dropping columns which are not used for training
     trades_df = drop_extra_columns(trades_df)
 
     # Converting BigQuery Date data type to pandas datatime data type
     trades_df = convert_dates(trades_df)
-
+    
     trades_df = process_ratings(trades_df)
 
     trades_df = process_features(trades_df)
