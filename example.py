@@ -6,14 +6,15 @@
  # @ Description: This file is an example on how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The methond takes the following arguments. 
- #    1. A query that will be used to fetch data from BigQuery. 
- #    2. BigQuery client. 
- #    3. Sequence lenght of the trade history, it can take 32 as its maximum value. 
- #    4. Number of feature that the trade history contains. 
- #    5. The yield curve to use acceptable options S&P or ficc. 
- #    6. Link to save the raw data grabbed from BigQuery. 
- #    7. A list containing feature that will be used for training. This is an optional parameter
+ #   1. A query that will be used to fetch data from BigQuery. 
+	#   2. BigQuery client. 
+ #   3. The sequence length of the trade history can take 32 as its maximum value. 
+	#   4. The number of features that the trade history contains. 
+	#   5. The yield curve to use acceptable options S&P or ficc. 
+	#   6. Link to save the raw data grabbed from BigQuery. 
+	#   7. A list containing the features that will be used for training. This is an optional parameter
  '''
+
 
 import ficc.utils.globals as globals
 import os
