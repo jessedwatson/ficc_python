@@ -14,6 +14,8 @@ def yield_spread_model_v1(
     CATEGORICAL_FEATURES,
     fmax,
     learning_rate,
+    noncat_binary_normalizer,
+    trade_history_normalizer,
     optimizer=keras.optimizers.Adam
 ):
     inputs = []
@@ -26,11 +28,12 @@ def yield_spread_model_v1(
 
     inputs.append(trade_history_input)
 
-    for i in NON_CAT_FEATURES + BINARY:
-        inputs.append(layers.Input(shape=(1,), name = f"{i}"))
+    inputs.append(layers.Input(
+        name="NON_CAT_AND_BINARY_FEATURES",
+        shape=(len(NON_CAT_FEATURES + BINARY),)
+    ))
 
-    for i in inputs[1:]:
-        layer.append(i)
+    layer.append(noncat_binary_normalizer(inputs[1]) if noncat_binary_normalizer is not None else inputs[1])
     ####################################################
 
 
@@ -49,7 +52,7 @@ def yield_spread_model_v1(
                                return_sequences = False,
                                name='LSTM_2')
 
-    features = lstm_layer(inputs[0])
+    features = lstm_layer(trade_history_normalizer(inputs[0]) if trade_history_normalizer is not None else inputs[0])
     features = layers.BatchNormalization()(features)
     features = layers.Dropout(hp.Choice("dropout_1", values=[0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], default=0.0))(features)
 

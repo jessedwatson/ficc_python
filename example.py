@@ -1,3 +1,21 @@
+'''
+ # @ Author: Ahmad Shayaan
+ # @ Create Time: 2021-12-16 09:44:22
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2021-12-29 15:22:30
+ # @ Description: This file is an example on how to call the ficc data package. 
+ # The driver method for the package is the proces data function. 
+ # The methond takes the following arguments. 
+ #   1. A query that will be used to fetch data from BigQuery. 
+	#   2. BigQuery client. 
+ #   3. The sequence length of the trade history can take 32 as its maximum value. 
+	#   4. The number of features that the trade history contains. 
+	#   5. The yield curve to use acceptable options S&P or ficc. 
+	#   6. Link to save the raw data grabbed from BigQuery. 
+	#   7. A list containing the features that will be used for training. This is an optional parameter
+ '''
+
+
 import ficc.utils.globals as globals
 import os
 from google.cloud import bigquery
@@ -22,7 +40,7 @@ WHERE
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
 ORDER BY
   trade_date DESC
-LIMIT 10
+LIMIT 100
             """
 
 bq_client = bigquery.Client()
@@ -32,6 +50,7 @@ if __name__ == "__main__":
                               bq_client,
                               SEQUENCE_LENGTH,
                               NUM_FEATURES,
-                              'tuning.pkl',
+                              'data.pkl',
+                              "S&P",
                               training_features=PREDICTORS)
     print(trade_data.head())

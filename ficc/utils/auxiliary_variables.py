@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-17 12:45:24
+ # @ Modified time: 2021-12-20 11:07:35
  # @ Description:
  '''
 
@@ -45,6 +45,22 @@ COUPON_FREQUENCY_DICT = {0:"Unknown",
                         36:"Single Interest Payment"
                         }
 
+COUPON_FREQUENCY_TYPE = {"Unknown":1e6,
+                         "Semiannually":2,
+                         "Monthly":12,
+                         "Annually":1,
+                         "Weekly":52,
+                         "Quarterly":4,
+                         "Every 2 years":0.5,
+                         "Every 3 years":0.33333,
+                         "Every 4 years":0.25,
+                         "Every 5 years":0.2,
+                         "Every 7 years":1/7,
+                         "Every 8 years":1/8,
+                         "Changeable":44,
+                         "Daily":360,
+                         "Interest at maturity":1e6,
+                         "Not Applicable":1e6}
 
 IDENTIFIERS = ['rtrs_control_number', 'cusip']
 
@@ -80,7 +96,9 @@ NON_CAT_FEATURES = ['quantity',
                     'maturity_amount',
                     'issue_price', 
                     'orig_principal_amount',
-                    'max_amount_outstanding']
+                    'max_amount_outstanding',
+                    'accured_days',
+                    'days_in_interest_payment']
 
 TRADE_HISTORY = ['trade_history']
 TARGET = ['yield_spread']

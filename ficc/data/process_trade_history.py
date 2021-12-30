@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-17 14:49:28
+ # @ Modified time: 2021-12-22 16:23:00
  # @ Description:
  '''
 
@@ -20,11 +20,11 @@ from ficc.utils.trade_list_to_array import trade_list_to_array
 def fetch_trade_data(query, client, SEQUENCE_LENGTH, PATH='data.pkl'):
 
     if os.path.isfile(PATH):
-        print(f"Processed file found {PATH}, reading data from file")
+        print(f"Data file found {PATH}, reading data from file")
         trade_dataframe = pd.read_pickle(PATH)
         print("File read")
     else:
-        print("Processed data file not found, Running query to fetch data")
+        print("Data file not found, Running query to fetch data")
         trade_dataframe = sqltodf(query,client)
         print("Saving data")
         trade_dataframe.to_pickle(PATH)
@@ -54,7 +54,7 @@ def fetch_trade_data(query, client, SEQUENCE_LENGTH, PATH='data.pkl'):
 
     return trade_dataframe
 
-def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES,PATH):
+def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH):
     print("Grabbing vield curve params")
     try:
         yield_curve_params(client)
