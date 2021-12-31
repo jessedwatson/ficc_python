@@ -2,13 +2,13 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-17 12:39:27
+ # @ Modified time: 2021-12-29 15:22:20
  # @ Description:
  '''
 
 def fill_missing_values(df):
     df.dropna(subset=['instrument_primary_name'], inplace=True)
-    df.purpose_sub_class.fillna(1,inplace=True)
+    df.purpose_class.fillna(1,inplace=True)
     df.call_timing.fillna(0, inplace=True) #Unknown
     df.call_timing_in_part.fillna(0, inplace=True) #Unknown
     df.sink_frequency.fillna(10, inplace=True) #Under special circumstances
