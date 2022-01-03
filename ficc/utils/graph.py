@@ -8,7 +8,7 @@ def _recent_trade_data_subset(df, N):
     sorted_df = df.sort_values(by='trade_datetime')
 
     recent_trades = []
-    for i, row in tqdm(sorted_df[::-1].iterrows(), total=len(sorted_df.index)):
+    for i, row in tqdm(sorted_df.iterrows(), total=len(sorted_df.index)):
         for j, neighbor in enumerate(recent_trades):
             row[f'yield_spread_recent_{j}'] = neighbor['yield_spread']
             row[f'seconds_ago_recent_{j}'] = (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
@@ -40,7 +40,7 @@ def _temporal_adjacency_subset(df, N=None):
     source_indices = []
     weights = []
     recent_trades = []
-    for i, row in tqdm(sorted_df[::-1].iterrows(), total=len(sorted_df.index)):
+    for i, row in tqdm(sorted_df.iterrows(), total=len(sorted_df.index)):
         for neighbor in recent_trades:
             target_indices.append(i)
             source_indices.append(neighbor)
