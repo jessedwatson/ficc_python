@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-17 12:47:46
+ # @ Modified time: 2022-01-04 14:23:37
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -28,7 +28,6 @@ def drop_extra_columns(df):
                  'MSRB_valid_to_date',
                  'upload_date',
                  'sequence_number',
-                 'security_description',
                  'ICE_valid_from_date',
                  'ICE_valid_TO_date',
                  'additional_next_sink_date',
