@@ -13,8 +13,11 @@ import numpy as np
 # used to multi-thread df apply
 from pandarallel import pandarallel
 
+from tqdm import tqdm
+tqdm.pandas()
+
 from ficc.utils.process_features import process_features
-pandarallel.initialize()
+pandarallel.initialize(progress_bar=True)
 
 import ficc.utils.globals as globals
 from ficc.data.process_trade_history import process_trade_history
