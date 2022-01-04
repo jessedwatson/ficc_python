@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-22 16:23:01
+ # @ Modified time: 2022-01-04 15:17:48
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -17,7 +17,7 @@ from tqdm import tqdm
 tqdm.pandas()
 
 from ficc.utils.process_features import process_features
-pandarallel.initialize(progress_bar=True)
+pandarallel.initialize(progress_bar=False)
 
 import ficc.utils.globals as globals
 from ficc.data.process_trade_history import process_trade_history
