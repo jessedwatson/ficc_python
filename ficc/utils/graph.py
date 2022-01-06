@@ -1,6 +1,7 @@
 import multiprocessing as mp
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from tqdm import tqdm
 
 
@@ -36,21 +37,19 @@ def append_recent_trade_data(df, N, categories=None,):
 def _temporal_adjacency_subset(df, N=None):
     sorted_df = df.sort_values(by='trade_datetime')
 
-    target_indices = []
-    source_indices = []
-    weights = []
+    indices = []
     recent_trades = []
     for i, row in tqdm(sorted_df.iterrows(), total=len(sorted_df.index)):
+        neighbors = []
         for neighbor in recent_trades:
-            target_indices.append(i)
-            source_indices.append(neighbor)
-            weights.append(1.0)
+            neighbors.append(neighbor)
+        indices.append(neighbors)
 
         recent_trades.append(i)
         if len(recent_trades) > N:
             recent_trades = recent_trades[1:]
 
-    return [np.array(target_indices, dtype=np.int), np.array(source_indices, dtype=np.int), np.array(weights, dtype=np.float)]
+    return indices
 
 
 def get_temporal_adjacency(df, categories=None, N=None):
@@ -60,13 +59,13 @@ def get_temporal_adjacency(df, categories=None, N=None):
 
     if categories is not None:
         for _, subcategory_df in df.groupby(categories):
-            latest = [_temporal_adjacency_subset(subcategory_df, N)]
+            latest = _temporal_adjacency_subset(subcategory_df, N)
 
             if len(results) == 0:
                 results = latest
             else:
-                results = [np.concatenate((r, l), axis=0) for r, l in zip(results, latest)]
+                results = results + latest
     else:
         results = _temporal_adjacency_subset(df, N)
 
-    return results
+    return tf.ragged.constant(results, dtype=tf.int64)
