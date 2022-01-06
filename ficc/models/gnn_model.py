@@ -5,6 +5,30 @@ import tensorflow.keras.layers as layers
 from ficc.models.registration import register_model
 
 
+def TransformerEncoder(d_model, dff, dropout, dinput, input):
+    # Self-attention
+    query = layers.Dense(d_model)(input)
+    value = layers.Dense(d_model)(input)
+    key = layers.Dense(d_model)(input)
+    attention = layers.Attention()([query, value, key])
+    attention = layers.Dense(dinput)(attention)
+    attention = layers.BatchNormalization()(attention)
+    attention = layers.Dropout(dropout)(attention)
+    x = layers.Add()([input, attention])  # residual connection
+    x = layers.LayerNormalization(epsilon=1e-6)(x)
+
+    # Feed Forward
+    dense = layers.Dense(dff, activation='relu')(x)
+    dense = layers.BatchNormalization()(dense)
+    dense = layers.Dropout(dropout)(dense)
+    dense = layers.Dense(dinput)(dense)
+    dense = layers.BatchNormalization()(dense)
+    dense = layers.Dropout(dropout)(dense)
+    x = layers.Add()([x, dense])     # residual connection
+    encoder = layers.LayerNormalization(epsilon=1e-6)(x)
+    return encoder
+
+
 def gnn_yield_spread_model_v1(
     hp,
     SEQUENCE_LENGTH,
@@ -17,6 +41,7 @@ def gnn_yield_spread_model_v1(
     learning_rate,
     noncat_binary_normalizer,
     trade_history_normalizer,
+    transformer_depth=4,
     d_model=512,
     dff=2048,
     optimizer=keras.optimizers.Adam
@@ -40,6 +65,9 @@ def gnn_yield_spread_model_v1(
         inputs[1]) if noncat_binary_normalizer is not None else inputs[1])
     ####################################################
 
+    dropout = hp.Choice("dropout", values=[
+                        0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], default=0.0)
+
     ############## TRADE HISTORY MODEL #################
 
     # Adding the time2vec encoding to the input to transformer
@@ -58,12 +86,10 @@ def gnn_yield_spread_model_v1(
     features = lstm_layer(trade_history_normalizer(
         inputs[0]) if trade_history_normalizer is not None else inputs[0])
     features = layers.BatchNormalization()(features)
-    features = layers.Dropout(hp.Choice("dropout_1", values=[
-                              0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], default=0.0))(features)
+    features = layers.Dropout(dropout)(features)
 
     features = lstm_layer_2(features)
-    features = layers.Dropout(hp.Choice("dropout_2", values=[
-                              0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], default=0.0))(features)
+    features = layers.Dropout(dropout)(features)
     features = layers.BatchNormalization()(features)
 
     trade_history_output = layers.Dense(hp.Int("trade_history_output_layer", min_value=100, max_value=900, step=50, default=460),
@@ -87,15 +113,13 @@ def gnn_yield_spread_model_v1(
                                     activation='relu',
                                     name='reference_hidden_1')(layers.concatenate(layer))
     reference_hidden = layers.BatchNormalization()(reference_hidden)
-    reference_hidden = layers.Dropout(hp.Choice("dropout_3", values=[
-                                      0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], default=0.0))(reference_hidden)
+    reference_hidden = layers.Dropout(dropout)(reference_hidden)
 
     reference_hidden2 = layers.Dense(hp.Int("reference_hidden_2_units", min_value=100, max_value=900, step=50, default=10),
                                      activation='relu',
                                      name='reference_hidden_2')(reference_hidden)
     reference_hidden2 = layers.BatchNormalization()(reference_hidden2)
-    reference_hidden2 = layers.Dropout(hp.Choice("dropout_4", values=[
-                                       0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], default=0.0))(reference_hidden2)
+    reference_hidden2 = layers.Dropout(dropout)(reference_hidden2)
 
     reference_output = layers.Dense(hp.Int("reference_hidden_3_units", min_value=100, max_value=900, step=50, default=460),
                                     activation='tanh',
@@ -109,14 +133,12 @@ def gnn_yield_spread_model_v1(
     hidden = layers.Dense(hp.Int("output_block_1_units", min_value=100, max_value=900, step=50, default=250),
                           activation='relu')(feed_forward_input)
     hidden = layers.BatchNormalization()(hidden)
-    hidden = layers.Dropout(hp.Choice("dropout_5", values=[
-                            0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], default=0.0))(hidden)
+    hidden = layers.Dropout(dropout)(hidden)
 
     hidden2 = layers.Dense(hp.Int("output_block_2_units", min_value=100, max_value=900, step=50, default=600),
                            activation='tanh')(hidden)
     hidden2 = layers.BatchNormalization()(hidden2)
-    xformed_nodes = layers.Dropout(hp.Choice("dropout_6", values=[
-                                   0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3], default=0.0))(hidden2)
+    xformed_nodes = layers.Dropout(dropout)(hidden2)
 
     adj = layers.Input(name="adjacency",
                        shape=(None,),
@@ -131,23 +153,15 @@ def gnn_yield_spread_model_v1(
     neighborhoods = layers.Dense(hp.Int("edge_units", min_value=100, max_value=900, step=50, default=1200),
                                  activation='relu')(neighborhoods)
     neighborhoods = layers.BatchNormalization()(neighborhoods)
+    neighborhoods = layers.Dropout(dropout)(neighborhoods)
     neighborhoods = layers.Dense(hp.Int("edge_units2", min_value=100, max_value=900, step=50, default=600),
                                  activation='relu')(neighborhoods)
     neighborhoods = layers.BatchNormalization()(neighborhoods)
+    neighborhoods = layers.Dropout(dropout)(neighborhoods)
 
-    query = layers.Dense(d_model)(neighborhoods)
-    value = layers.Dense(d_model)(neighborhoods)
-    key = layers.Dense(d_model)(neighborhoods)
-    attention = layers.Attention()([query, value, key])
-    attention = layers.Dense(600)(attention)
-    x = layers.Add()([neighborhoods, attention])  # residual connection
-    x = layers.LayerNormalization(epsilon=1e-6)(x)
-
-    # Feed Forward
-    dense = layers.Dense(dff, activation='relu')(x)
-    dense = layers.Dense(600)(dense)
-    x = layers.Add()([x, dense])     # residual connection
-    encoder = layers.LayerNormalization(epsilon=1e-6)(x)
+    encoder = neighborhoods
+    for _ in range(transformer_depth):
+        encoder = TransformerEncoder(d_model, dff, dropout, 600, encoder)
     encoder = encoder[:, 0, :]
 
     final = layers.Dense(1)(encoder)
