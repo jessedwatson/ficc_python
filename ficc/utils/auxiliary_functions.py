@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-04 14:23:37
+ # @ Modified time: 2022-01-10 14:56:49
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -31,7 +31,6 @@ def drop_extra_columns(df):
                  'ICE_valid_from_date',
                  'ICE_valid_TO_date',
                  'additional_next_sink_date',
-                 'first_coupon_date',
                  'last_period_accrues_from_date',
                  'primary_market_settlement_date',
                  'assumed_settlement_date',
