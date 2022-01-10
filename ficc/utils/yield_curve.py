@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-07 13:48:08
+ # @ Modified time: 2022-01-10 09:35:04
  # @ Description: This file contains the code to get 
  # the ficc yield curve level using the calc_date
  '''
@@ -33,7 +33,7 @@ def get_ficc_ycl(trade, **kwargs):
                                 globals.scalar_params)
     except Exception as e:
         if 'client' not in kwargs:
-            raise Exception("Need to provied bigquery client if being used as a stand alone function")
+            raise Exception("Need to provide bigquery client if being used as a stand alone function")
             sys.exit(0)
         
         bq_client = kwargs['client']
