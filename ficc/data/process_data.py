@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-04 15:17:48
+ # @ Modified time: 2022-01-10 15:03:18
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -41,7 +41,7 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
         trades_df['yield_spread'] = trades_df['yield_spread'] * 100
 
     # Dropping columns which are not used for training
-    trades_df = drop_extra_columns(trades_df)
+    # trades_df = drop_extra_columns(trades_df)
 
     # Converting BigQuery Date data type to pandas datatime data type
     trades_df = convert_dates(trades_df)
