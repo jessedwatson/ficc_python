@@ -39,6 +39,7 @@ class LSTMYieldSpreadModel(pl.LightningModule):
             nn.ReLU(),
             nn.BatchNorm1d(10),
             nn.Linear(10, 460),
+            nn.Tanh(),
         )
 
         self.final_stage = nn.Sequential(
@@ -46,7 +47,7 @@ class LSTMYieldSpreadModel(pl.LightningModule):
             nn.ReLU(),
             nn.BatchNorm1d(250),
             nn.Linear(250, 600),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.BatchNorm1d(600),
             nn.Linear(600, 1),
         )
