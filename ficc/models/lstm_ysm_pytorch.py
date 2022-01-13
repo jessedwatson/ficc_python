@@ -52,7 +52,10 @@ class LSTMYieldSpreadModel(pl.LightningModule):
             nn.Linear(600, 1),
         )
 
-    def forward(self, inputs):
+    def forward(self, *inputs):
+        if len(inputs) == 1 and (isinstance(inputs[0], tuple) or isinstance(inputs[0], list)):
+            inputs = inputs[0]
+
         trade_history = self.trade_history_lstm(inputs[0])
         
         # [0] to use the output vector, LSTM returns output vector and hidden state as a tuple
@@ -87,7 +90,7 @@ class LSTMYieldSpreadModel(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
         return optimizer
 
 
