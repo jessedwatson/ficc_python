@@ -11,9 +11,9 @@ def _recent_trade_data_subset(df, N):
     recent_trades = []
     for i, row in tqdm(sorted_df.iterrows(), total=len(sorted_df.index)):
         for j, neighbor in enumerate(recent_trades):
-            row[f'yield_spread_recent_{j}'] = neighbor['yield_spread']
-            row[f'seconds_ago_recent_{j}'] = (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
-            row[f'par_traded_recent_{j}'] = neighbor['par_traded']
+            df.loc[i, f'yield_spread_recent_{j}'] = neighbor['yield_spread']
+            df.loc[i, f'seconds_ago_recent_{j}'] = (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
+            df.loc[i, f'par_traded_recent_{j}'] = neighbor['par_traded']
 
         recent_trades.append(row)
         if len(recent_trades) > N:
@@ -23,9 +23,9 @@ def append_recent_trade_data(df, N, categories=None,):
     assert 'trade_datetime' in df.columns, "trade_datetime column is required"
 
     for i in range(N):
-        df[f'yield_spread_recent_{i}'] = 0.0
-        df[f'seconds_ago_recent_{i}'] = 0
-        df[f'par_traded_recent_{i}'] = 0
+        df.loc[:, f'yield_spread_recent_{i}'] = 0.0
+        df.loc[:, f'seconds_ago_recent_{i}'] = 0
+        df.loc[:, f'par_traded_recent_{i}'] = 0
 
     if categories is not None:
         for _, subcategory_df in df.groupby(categories):
