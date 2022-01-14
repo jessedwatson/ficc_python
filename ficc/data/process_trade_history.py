@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-14 12:32:34
+ # @ Modified time: 2022-01-14 12:36:47
  # @ Description:
  '''
 
@@ -46,7 +46,7 @@ def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH):
     trade_dataframe['empty_trade'] = trade_dataframe.recent.apply(lambda x: x[0]['rtrs_control_number'] is None)
     trade_dataframe = trade_dataframe[trade_dataframe.empty_trade == False]
 
-    print("Dropping trades less that 10000$")
+    print("Dropping trades less that $10,000")
     trade_dataframe = trade_dataframe[trade_dataframe.par_traded > 10000]
     #Taking only the most recent trades
     trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
