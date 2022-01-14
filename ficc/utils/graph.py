@@ -5,15 +5,15 @@ import tensorflow as tf
 from tqdm import tqdm
 
 
-def _recent_trade_data_subset(df, N):
+def _recent_trade_data_subset(df, orig_df, N):
     sorted_df = df.sort_values(by='trade_datetime')
 
     recent_trades = []
     for i, row in tqdm(sorted_df.iterrows(), total=len(sorted_df.index)):
         for j, neighbor in enumerate(recent_trades):
-            df.loc[i, f'yield_spread_recent_{j}'] = neighbor['yield_spread']
-            df.loc[i, f'seconds_ago_recent_{j}'] = (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
-            df.loc[i, f'par_traded_recent_{j}'] = neighbor['par_traded']
+            orig_df.loc[i, f'yield_spread_recent_{j}'] = neighbor['yield_spread']
+            orig_df.loc[i, f'seconds_ago_recent_{j}'] = (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
+            orig_df.loc[i, f'par_traded_recent_{j}'] = neighbor['par_traded']
 
         recent_trades.append(row)
         if len(recent_trades) > N:
@@ -29,7 +29,7 @@ def append_recent_trade_data(df, N, categories=None,):
 
     if categories is not None:
         for _, subcategory_df in df.groupby(categories):
-            _recent_trade_data_subset(subcategory_df, N)
+            _recent_trade_data_subset(subcategory_df, df, N)
     else:
         _recent_trade_data_subset(df, N)
 
