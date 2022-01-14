@@ -4,7 +4,6 @@
  # @ Description: This file implements functions to compute the price of a trade
  # given the yield.
  '''
-import numpy as np
 import pandas as pd
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
