@@ -23,19 +23,30 @@ is in terms of the number of months in a year or the number of weeks in a year.
 Then, based on this the time delta object is returned.
 '''
 def get_time_delta_from_interest_frequency(interest_payment_frequency):
+    error_string = lambda num: f"The interest payment frequency of {interest_payment_frequency} is invalid, since it must divide {num}"
+
     NUM_OF_MONTHS_IN_YEAR = 12
     NUM_OF_WEEKS_IN_YEAR = 52
+    NUM_OF_DAYS_IN_YEAR = 360
+
+    time_delta = 0
     if interest_payment_frequency != 0:
-        if interest_payment_frequency <= NUM_OF_MONTHS_IN_YEAR:
+        if interest_payment_frequency <= 1:
+            delta = 1 / interest_payment_frequency
+            time_delta = relativedelta(years=delta)
+        elif interest_payment_frequency > 1 and interest_payment_frequency <= NUM_OF_MONTHS_IN_YEAR:
             if NUM_OF_MONTHS_IN_YEAR % interest_payment_frequency != 0:
-                raise ValueError("The interest payment frequency of {} is invalid, since it must divide {}.".format(interest_payment_frequency, NUM_OF_MONTHS_IN_YEAR))
+                raise ValueError(error_string(NUM_OF_MONTHS_IN_YEAR))
             delta = NUM_OF_MONTHS_IN_YEAR / interest_payment_frequency
             time_delta = relativedelta(months=delta)
         elif interest_payment_frequency > NUM_OF_MONTHS_IN_YEAR and interest_payment_frequency <= NUM_OF_WEEKS_IN_YEAR:
             if NUM_OF_WEEKS_IN_YEAR % interest_payment_frequency != 0:
-                raise ValueError("The interest payment frequency of {} is invalid, since it must divide {}.".format(interest_payment_frequency, NUM_OF_WEEKS_IN_YEAR))
+                raise ValueError(error_string(NUM_OF_WEEKS_IN_YEAR))
             delta = NUM_OF_WEEKS_IN_YEAR / interest_payment_frequency
             time_delta = relativedelta(weeks=delta)
-    else:
-        time_delta = 0
+        elif interest_payment_frequency > NUM_OF_WEEKS_IN_YEAR and interest_payment_frequency <= NUM_OF_DAYS_IN_YEAR:
+            if NUM_OF_DAYS_IN_YEAR % interest_payment_frequency != 0:
+                raise ValueError(error_string(NUM_OF_DAYS_IN_YEAR))
+            delta = NUM_OF_DAYS_IN_YEAR / interest_payment_frequency
+            time_delta = relativedelta(days=delta)
     return time_delta
