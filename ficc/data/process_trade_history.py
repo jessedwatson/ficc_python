@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-13 11:33:22
+ # @ Modified time: 2022-01-14 12:32:34
  # @ Description:
  '''
 
@@ -32,7 +32,7 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
     return trade_dataframe
 
 def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH):
-    print("Grabbing vield curve params")
+    print("Grabbing yield curve params")
     try:
         yield_curve_params(client)
     except Exception as e:
