@@ -1,10 +1,12 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-20 11:07:35
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2021-12-20 23:07:00
  # @ Description:
  '''
+
+NUM_OF_DAYS_IN_YEAR = 360
 
 COUPON_FREQUENCY_DICT = {0:"Unknown",
                         1:"Semiannually",

@@ -2,12 +2,14 @@
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 17:44:00
  # @ Description: This file implements functions to help with pricing bonds
- and computing yields.
+ # and computing yields.
  '''
 
 import pandas as pd
 
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.auxiliary_functions import compare_dates, dates_are_equal
+from ficc.utils.diff_in_days import diff_in_days
 
 '''
 This function computes the next time a coupon is paid.
@@ -73,3 +75,55 @@ def get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, end_dat
         num_of_interest_payments += 1
         final_coupon_date += time_delta
     return num_of_interest_payments, final_coupon_date
+
+'''
+This function computes the price of a bond with multiple periodic interest 
+payments using MSRB Rule Book G-33, rule (b)(i)(B)(2). Comments with capital 
+letter symbols represent those same symbols seen in formula in MSRB rule book.
+'''
+def price_of_bond_with_multiple_periodic_interest_payments(cusip,    # can be used for debugging purposes
+                                                           settlement_date, 
+                                                           accrual_date,
+                                                           first_coupon_date, 
+                                                           prev_coupon_date, 
+                                                           next_coupon_date,    
+                                                           final_coupon_date, 
+                                                           end_date, 
+                                                           frequency,
+                                                           num_of_interest_payments, 
+                                                           yield_price,
+                                                           coupon, 
+                                                           RV, 
+                                                           time_delta, 
+                                                           last_period_accrues_from_date):
+    num_of_days_in_period = NUM_OF_DAYS_IN_YEAR / frequency
+    discount_rate = 1 + yield_price / frequency    # 1 + Y / M
+    final_coupon_date_to_end_date = diff_in_days(end_date, final_coupon_date)
+    prev_coupon_date_to_settlement_date = diff_in_days(settlement_date, prev_coupon_date)    # A
+    interest_due_at_end_date = coupon * final_coupon_date_to_end_date / NUM_OF_DAYS_IN_YEAR
+    
+    RV_and_interest_due_at_end_date = RV + interest_due_at_end_date
+    settlement_date_to_next_coupon_date = diff_in_days(next_coupon_date, settlement_date)    # E - A
+    settlement_date_to_next_coupon_date_frac = settlement_date_to_next_coupon_date / num_of_days_in_period    # (E - A) / E
+    final_coupon_date_to_end_date_frac = final_coupon_date_to_end_date / num_of_days_in_period
+    num_of_periods_from_settlement_date_to_end_date = num_of_interest_payments - 1 + settlement_date_to_next_coupon_date_frac + final_coupon_date_to_end_date_frac
+    
+    RV_and_interest_due_at_end_date_discounted = RV_and_interest_due_at_end_date / (discount_rate ** num_of_periods_from_settlement_date_to_end_date)
+    
+    # The following logic statements are necessary to address odd first and final coupons
+    if dates_are_equal(next_coupon_date, first_coupon_date):
+        num_of_days_in_current_interest_payment_period = diff_in_days(first_coupon_date, accrual_date)
+    elif compare_dates(settlement_date, last_period_accrues_from_date + time_delta) > 0:    # this logic has not been tested
+        num_of_days_in_current_interest_payment_period = 0
+    else:
+        num_of_days_in_current_interest_payment_period = num_of_days_in_period
+
+    coupon_payments_discounted_total = (coupon * num_of_days_in_current_interest_payment_period / NUM_OF_DAYS_IN_YEAR) / \
+                                       (discount_rate ** settlement_date_to_next_coupon_date_frac)
+    coupon_payment = coupon / frequency
+    for k in range(1, num_of_interest_payments):
+        coupon_payment_discounted = coupon_payment / (discount_rate ** (settlement_date_to_next_coupon_date_frac + k))
+        coupon_payments_discounted_total += coupon_payment_discounted
+        
+    accrued = coupon * prev_coupon_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR    # R * A / B
+    return RV_and_interest_due_at_end_date_discounted + coupon_payments_discounted_total - accrued

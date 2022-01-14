@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 17:54:00
  # @ Description: This file implements functions to handle interest payment
- frequency information of a bond.
+ # frequency information of a bond.
  '''
 
 from dateutil.relativedelta import relativedelta
