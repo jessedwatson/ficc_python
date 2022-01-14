@@ -1,8 +1,8 @@
 '''
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-10 14:56:49
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-01-13 17:39:00
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -68,3 +68,27 @@ def get_latest_trade_feature(x, feature):
         return recent_trade[-1]
     elif feature == 'par_traded':
         return recent_trade[1]
+
+'''
+This function compares two date objects whether they are in Timestamp or datetime.date. 
+The different types are causing a future warning. If date1 occurs after date2, return 1. 
+If date1 equals date2, return 0. Otherwise, return -1.
+'''
+def compare_dates(date1, date2):
+    if type(date1) == pd.Timestamp:
+        date1 = date1.date()
+    if type(date2) == pd.Timestamp:
+        date2 = date2.date()
+    
+    if date1 > date2:
+        return 1
+    elif date1 == date2:
+        return 0
+    elif date1 < date2:
+        return -1
+
+'''
+This function directly calls `compare_dates` to check if two dates are equal.
+'''
+def dates_are_equal(date1, date2):
+    return compare_dates(date1, date2) == 0
