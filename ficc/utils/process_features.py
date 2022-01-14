@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-20 11:39:29
+ # @ Modified time: 2022-01-14 12:31:43
  # @ Description:
  '''
 import numpy as np
@@ -53,7 +53,7 @@ def process_features(df):
     df.loc[:, 'last_size'] = df.trade_history.apply(get_latest_trade_feature, args=["par_traded"])
 
     # Adding features from MSRB rule 33G
-    df.loc[:, 'accured_days'] = df.apply(diff_in_days, calc_type="accural", axis=1)
+    df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type="accural", axis=1)
     df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
 
     df = fill_missing_values(df)

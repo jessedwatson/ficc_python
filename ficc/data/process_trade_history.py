@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-22 16:23:00
+ # @ Modified time: 2022-01-14 12:36:47
  # @ Description:
  '''
 
@@ -17,7 +17,7 @@ from ficc.utils.ficc_calc_end_date import calc_end_date
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
 
-def fetch_trade_data(query, client, SEQUENCE_LENGTH, PATH='data.pkl'):
+def fetch_trade_data(query, client, PATH='data.pkl'):
 
     if os.path.isfile(PATH):
         print(f"Data file found {PATH}, reading data from file")
@@ -28,13 +28,25 @@ def fetch_trade_data(query, client, SEQUENCE_LENGTH, PATH='data.pkl'):
         trade_dataframe = sqltodf(query,client)
         print("Saving data")
         trade_dataframe.to_pickle(PATH)
+
+    return trade_dataframe
+
+def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH):
+    print("Grabbing yield curve params")
+    try:
+        yield_curve_params(client)
+    except Exception as e:
+        print("Failed to grab yield curve parameters")
+        raise e
     
+    trade_dataframe = fetch_trade_data(query, client, PATH)
+
     #Dropping empty trades
     print("Dropping empty trades")
     trade_dataframe['empty_trade'] = trade_dataframe.recent.apply(lambda x: x[0]['rtrs_control_number'] is None)
     trade_dataframe = trade_dataframe[trade_dataframe.empty_trade == False]
 
-    print("Dropping trades less that 10000$")
+    print("Dropping trades less that $10,000")
     trade_dataframe = trade_dataframe[trade_dataframe.par_traded > 10000]
     #Taking only the most recent trades
     trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
@@ -51,18 +63,6 @@ def fetch_trade_data(query, client, SEQUENCE_LENGTH, PATH='data.pkl'):
     print('Trade history created')
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
-
-    return trade_dataframe
-
-def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH):
-    print("Grabbing vield curve params")
-    try:
-        yield_curve_params(client)
-    except Exception as e:
-        print("Failed to grab yield curve parameters")
-        raise e
-    
-    trade_dataframe = fetch_trade_data(query, client, SEQUENCE_LENGTH, PATH)
 
     print("Padding history")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES])
