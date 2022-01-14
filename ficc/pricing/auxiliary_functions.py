@@ -10,6 +10,21 @@ import pandas as pd
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.auxiliary_functions import compare_dates, dates_are_equal
 from ficc.utils.diff_in_days import diff_in_days
+from ficc.utils.frequency import get_frequency
+
+'''
+This function takes the dataframe from the bigquery and updates certain 
+fields to be the right type. Note that this function mutates the passed 
+in dataframe, so the function itself has no return value.
+'''
+def transform_reference_data(df):
+    """"""
+    df['interest_payment_frequency'] = df.apply(lambda trade: get_frequency(trade["interest_payment_frequency"]), axis=1)
+    df['coupon'] = df['coupon'].astype(float)
+    df['yield'] = df['yield'].astype(float)
+    df['deferred'] = (df.interest_payment_frequency == 0) | df.coupon == 0
+    
+    df['next_call_price'] = df['next_call_price'].astype(float)
 
 '''
 This function computes the next time a coupon is paid.
