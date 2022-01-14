@@ -5,6 +5,7 @@
  # given the yield.
  '''
 import pandas as pd
+import scipy.optimize as optimize
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.auxiliary_functions import compare_dates
@@ -27,19 +28,19 @@ M: frequency
 N: num_of_interest_payments
 R: coupon
 '''
-def get_yield(cusip, 
-              prev_coupon_date, 
-              first_coupon_date, 
-              next_coupon_date, 
-              end_date, 
-              settlement_date, 
-              accrual_date,
-              frequency, 
-              P, 
-              coupon, 
-              RV, 
-              time_delta, 
-              last_period_accrues_from_date):
+def _get_yield(cusip, 
+               prev_coupon_date, 
+               first_coupon_date, 
+               next_coupon_date, 
+               end_date, 
+               settlement_date, 
+               accrual_date,
+               frequency, 
+               P, 
+               coupon, 
+               RV, 
+               time_delta, 
+               last_period_accrues_from_date):
     settlement_date_to_end_date = diff_in_days(end_date, settlement_date)    # hold period days
 
     if coupon != 0 and frequency != 0:    # coupon paid every M periods
@@ -91,19 +92,19 @@ def compute_yield(trade):
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
 
-    get_yield_caller = lambda end_date, par: get_yield(trade.cusip, 
-                                                       my_prev_coupon_date, 
-                                                       trade.first_coupon_date, 
-                                                       my_next_coupon_date,
-                                                       end_date, 
-                                                       trade.settlement_date, 
-                                                       trade.accrual_date, 
-                                                       trade.interest_payment_frequency,
-                                                       trade.dollar_price, 
-                                                       trade.coupon, 
-                                                       par, 
-                                                       time_delta, 
-                                                       trade.last_period_accrues_from_date)
+    get_yield_caller = lambda end_date, par: _get_yield(trade.cusip, 
+                                                        my_prev_coupon_date, 
+                                                        trade.first_coupon_date, 
+                                                        my_next_coupon_date,
+                                                        end_date, 
+                                                        trade.settlement_date, 
+                                                        trade.accrual_date, 
+                                                        trade.interest_payment_frequency,
+                                                        trade.dollar_price, 
+                                                        trade.coupon, 
+                                                        par, 
+                                                        time_delta, 
+                                                        trade.last_period_accrues_from_date)
 
     par = 100
     if (not trade.is_called) and (not trade.is_callable):

@@ -18,7 +18,7 @@ from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_fi
 from ficc.pricing.called_trade import end_date_for_called_bond, par_for_called_bond
 
 '''
-This function is a helper function for `compute_yield`. This function calculates the price of a trade, where `yield_rate` 
+This function is a helper function for `compute_price`. This function calculates the price of a trade, where `yield_rate` 
 is a specific yield and `end_date` is a fixed repayment date. All dates must be valid relative to the settlement 
 date, as opposed to the trade date. Note that "yield" is a reserved word in Python and should not be used as the name 
 of a variable or column.
@@ -42,19 +42,19 @@ D: settlement_date_to_end_date
 H: prev_coupon_date_to_end_date
 R: coupon
 '''
-def get_price(cusip, 
-              prev_coupon_date, 
-              first_coupon_date, 
-              next_coupon_date, 
-              end_date, 
-              settlement_date, 
-              accrual_date, 
-              frequency, 
-              yield_rate, 
-              coupon, 
-              RV, 
-              time_delta, 
-              last_period_accrues_from_date):
+def _get_price(cusip, 
+               prev_coupon_date, 
+               first_coupon_date, 
+               next_coupon_date, 
+               end_date, 
+               settlement_date, 
+               accrual_date, 
+               frequency, 
+               yield_rate, 
+               coupon, 
+               RV, 
+               time_delta, 
+               last_period_accrues_from_date):
     if pd.isnull(end_date):
         return np.inf
     
@@ -125,19 +125,19 @@ def compute_price(trade):
     else:
         end_date = trade.maturity_date    # not used later
 
-    get_price_caller = lambda end_date, par: get_price(trade.cusip, 
-                                                       my_prev_coupon_date, 
-                                                       trade.first_coupon_date, 
-                                                       my_next_coupon_date, 
-                                                       end_date, 
-                                                       trade.settlement_date, 
-                                                       trade.accrual_date, 
-                                                       frequency, 
-                                                       trade['yield'], 
-                                                       trade.coupon, 
-                                                       par, 
-                                                       time_delta, 
-                                                       trade.last_period_accrues_from_date)
+    get_price_caller = lambda end_date, par: _get_price(trade.cusip, 
+                                                        my_prev_coupon_date, 
+                                                        trade.first_coupon_date, 
+                                                        my_next_coupon_date, 
+                                                        end_date, 
+                                                        trade.settlement_date, 
+                                                        trade.accrual_date, 
+                                                        frequency, 
+                                                        trade['yield'], 
+                                                        trade.coupon, 
+                                                        par, 
+                                                        time_delta, 
+                                                        trade.last_period_accrues_from_date)
 
     if trade.is_called:
         final = get_price_caller(end_date, par)
