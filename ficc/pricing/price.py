@@ -9,7 +9,7 @@ import pandas as pd
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.auxiliary_functions import compare_dates
-from ficc.utils.diff_in_days import diff_in_days
+from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.frequency import get_time_delta_from_interest_frequency
 from ficc.utils.truncation import trunc_and_round_price
 from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_final_coupon_date, \
@@ -62,8 +62,8 @@ def _get_price(cusip,
     
     if frequency == 0:
         # MSRB Rule Book G-33, rule (b)(i)(A)
-        accrual_date_to_settlement_date = diff_in_days(settlement_date, accrual_date)
-        settlement_date_to_end_date = diff_in_days(end_date, settlement_date)
+        accrual_date_to_settlement_date = diff_in_days_two_dates(settlement_date, accrual_date)
+        settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)
         base = (RV + (settlement_date_to_end_date / NUM_OF_DAYS_IN_YEAR)) / \
                (1 + (settlement_date_to_end_date - accrual_date_to_settlement_date) / NUM_OF_DAYS_IN_YEAR * yield_rate)
         accrued = coupon * accrual_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR
@@ -72,15 +72,15 @@ def _get_price(cusip,
         num_of_interest_payments, final_coupon_date = get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, 
                                                                                                          end_date, 
                                                                                                          time_delta)
-        prev_coupon_date_to_settlement_date = diff_in_days(settlement_date, prev_coupon_date)
+        prev_coupon_date_to_settlement_date = diff_in_days_two_dates(settlement_date, prev_coupon_date)
             
         num_of_days_in_period = NUM_OF_DAYS_IN_YEAR / frequency    # number of days in interest payment period 
         assert num_of_days_in_period == round(num_of_days_in_period)
          
         if compare_dates(end_date, next_coupon_date) <= 0:
             # MSRB Rule Book G-33, rule (b)(i)(B)(1)
-            settlement_date_to_end_date = diff_in_days(end_date, settlement_date)
-            final_coupon_date_to_end_date = diff_in_days(end_date, final_coupon_date)
+            settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)
+            final_coupon_date_to_end_date = diff_in_days_two_dates(end_date, final_coupon_date)
             interest_due_at_end_date = coupon * final_coupon_date_to_end_date / NUM_OF_DAYS_IN_YEAR
             base = (RV + coupon / frequency + interest_due_at_end_date) / \
                    (1 + (yield_rate / frequency) * settlement_date_to_end_date / num_of_days_in_period)

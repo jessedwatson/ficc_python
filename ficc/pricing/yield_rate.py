@@ -9,7 +9,7 @@ import scipy.optimize as optimize
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.auxiliary_functions import compare_dates
-from ficc.utils.diff_in_days import diff_in_days
+from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.frequency import get_time_delta_from_interest_frequency
 from ficc.utils.truncation import trunc_and_round_yield
 from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_final_coupon_date, \
@@ -41,14 +41,14 @@ def _get_yield(cusip,
                RV, 
                time_delta, 
                last_period_accrues_from_date):
-    settlement_date_to_end_date = diff_in_days(end_date, settlement_date)    # hold period days
+    settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)    # hold period days
 
     if coupon != 0 and frequency != 0:    # coupon paid every M periods
         num_of_interest_payments, final_coupon_date = get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, 
                                                                                                          end_date, 
                                                                                                          time_delta)
-        prev_coupon_date_to_settlement_date = diff_in_days(settlement_date, prev_coupon_date)    # accrued days from beginning of the interest payment period, used to be labelled `A`
-        prev_coupon_date_to_end_date = diff_in_days(end_date, prev_coupon_date)    # accrual days for final paid coupon
+        prev_coupon_date_to_settlement_date = diff_in_days_two_dates(settlement_date, prev_coupon_date)    # accrued days from beginning of the interest payment period, used to be labelled `A`
+        prev_coupon_date_to_end_date = diff_in_days_two_dates(end_date, prev_coupon_date)    # accrual days for final paid coupon
 
         if compare_dates(end_date, next_coupon_date) <= 0:
             # MSRB Rule Book G-33, rule (b)(ii)(B)(1)

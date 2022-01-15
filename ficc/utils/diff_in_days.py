@@ -9,6 +9,27 @@
 
 import pandas as pd
 
+'''
+This function calculates the difference in days using the 360/30 
+convention specified in MSRB Rule Book G-33, rule (e). 
+Note that we only handle the 360/30 convention for date calculations.
+'''
+def diff_in_days_two_dates(end_date, start_date, convention="360/30"):
+    if convention != "360/30":
+        print("unknown convention", convention)
+        return None
+
+    Y2 = end_date.year
+    Y1 = start_date.year
+    M2 = end_date.month
+    M1 = start_date.month
+    D2 = end_date.day
+    D1 = start_date.day
+    D1 = min(D1, 30)
+    if D1 == 30: 
+        D2 = min(D2, 30)
+    return (Y2 - Y1) * 360 + (M2 - M1) * 30 + (D2 - D1)
+
 def diff_in_days(trade,convention="360/30",**kwargs):
     #See MSRB Rule 33-G for details
     if 'calc_type' in kwargs:
@@ -19,16 +40,4 @@ def diff_in_days(trade,convention="360/30",**kwargs):
             start_date = trade.dated_date
             end_date = trade.settlement_date
 
-    Y2 = end_date.year
-    Y1 = start_date.year
-    M2 = end_date.month
-    M1 = start_date.month
-    D2 = end_date.day #(end_date - relativedelta(days=1)).day 
-    D1 = start_date.day
-    if convention == "360/30":
-        D1 = min(D1, 30)
-        if D1 == 30: D2 = min(D2,30)
-        difference_in_days = (Y2 - Y1) * 360 + (M2 - M1) * 30 + (D2 - D1)
-    else: 
-        print("unknown convention", convention)
-    return difference_in_days
+    return diff_in_days_two_dates(end_date, start_date, convention)
