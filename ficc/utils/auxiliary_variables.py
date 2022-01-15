@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
  # @ Modified by: Mitas Ray
- # @ Modified time: 2021-12-20 23:07:00
+ # @ Modified time: 2022-01-14 23:07:00
  # @ Description:
  '''
 
@@ -99,7 +99,7 @@ NON_CAT_FEATURES = ['quantity',
                     'issue_price', 
                     'orig_principal_amount',
                     'max_amount_outstanding',
-                    'accured_days',
+                    'accrued_days',
                     'days_in_interest_payment']
 
 TRADE_HISTORY = ['trade_history']

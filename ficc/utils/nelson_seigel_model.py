@@ -2,7 +2,7 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-16 14:14:29
+ # @ Modified time: 2022-01-13 20:35:28
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
@@ -122,7 +122,7 @@ def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_par
         const, exponential, laguerre = nelson_siegel_daily_coef.iloc[0, :]
     else:
         print(target_date)
-        raise "Error"
+        raise Exception("Nelson-Seigel coefficeints for the selected dates do not exist")
         sys.exit()
    
     if len(scaler_daily_parameters)==1:
@@ -131,7 +131,7 @@ def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_par
         error = 'Multiple rows for target date in standardscaler_parameters_daily, taking first one. Check bigquery table.'
         exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters.iloc[0, :]
     else:
-        print("Failed to grab scalar coefficient")
+        raise Exception("Failed to grab scalar coefficient, they do not exist")
         sys.exit()
     
     #If the function gets this far, the values are correct. A prediction is made and returned appropriately.
