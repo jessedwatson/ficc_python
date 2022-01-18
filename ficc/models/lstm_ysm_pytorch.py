@@ -52,11 +52,8 @@ class LSTMYieldSpreadModel(pl.LightningModule):
             nn.Linear(600, 1),
         )
 
-    def forward(self, *inputs):
-        if len(inputs) == 1 and (isinstance(inputs[0], tuple) or isinstance(inputs[0], list)):
-            inputs = inputs[0]
-
-        trade_history = self.trade_history_lstm(inputs[0])
+    def forward(self, trade_history, noncat, *categorical):
+        trade_history = self.trade_history_lstm(trade_history)
         
         # [0] to use the output vector, LSTM returns output vector and hidden state as a tuple
         trade_history = trade_history[0]
@@ -64,16 +61,17 @@ class LSTMYieldSpreadModel(pl.LightningModule):
         # PyTorch returns the output for each timestep, we only use the final one
         trade_history = trade_history[:, -1, :]
 
-        for i in range(self.CATEGORICAL_START, len(inputs)):
-            inputs[i] = self.embed[i-self.CATEGORICAL_START](inputs[i])
+        if len(categorical) == 1 and (isinstance(categorical[0], tuple) or isinstance(categorical[0], list)):
+            categorical = categorical[0]
+        categorical = [self.embed[i](categorical[i]) for i in range(len(categorical))]
 
-        tabular = self.tabular_model(torch.cat(inputs[1:], dim=-1))
+        tabular = self.tabular_model(torch.cat([noncat] + categorical, dim=-1))
 
         return self.final_stage(torch.cat([trade_history, tabular], dim=-1))
 
     def training_step(self, batch, batch_idx):
         x, y = batch[:-1], batch[-1].squeeze()
-        z = self.forward(x).squeeze()
+        z = self.forward(x[0], x[1], x[2:]).squeeze()
         loss = F.mse_loss(y, z)
 
         self.log("train_loss", loss.item())
@@ -82,7 +80,7 @@ class LSTMYieldSpreadModel(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch[:-1], batch[-1].squeeze()
-        z = self.forward(x).squeeze()
+        z = self.forward(x[0], x[1], x[2:]).squeeze()
         loss = F.mse_loss(y, z)
 
         self.log("val_loss", loss.item())
