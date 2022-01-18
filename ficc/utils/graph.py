@@ -13,7 +13,7 @@ def _recent_trade_data_subset(df, N):
         shape=(len(sorted_df), 1 + N * 3), dtype=np.float32)
 
     recent_trades = []
-    for idx, (i, row) in tqdm(enumerate(sorted_df.iterrows()), total=len(sorted_df.index)):
+    for idx, (i, row) in enumerate(sorted_df.iterrows()):
         augmented_data[idx, 0] = i
         for j, neighbor in enumerate(recent_trades):
             augmented_data[idx, 1 + j * 3 + 0] = neighbor['yield_spread']
@@ -33,7 +33,7 @@ def append_recent_trade_data(df, N, categories=None):
 
     if categories is not None:
         augmented_data = []
-        for _, subcategory_df in df.groupby(categories):
+        for _, subcategory_df in tqdm(df.groupby(categories)):
             augmented_data.append(
                 _recent_trade_data_subset(subcategory_df, N))
 
