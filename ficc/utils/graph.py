@@ -6,7 +6,7 @@ from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
 
 
-def _recent_trade_data_subset(df, orig_df, N):
+def _recent_trade_data_subset(df, N):
     sorted_df = df.sort_values(by='trade_datetime')
 
     augmented_data = np.zeros(
@@ -28,14 +28,14 @@ def _recent_trade_data_subset(df, orig_df, N):
     return augmented_data
 
 
-def append_recent_trade_data(df, N, categories=None,):
+def append_recent_trade_data(df, N, categories=None):
     assert 'trade_datetime' in df.columns, "trade_datetime column is required"
 
     if categories is not None:
         augmented_data = []
         for _, subcategory_df in df.groupby(categories):
             augmented_data.append(
-                _recent_trade_data_subset(subcategory_df, df, N))
+                _recent_trade_data_subset(subcategory_df, N))
 
         augmented_data = np.concatenate(augmented_data, axis=0)
     else:
@@ -45,10 +45,9 @@ def append_recent_trade_data(df, N, categories=None,):
     augmented_data = augmented_data[augmented_data[:, 0].argsort()]
 
     for i in range(N):
-        df.loc[:,
-               f'yield_spread_recent_{i}'] = augmented_data[:, 1 + i * 3 + 0]
-        df.loc[:, f'seconds_ago_recent_{i}'] = augmented_data[:, 1 + i * 3 + 0]
-        df.loc[:, f'par_traded_recent_{i}'] = augmented_data[:, 1 + i * 3 + 0]
+        df.loc[:, f'yield_spread_recent_{i}'] = augmented_data[:, 1 + i * 3 + 0]
+        df.loc[:, f'seconds_ago_recent_{i}'] = augmented_data[:, 1 + i * 3 + 1]
+        df.loc[:, f'par_traded_recent_{i}'] = augmented_data[:, 1 + i * 3 + 2]
 
 
 def _temporal_adjacency_subset(df, N=None):
