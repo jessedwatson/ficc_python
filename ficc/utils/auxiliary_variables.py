@@ -1,10 +1,12 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-14 13:05:27
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-01-14 23:07:00
  # @ Description:
  '''
+
+NUM_OF_DAYS_IN_YEAR = 360
 
 COUPON_FREQUENCY_DICT = {0:"Unknown",
                         1:"Semiannually",
@@ -42,25 +44,26 @@ COUPON_FREQUENCY_DICT = {0:"Unknown",
                         33:"Under certain circumstances",
                         34:"Every 15 years",
                         35:"Custom",
-                        36:"Single Interest Payment"
-                        }
+                        36:"Single Interest Payment"}
 
-COUPON_FREQUENCY_TYPE = {"Unknown":1e6,
+LARGE_NUMBER = 1e6
+
+COUPON_FREQUENCY_TYPE = {"Unknown":LARGE_NUMBER,
                          "Semiannually":2,
                          "Monthly":12,
                          "Annually":1,
                          "Weekly":52,
                          "Quarterly":4,
                          "Every 2 years":0.5,
-                         "Every 3 years":0.33333,
+                         "Every 3 years":1/3,
                          "Every 4 years":0.25,
                          "Every 5 years":0.2,
                          "Every 7 years":1/7,
                          "Every 8 years":1/8,
                          "Changeable":44,
                          "Daily":360,
-                         "Interest at maturity":1e6,
-                         "Not Applicable":1e6}
+                         "Interest at maturity":0,
+                         "Not Applicable":LARGE_NUMBER}
 
 IDENTIFIERS = ['rtrs_control_number', 'cusip']
 
