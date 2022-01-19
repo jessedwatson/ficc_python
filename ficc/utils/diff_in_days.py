@@ -30,14 +30,16 @@ def diff_in_days_two_dates(end_date, start_date, convention="360/30"):
         D2 = min(D2, 30)
     return (Y2 - Y1) * 360 + (M2 - M1) * 30 + (D2 - D1)
 
-def diff_in_days(trade,convention="360/30",**kwargs):
+def diff_in_days(trade, convention="360/30", **kwargs):
     #See MSRB Rule 33-G for details
     if 'calc_type' in kwargs:
         if kwargs['calc_type'] == 'accural' and not pd.isnull(trade.accrual_date):
             start_date = trade.accrual_date
             end_date = trade.settlement_date
         else:
-            start_date = trade.dated_date
-            end_date = trade.settlement_date
+            raise ValueError('Invalid arguments')
+    else:
+        start_date = trade.dated_date
+        end_date = trade.settlement_date
 
     return diff_in_days_two_dates(end_date, start_date, convention)

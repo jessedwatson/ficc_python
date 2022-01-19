@@ -28,19 +28,19 @@ M: frequency
 N: num_of_interest_payments
 R: coupon
 '''
-def _get_yield(cusip, 
-               prev_coupon_date, 
-               first_coupon_date, 
-               next_coupon_date, 
-               end_date, 
-               settlement_date, 
-               accrual_date,
-               frequency, 
-               P, 
-               coupon, 
-               RV, 
-               time_delta, 
-               last_period_accrues_from_date):
+def get_yield(cusip, 
+              prev_coupon_date, 
+              first_coupon_date, 
+              next_coupon_date, 
+              end_date, 
+              settlement_date, 
+              accrual_date,
+              frequency, 
+              price, 
+              coupon, 
+              RV, 
+              time_delta, 
+              last_period_accrues_from_date):
     settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)    # hold period days
 
     if coupon != 0 and frequency != 0:    # coupon paid every M periods
@@ -54,25 +54,25 @@ def _get_yield(cusip,
             # MSRB Rule Book G-33, rule (b)(ii)(B)(1)
             # Recall: number of interest payments per year * number of days in interest payment period = number of days in a year, i.e., E * M = NUM_OF_DAYS_IN_YEAR
             yield_estimate = (((RV + (coupon * prev_coupon_date_to_end_date / NUM_OF_DAYS_IN_YEAR)) / \
-                               (P + (coupon * prev_coupon_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR))) - 1) * \
+                               (price + (coupon * prev_coupon_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR))) - 1) * \
                              (NUM_OF_DAYS_IN_YEAR / settlement_date_to_end_date)
         else:
             # MSRB Rule Book G-33, rule (b)(ii)(B)(2)
-            ytm_func = lambda Y: -P + price_of_bond_with_multiple_periodic_interest_payments(cusip, 
-                                                                                             settlement_date, 
-                                                                                             accrual_date, 
-                                                                                             first_coupon_date, 
-                                                                                             prev_coupon_date, 
-                                                                                             next_coupon_date, 
-                                                                                             final_coupon_date, 
-                                                                                             end_date,  
-                                                                                             frequency,
-                                                                                             num_of_interest_payments, 
-                                                                                             Y,
-                                                                                             coupon, 
-                                                                                             RV, 
-                                                                                             time_delta, 
-                                                                                             last_period_accrues_from_date)
+            ytm_func = lambda Y: -price + price_of_bond_with_multiple_periodic_interest_payments(cusip, 
+                                                                                                 settlement_date, 
+                                                                                                 accrual_date, 
+                                                                                                 first_coupon_date, 
+                                                                                                 prev_coupon_date, 
+                                                                                                 next_coupon_date, 
+                                                                                                 final_coupon_date, 
+                                                                                                 end_date,  
+                                                                                                 frequency,
+                                                                                                 num_of_interest_payments, 
+                                                                                                 Y,
+                                                                                                 coupon, 
+                                                                                                 RV, 
+                                                                                                 time_delta, 
+                                                                                                 last_period_accrues_from_date)
             try:
                 guess = 0.01
                 yield_estimate = optimize.newton(ytm_func, guess, maxiter=100)
@@ -81,7 +81,7 @@ def _get_yield(cusip,
                 return None
     elif coupon == 0:    # THIS LOGIC IS CURRENTLY UNTESTED
         # MSRB Rule Book G-33, rule (b)(ii)(A), since coupon == 0, the formula is simplified with R == 0
-        yield_estimate = ((RV - P) / P) * (NUM_OF_DAYS_IN_YEAR / settlement_date_to_end_date)
+        yield_estimate = ((RV - price) / price) * (NUM_OF_DAYS_IN_YEAR / settlement_date_to_end_date)
     return trunc_and_round_yield(yield_estimate * 100)
 
 '''
@@ -92,19 +92,19 @@ def compute_yield(trade):
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
 
-    get_yield_caller = lambda end_date, par: _get_yield(trade.cusip, 
-                                                        my_prev_coupon_date, 
-                                                        trade.first_coupon_date, 
-                                                        my_next_coupon_date,
-                                                        end_date, 
-                                                        trade.settlement_date, 
-                                                        trade.accrual_date, 
-                                                        trade.interest_payment_frequency,
-                                                        trade.dollar_price, 
-                                                        trade.coupon, 
-                                                        par, 
-                                                        time_delta, 
-                                                        trade.last_period_accrues_from_date)
+    get_yield_caller = lambda end_date, par: get_yield(trade.cusip, 
+                                                       my_prev_coupon_date, 
+                                                       trade.first_coupon_date, 
+                                                       my_next_coupon_date,
+                                                       end_date, 
+                                                       trade.settlement_date, 
+                                                       trade.accrual_date, 
+                                                       trade.interest_payment_frequency,
+                                                       trade.dollar_price, 
+                                                       trade.coupon, 
+                                                       par, 
+                                                       time_delta, 
+                                                       trade.last_period_accrues_from_date)
 
     par = 100
     if (not trade.is_called) and (not trade.is_callable):

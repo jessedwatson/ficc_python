@@ -42,19 +42,19 @@ D: settlement_date_to_end_date
 H: prev_coupon_date_to_end_date
 R: coupon
 '''
-def _get_price(cusip, 
-               prev_coupon_date, 
-               first_coupon_date, 
-               next_coupon_date, 
-               end_date, 
-               settlement_date, 
-               accrual_date, 
-               frequency, 
-               yield_rate, 
-               coupon, 
-               RV, 
-               time_delta, 
-               last_period_accrues_from_date):
+def get_price(cusip, 
+              prev_coupon_date, 
+              first_coupon_date, 
+              next_coupon_date, 
+              end_date, 
+              settlement_date, 
+              accrual_date, 
+              frequency, 
+              yield_rate, 
+              coupon, 
+              RV, 
+              time_delta, 
+              last_period_accrues_from_date):
     if pd.isnull(end_date):
         return np.inf
     
@@ -125,19 +125,19 @@ def compute_price(trade):
     else:
         end_date = trade.maturity_date    # not used later
 
-    get_price_caller = lambda end_date, par: _get_price(trade.cusip, 
-                                                        my_prev_coupon_date, 
-                                                        trade.first_coupon_date, 
-                                                        my_next_coupon_date, 
-                                                        end_date, 
-                                                        trade.settlement_date, 
-                                                        trade.accrual_date, 
-                                                        frequency, 
-                                                        trade['yield'], 
-                                                        trade.coupon, 
-                                                        par, 
-                                                        time_delta, 
-                                                        trade.last_period_accrues_from_date)
+    get_price_caller = lambda end_date, par: get_price(trade.cusip, 
+                                                       my_prev_coupon_date, 
+                                                       trade.first_coupon_date, 
+                                                       my_next_coupon_date, 
+                                                       end_date, 
+                                                       trade.settlement_date, 
+                                                       trade.accrual_date, 
+                                                       frequency, 
+                                                       trade['yield'], 
+                                                       trade.coupon, 
+                                                       par, 
+                                                       time_delta, 
+                                                       trade.last_period_accrues_from_date)
 
     if trade.is_called:
         final = get_price_caller(end_date, par)

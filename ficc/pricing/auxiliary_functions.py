@@ -14,8 +14,8 @@ from ficc.utils.frequency import get_frequency
 
 '''
 This function takes the dataframe from the bigquery and updates certain 
-fields to be the right type. Note that this function mutates the passed 
-in dataframe, so the function itself has no return value.
+fields to be the right type. Note that this function mutates the fields 
+passed in dataframe, so the function itself has no return value.
 '''
 def transform_reference_data(df):
     df['interest_payment_frequency'] = df.apply(lambda trade: get_frequency(trade["interest_payment_frequency"]), axis=1)
@@ -30,6 +30,9 @@ This function computes the next time a coupon is paid.
 Note that this function could return a `next_coupon_date` that is after the end_date. 
 This does not create a problem since we deal with the final coupon separately in 
 `price_of_bond_with_multiple_periodic_interest_payments`.
+Note that it may be that this function is not necessary because the ICE field 
+`next_coupon_date` is never null when there is a "next coupon date." In the 
+future, we should confirm whether this is the case.
 '''
 def get_next_coupon_date(first_coupon_date, start_date, time_delta):
     date = first_coupon_date
@@ -43,6 +46,9 @@ def get_next_coupon_date(first_coupon_date, start_date, time_delta):
 '''
 This function computes the previous time a coupon was paid for this bond 
 by relating it to the next coupon date.
+Note that it may be that this function is not necessary because the ICE field 
+`previous_coupon_date` is never null when `next_coupon_date` exists. In the 
+future, we should confirm whether this is the case.
 '''
 def get_previous_coupon_date(first_coupon_date, start_date, accrual_date, time_delta, next_coupon_date=None):
     if next_coupon_date == None:
@@ -78,6 +84,8 @@ This function returns the number of interest payments and the final coupon
 date based on the next coupon date, the end date, and the gap between coupon 
 payments. This function returns both together because one is always a 
 byproduct of computing the other.
+Note that the special case of an odd final coupon is handled below in 
+`price_of_bond_with_multiple_periodic_interest_payments`.
 '''
 def get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, end_date, time_delta): 
     if compare_dates(next_coupon_date, end_date) > 0:

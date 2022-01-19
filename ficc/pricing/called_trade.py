@@ -25,5 +25,5 @@ def par_for_called_bond(trade, default_par):
     elif not pd.isnull(trade.next_call_price):
         par = trade.next_call_price
     else:
-        print(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) is called, but no refund price or next call price.")    # printing instead of raising an error to not disrupt processing large quantities of trades
+        raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) is called, but no refund price or next call price.")
     return par
