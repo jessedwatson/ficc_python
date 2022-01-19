@@ -1,3 +1,4 @@
+from collections import deque
 import multiprocessing as mp
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ def _recent_trade_data_subset(df, N):
     augmented_data = np.zeros(
         shape=(len(sorted_df), 1 + N * 3), dtype=np.float32)
 
-    recent_trades = []
+    recent_trades = deque([])
     for idx, (i, row) in enumerate(sorted_df.iterrows()):
         augmented_data[idx, 0] = i
         for j, neighbor in enumerate(recent_trades):
@@ -23,7 +24,7 @@ def _recent_trade_data_subset(df, N):
 
         recent_trades.append(row)
         if len(recent_trades) > N:
-            recent_trades = recent_trades[1:]
+            recent_trades = recent_trades.popleft()
 
     return augmented_data
 
