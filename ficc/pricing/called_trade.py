@@ -7,7 +7,16 @@
 import pandas as pd
 
 '''
-This function provides the end date for a called bond.
+This function provides the end date for a called bond. 
+The variable `called_redemption_date` is a field that 
+we create in the notebook create_ICE_flat. The assumptions 
+that went into the creation of this field are faulty, in 
+particular, it doesn't correctly deal with bonds that have 
+been escrowed to maturity or pre-refunded but for which the 
+call options have not been voided or defeased. The correct 
+ICE field is `refund_date`, which corresponds to `refund_price` 
+below. At some future date, we should change this module to 
+correctly reflect this.
 '''
 def end_date_for_called_bond(trade):
     if not pd.isnull(trade.called_redemption_date):

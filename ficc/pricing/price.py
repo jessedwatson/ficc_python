@@ -60,6 +60,8 @@ def get_price(cusip,
     
     yield_rate = yield_rate / 100
     
+    # Right now we do not disambiguate zero coupon from interest at maturity. More specfically, 
+    # we should add logic that separates the cases of MSRB Rule Book G-33, rule (b) and rule (c)
     if frequency == 0:
         # MSRB Rule Book G-33, rule (b)(i)(A)
         accrual_date_to_settlement_date = diff_in_days_two_dates(settlement_date, accrual_date)
