@@ -111,7 +111,7 @@ def get_price(cusip,
 This function computes the price of a trade. For bonds that have not been called, the price is the lowest of
 three present values: to the next call date (which may be above par), to the next par call date, and to maturity.
 '''
-def compute_price(trade):
+def compute_price(trade, yield_column_name='yield'):
     frequency = trade.interest_payment_frequency
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
@@ -135,7 +135,7 @@ def compute_price(trade):
                                                        trade.settlement_date, 
                                                        trade.accrual_date, 
                                                        frequency, 
-                                                       trade['yield'], 
+                                                       trade[yield_column_name], 
                                                        trade.coupon, 
                                                        par, 
                                                        time_delta, 
