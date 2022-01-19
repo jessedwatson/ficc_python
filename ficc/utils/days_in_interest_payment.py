@@ -7,7 +7,10 @@
  #  the number of days in the interest payment period
  '''
 
-from ficc.utils.auxiliary_variables import COUPON_FREQUENCY_TYPE
+from ficc.utils.auxiliary_variables import COUPON_FREQUENCY_TYPE, LARGE_NUMBER
 
 def days_in_interest_payment(trade):
-    return 360 / COUPON_FREQUENCY_TYPE[trade['interest_payment_frequency']]
+    frequency = COUPON_FREQUENCY_TYPE[trade['interest_payment_frequency']]
+    if frequency == 0:
+        frequency = LARGE_NUMBER
+    return 360 / frequency

@@ -44,10 +44,11 @@ COUPON_FREQUENCY_DICT = {0:"Unknown",
                         33:"Under certain circumstances",
                         34:"Every 15 years",
                         35:"Custom",
-                        36:"Single Interest Payment"
-                        }
+                        36:"Single Interest Payment"}
 
-COUPON_FREQUENCY_TYPE = {"Unknown":1e6,
+LARGE_NUMBER = 1e6
+
+COUPON_FREQUENCY_TYPE = {"Unknown":LARGE_NUMBER,
                          "Semiannually":2,
                          "Monthly":12,
                          "Annually":1,
@@ -61,8 +62,8 @@ COUPON_FREQUENCY_TYPE = {"Unknown":1e6,
                          "Every 8 years":1/8,
                          "Changeable":44,
                          "Daily":360,
-                         "Interest at maturity":1e6,
-                         "Not Applicable":1e6}
+                         "Interest at maturity":0,
+                         "Not Applicable":LARGE_NUMBER}
 
 IDENTIFIERS = ['rtrs_control_number', 'cusip']
 
