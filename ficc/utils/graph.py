@@ -52,21 +52,25 @@ def append_recent_trade_data(df, N, categories=None):
         df.loc[:, f'par_traded_recent_{i}'] = augmented_data[:, 1 + i * 3 + 2]
 
 
-def _recent_trade_data_subset_similar(df, N, category):
+def _recent_trade_data_subset_similar(df, N, categories, header):
     sorted_df = df.sort_values(by='trade_datetime')
 
-    augmented_data = np.zeros(
-        shape=(len(sorted_df), 1 + N * 3), dtype=np.float32)
+    len_augmented_data = sum([tuple(row[categories]) == header for _, row in sorted_df.iterrows()])
+
+    augmented_data = np.zeros(shape=(len_augmented_data, 1 + N * 3), dtype=np.float32)
 
     recent_trades = deque([])
+    idx_adjustment = 0
     for idx, (i, row) in enumerate(sorted_df.iterrows()):
-        augmented_data[idx, 0] = i
-        for j, neighbor in enumerate(recent_trades):
-
-            augmented_data[idx, 1 + j * 3 + 0] = neighbor['yield_spread']
-            augmented_data[idx, 1 + j * 3 + 1] = (
-                row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
-            augmented_data[idx, 1 + j * 3 + 2] = neighbor['par_traded']
+        if tuple(row[categories]) == header:
+            augmented_data[idx - idx_adjustment, 0] = i
+            
+            for j, neighbor in enumerate(recent_trades):
+                augmented_data[idx - idx_adjustment, 1 + j * 3 + 0] = neighbor['yield_spread']
+                augmented_data[idx - idx_adjustment, 1 + j * 3 + 1] = (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
+                augmented_data[idx - idx_adjustment, 1 + j * 3 + 2] = neighbor['par_traded']
+        else:
+            idx_adjustment += 1
 
         recent_trades.append(row)
         if len(recent_trades) > N:
@@ -75,10 +79,28 @@ def _recent_trade_data_subset_similar(df, N, category):
     return augmented_data
 
 
-def append_recent_trade_data_similar(df, N, categories, similarity_function):
+def append_recent_trade_data_similar(df, N, categories, is_similar):
+    '''
+    `is_similar` is a similarity function which takes in two tuples of categories and 
+    returns True iff the categories are considered similar by the function.
+    '''
     augmented_data = []
-    for _, subcategory_df in tqdm(df.groupby(categories)):
-        augmented_data.append(_recent_trade_data_subset_similar(subcategory_df, N))
+    
+    subcategory_headers = []
+    subcategory_dict = dict()
+    for subcategory_header, subcategory_df in tqdm(df.groupby(categories)):
+        subcategory_headers.append(subcategory_header)
+        subcategory_dict[subcategory_header] = subcategory_df
+    
+    for subcategory_header in subcategory_headers:
+        related_subcategories = []
+
+        for other_subcategory_header in subcategory_headers:
+            if is_similar(subcategory_header, other_subcategory_header):
+                related_subcategories.append(subcategory_dict[other_subcategory_header])
+        related_subcategories_df = pd.concat(related_subcategories)
+
+        augmented_data.append(_recent_trade_data_subset_similar(related_subcategories_df, N, categories, subcategory_header))
 
     augmented_data = np.concatenate(augmented_data, axis=0)
 
