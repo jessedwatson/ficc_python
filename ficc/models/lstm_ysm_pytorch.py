@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,12 +7,13 @@ import pytorch_lightning as pl
 from ficc.models.registration import register_model
 
 
-class LSTMYieldSpreadModel(pl.LightningModule):
+class LSTMCore(pl.LightningModule):
     def __init__(
         self,
         num_trade_history_features,
         non_categorical_size,
         category_sizes,
+        num_outputs=1
     ):
         super().__init__()
 
@@ -23,7 +25,6 @@ class LSTMYieldSpreadModel(pl.LightningModule):
             batch_first=True,
         )
 
-        self.CATEGORICAL_START = 2
         self.embed = nn.ModuleList()
         tabular_size = len(non_categorical_size)
         for cat_name in category_sizes:
@@ -49,12 +50,12 @@ class LSTMYieldSpreadModel(pl.LightningModule):
             nn.Linear(250, 600),
             nn.Tanh(),
             nn.BatchNorm1d(600),
-            nn.Linear(600, 1),
+            nn.Linear(600, num_outputs),
         )
 
     def forward(self, trade_history, noncat, *categorical):
         trade_history = self.trade_history_lstm(trade_history)
-        
+
         # [0] to use the output vector, LSTM returns output vector and hidden state as a tuple
         trade_history = trade_history[0]
 
@@ -63,11 +64,25 @@ class LSTMYieldSpreadModel(pl.LightningModule):
 
         if len(categorical) == 1 and (isinstance(categorical[0], tuple) or isinstance(categorical[0], list)):
             categorical = categorical[0]
-        categorical = [self.embed[i](categorical[i]) for i in range(len(categorical))]
+        categorical = [self.embed[i](categorical[i])
+                       for i in range(len(categorical))]
 
         tabular = self.tabular_model(torch.cat([noncat] + categorical, dim=-1))
 
         return self.final_stage(torch.cat([trade_history, tabular], dim=-1))
+
+
+class LSTMYieldSpreadModel(LSTMCore):
+    def __init__(
+        self,
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes,
+    ):
+        super().__init__(
+            num_trade_history_features,
+            non_categorical_size,
+            category_sizes)
 
     def training_step(self, batch, batch_idx):
         x, y = batch[:-1], batch[-1].squeeze()
@@ -86,6 +101,58 @@ class LSTMYieldSpreadModel(pl.LightningModule):
         self.log("val_loss", loss.item())
         self.log("val_mae", torch.abs(z - y).mean().item())
         return loss
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
+        return optimizer
+
+
+class LSTMYieldSpreadDistributionModel(LSTMCore):
+    def __init__(
+        self,
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes,
+    ):
+        super().__init__(
+            num_trade_history_features,
+            non_categorical_size,
+            category_sizes,
+            num_outputs=2)
+
+
+    def forward(self, trade_history, noncat, *categorical):
+        log_scale = super().forward(trade_history, noncat, *categorical)
+
+        return log_scale[:, 0], log_scale[:, 1].clamp(min=1e-6)
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch[:-1], batch[-1].squeeze()
+        loc, scale = self.forward(x[0], x[1], x[2:])
+
+        # Compute NLL
+        var = (scale ** 2)
+        log_scale = scale.log()
+        log_prob = -((y - loc) ** 2) / (2 * var) - log_scale - math.log(math.sqrt(2 * math.pi))
+        nll_loss = -log_prob.mean()
+
+        self.log("train_loss", nll_loss.item())
+        self.log("train_mae", torch.abs(loc - y).mean().item())
+        return nll_loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch[:-1], batch[-1].squeeze()
+        loc, scale = self.forward(x[0], x[1], x[2:])
+
+        # Compute NLL
+        var = (scale ** 2)
+        log_scale = scale.log()
+        log_prob = -((y - loc) ** 2) / (2 * var) - log_scale - math.log(math.sqrt(2 * math.pi))
+        nll_loss = -log_prob.mean()
+
+        self.log("val_loss", nll_loss.item())
+        self.log("val_mae", torch.abs(loc - y).mean().item())
+        return nll_loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
@@ -121,3 +188,18 @@ def build_lstm_model_v1(
 
 register_model("lstm_yield_spread_model_pytorch", 1, build_lstm_model_v1,
                "Initial LSTM-based yield spread model")
+
+
+def build_lstm_dist_model_v1(
+        hp,
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes):
+    return LSTMYieldSpreadDistributionModel(
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes)
+
+
+register_model("lstm_yield_spread_dist_model_pytorch", 1, build_lstm_dist_model_v1,
+               "LSTM-based yield spread distribution model")
