@@ -1,8 +1,8 @@
 '''
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-01-13 17:39:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-01-20 15:48:15
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -52,7 +52,7 @@ def convert_dates(df):
 This function z 
 '''
 def process_ratings(df):
-    df = df[df.sp_long.isin(['A-','A','A+','AA-','AA','AA+','AAA','NR'])] 
+    df = df[df.sp_long.isin(['BBB+','A-','A','A+','AA-','AA','AA+','AAA','AAA+','AAA-','NR'])] 
     df['rating'] = df['sp_long']
     return df
     

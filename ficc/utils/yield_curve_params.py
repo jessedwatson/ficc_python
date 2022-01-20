@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 10:40:14
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-17 12:47:56
+ # @ Modified time: 2022-01-20 15:48:53
  # @ Description:
  '''
 
@@ -23,3 +23,8 @@ def yield_curve_params(client):
     globals.scalar_params.set_index("date", drop=True, inplace=True)
     globals.scalar_params.index = pd.to_datetime(globals.scalar_params.index)
     globals.nelson_params.index = pd.to_datetime(globals.nelson_params.index)
+
+    globals.nelson_params.drop_duplicates(inplace=True)
+    globals.scalar_params.drop_duplicates(inplace=True)
+
+    
