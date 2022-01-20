@@ -14,7 +14,11 @@ This function returns the frequency of coupon payments based on
 the interest payment frequency identifier in the bond reference data.
 '''
 def get_frequency(identifier):
-    return COUPON_FREQUENCY_TYPE[COUPON_FREQUENCY_DICT[identifier]]
+    # check whether the frequency dict has already been applied to the identifier
+    if type(identifier) == str:
+        return COUPON_FREQUENCY_TYPE[identifier]
+    else:
+        return COUPON_FREQUENCY_TYPE[COUPON_FREQUENCY_DICT[identifier]]
 
 '''
 This function returns a time delta object based on the interest payment frequency. 
