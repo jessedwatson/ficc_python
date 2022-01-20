@@ -52,6 +52,45 @@ def append_recent_trade_data(df, N, categories=None):
         df.loc[:, f'par_traded_recent_{i}'] = augmented_data[:, 1 + i * 3 + 2]
 
 
+def _recent_trade_data_subset_similar(df, N, category):
+    sorted_df = df.sort_values(by='trade_datetime')
+
+    augmented_data = np.zeros(
+        shape=(len(sorted_df), 1 + N * 3), dtype=np.float32)
+
+    recent_trades = deque([])
+    for idx, (i, row) in enumerate(sorted_df.iterrows()):
+        augmented_data[idx, 0] = i
+        for j, neighbor in enumerate(recent_trades):
+
+            augmented_data[idx, 1 + j * 3 + 0] = neighbor['yield_spread']
+            augmented_data[idx, 1 + j * 3 + 1] = (
+                row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
+            augmented_data[idx, 1 + j * 3 + 2] = neighbor['par_traded']
+
+        recent_trades.append(row)
+        if len(recent_trades) > N:
+            recent_trades.popleft()
+
+    return augmented_data
+
+
+def append_recent_trade_data_similar(df, N, categories, similarity_function):
+    augmented_data = []
+    for _, subcategory_df in tqdm(df.groupby(categories)):
+        augmented_data.append(_recent_trade_data_subset_similar(subcategory_df, N))
+
+    augmented_data = np.concatenate(augmented_data, axis=0)
+
+    # Remove sorting
+    augmented_data = augmented_data[augmented_data[:, 0].argsort()]
+
+    for i in range(N):
+        df.loc[:, f'yield_spread_recent_{i}'] = augmented_data[:, 1 + i * 3 + 0]
+        df.loc[:, f'seconds_ago_recent_{i}'] = augmented_data[:, 1 + i * 3 + 1]
+        df.loc[:, f'par_traded_recent_{i}'] = augmented_data[:, 1 + i * 3 + 2]
+
+
 def _temporal_adjacency_subset(df, N=None):
     sorted_df = df.sort_values(by='trade_datetime')
 
