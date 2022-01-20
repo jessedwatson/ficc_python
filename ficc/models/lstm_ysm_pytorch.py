@@ -92,6 +92,22 @@ class LSTMYieldSpreadModel(pl.LightningModule):
         return optimizer
 
 
+class YieldSpreadSquaredError(pl.LightningModule):
+    def __init__(
+        self,
+        model
+    ):
+        super().__init__()
+
+        self.model = model
+
+    def forward(self, ground_truth, trade_history, noncat, *categorical):
+        estimate = self.model(trade_history, noncat, *categorical).squeeze()
+        diff = (ground_truth - estimate)
+        loss = diff.pow(2).mean()
+        return loss.unsqueeze(0)
+
+
 def build_lstm_model_v1(
         hp,
         num_trade_history_features,
