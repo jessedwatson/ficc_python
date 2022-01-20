@@ -88,11 +88,11 @@ def append_recent_trade_data_similar(df, N, categories, is_similar):
     
     subcategory_headers = []
     subcategory_dict = dict()
-    for subcategory_header, subcategory_df in tqdm(df.groupby(categories)):
+    for subcategory_header, subcategory_df in df.groupby(categories):
         subcategory_headers.append(subcategory_header)
         subcategory_dict[subcategory_header] = subcategory_df
     
-    for subcategory_header in subcategory_headers:
+    for subcategory_header in tqdm(subcategory_headers):
         related_subcategories = []
 
         for other_subcategory_header in subcategory_headers:
