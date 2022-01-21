@@ -53,6 +53,8 @@ class LSTMCore(pl.LightningModule):
             nn.Linear(600, num_outputs),
         )
 
+        self.lr = 1e-4
+
     def forward(self, trade_history, noncat, *categorical):
         trade_history = self.trade_history_lstm(trade_history)
 
@@ -103,7 +105,7 @@ class LSTMYieldSpreadModel(LSTMCore):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         return optimizer
 
 
@@ -126,15 +128,20 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
 
         return log_scale[:, 0], log_scale[:, 1].clamp(min=1e-6)
 
+    def loss(self, loc, scale, target):
+        var = (scale ** 2)
+        log_scale = scale.log()
+        log_prob = -((target - loc) ** 2) / (2 * var) - log_scale - math.log(math.sqrt(2 * math.pi))
+        nll_loss = -log_prob.mean()
+
+        return nll_loss
+
     def training_step(self, batch, batch_idx):
         x, y = batch[:-1], batch[-1].squeeze()
         loc, scale = self.forward(x[0], x[1], x[2:])
 
         # Compute NLL
-        var = (scale ** 2)
-        log_scale = scale.log()
-        log_prob = -((y - loc) ** 2) / (2 * var) - log_scale - math.log(math.sqrt(2 * math.pi))
-        nll_loss = -log_prob.mean()
+        nll_loss = self.loss(loc, scale, y)
 
         self.log("train_loss", nll_loss.item())
         self.log("train_mae", torch.abs(loc - y).mean().item())
@@ -145,21 +152,18 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
         loc, scale = self.forward(x[0], x[1], x[2:])
 
         # Compute NLL
-        var = (scale ** 2)
-        log_scale = scale.log()
-        log_prob = -((y - loc) ** 2) / (2 * var) - log_scale - math.log(math.sqrt(2 * math.pi))
-        nll_loss = -log_prob.mean()
+        nll_loss = self.loss(loc, scale, y)
 
         self.log("val_loss", nll_loss.item())
         self.log("val_mae", torch.abs(loc - y).mean().item())
         return nll_loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         return optimizer
 
 
-class YieldSpreadSquaredError(pl.LightningModule):
+class YieldSpreadSquaredError(nn.Module):
     def __init__(
         self,
         model
@@ -173,6 +177,20 @@ class YieldSpreadSquaredError(pl.LightningModule):
         diff = (ground_truth - estimate)
         loss = diff.pow(2).mean()
         return loss.unsqueeze(0)
+
+
+class VarianceWrapper(nn.Module):
+    def __init__(
+        self,
+        model
+    ):
+        super().__init__()
+
+        self.model = model
+
+    def forward(self, trade_history, noncat, *categorical):
+        loc, scale = self.model(trade_history, noncat, *categorical)
+        return scale.mean().unsqueeze(0)
 
 
 def build_lstm_model_v1(
