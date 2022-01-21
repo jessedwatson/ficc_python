@@ -100,7 +100,7 @@ def append_recent_trade_data_similar(df, N, categories, is_similar):
         related_subcategories = []
 
         for other_subcategory_header in subcategory_headers:
-            if is_similar(subcategory_header, other_subcategory_header):
+            if is_similar(categories, subcategory_header, other_subcategory_header):
                 related_subcategories.append(subcategory_dict[other_subcategory_header])
         related_subcategories_df = pd.concat(related_subcategories)
 
