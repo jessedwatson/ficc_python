@@ -79,11 +79,15 @@ def _recent_trade_data_subset_similar(df, N, categories, header):
     return augmented_data
 
 
+'''
+This function takes in a dataframe (`df`), a number of recent trades (`N`), a list 
+of categories (`categories`), and a similarity function (`is_similar`). The function
+`is_similar` is a similarity function which takes in two tuples of categories and 
+returns True iff the categories are considered similar by the function. The goal is 
+to augment each trade with previous trades that are similar to this one, where the 
+`is_similar` function determines whether two trades are similar.
+'''
 def append_recent_trade_data_similar(df, N, categories, is_similar):
-    '''
-    `is_similar` is a similarity function which takes in two tuples of categories and 
-    returns True iff the categories are considered similar by the function.
-    '''
     augmented_data = []
     
     subcategory_headers = []
