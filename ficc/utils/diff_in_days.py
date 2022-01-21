@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-20 10:00:17
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2021-12-20 10:42:56
+ # @ Modified time: 2022-01-20 09:33:30
  # @ Description: This file implements a function to calculate the difference in 
  # days between two days in accordance to the provision of MSRB rule 33G
  '''
@@ -33,7 +33,7 @@ def diff_in_days_two_dates(end_date, start_date, convention="360/30"):
 def diff_in_days(trade, convention="360/30", **kwargs):
     #See MSRB Rule 33-G for details
     if 'calc_type' in kwargs:
-        if kwargs['calc_type'] == 'accural' and not pd.isnull(trade.accrual_date):
+        if kwargs['calc_type'] == 'accrual' and not pd.isnull(trade.accrual_date):
             start_date = trade.accrual_date
             end_date = trade.settlement_date
         else:
