@@ -80,11 +80,13 @@ class LSTMYieldSpreadModel(LSTMCore):
         num_trade_history_features,
         non_categorical_size,
         category_sizes,
+        **kwargs
     ):
         super().__init__(
             num_trade_history_features,
             non_categorical_size,
-            category_sizes)
+            category_sizes,
+            **kwargs)
 
     def training_step(self, batch, batch_idx):
         x, y = batch[:-1], batch[-1].squeeze()
@@ -115,12 +117,14 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
         num_trade_history_features,
         non_categorical_size,
         category_sizes,
+        **kwargs
     ):
         super().__init__(
             num_trade_history_features,
             non_categorical_size,
             category_sizes,
-            num_outputs=2)
+            num_outputs=2,
+            **kwargs)
 
 
     def forward(self, trade_history, noncat, *categorical):
@@ -197,11 +201,13 @@ def build_lstm_model_v1(
         hp,
         num_trade_history_features,
         non_categorical_size,
-        category_sizes):
+        category_sizes,
+        **kwargs):
     return LSTMYieldSpreadModel(
         num_trade_history_features,
         non_categorical_size,
-        category_sizes)
+        category_sizes,
+        **kwargs)
 
 
 register_model("lstm_yield_spread_model_pytorch", 1, build_lstm_model_v1,
@@ -212,11 +218,13 @@ def build_lstm_dist_model_v1(
         hp,
         num_trade_history_features,
         non_categorical_size,
-        category_sizes):
+        category_sizes,
+        **kwargs):
     return LSTMYieldSpreadDistributionModel(
         num_trade_history_features,
         non_categorical_size,
-        category_sizes)
+        category_sizes,
+        **kwargs)
 
 
 register_model("lstm_yield_spread_dist_model_pytorch", 1, build_lstm_dist_model_v1,
