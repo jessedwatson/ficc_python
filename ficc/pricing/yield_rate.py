@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 23:20:00
  # @ Modified by: Mitas Ray
- # @ Modified time: 2022-01-24 12:15:00
+ # @ Modified time: 2022-01-24 12:32:00
  # @ Description: This file implements functions to compute the yield of a trade
  # given the price.
  '''
@@ -123,8 +123,8 @@ def compute_yield(trade, price=None):
     if trade.is_called:
         end_date = end_date_for_called_bond(trade)
         par = refund_price_for_called_bond(trade, par)
-        yield_to_maturity = get_yield_caller(end_date, par)
-        return yield_to_maturity, trade.called_redemption_date
+        yield_to_call = get_yield_caller(end_date, par)
+        return yield_to_call, end_date
     else:
         yield_to_next_call = float("inf")
         yield_to_maturity = float("inf")

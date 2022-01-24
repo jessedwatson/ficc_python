@@ -123,7 +123,7 @@ def compute_price(trade, yield_rate=None):
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
 
-    par = 100    # can we rewrite this to not hard code the par value?
+    par = trade.par_call_price
     if trade.is_called:
         end_date = end_date_for_called_bond(trade)
         if compare_dates(end_date, trade.settlement_date) < 0:
@@ -154,7 +154,7 @@ def compute_price(trade, yield_rate=None):
     else:
         next_price = get_price_caller(trade.next_call_date, trade.next_call_price)
         to_par_price = get_price_caller(trade.par_call_date, trade.par_call_price)
-        maturity_price = get_price_caller(trade.maturity_date, 100)
+        maturity_price = get_price_caller(trade.maturity_date, trade.par_call_price)
 
         prices_and_dates = [(next_price, trade.next_call_date), 
                             (to_par_price, trade.par_call_date), 
