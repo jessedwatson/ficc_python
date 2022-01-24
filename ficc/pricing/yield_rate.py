@@ -1,6 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 23:20:00
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-01-24 12:15:00
  # @ Description: This file implements functions to compute the yield of a trade
  # given the price.
  '''
