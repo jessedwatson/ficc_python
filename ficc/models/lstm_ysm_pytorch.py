@@ -13,63 +13,91 @@ class LSTMCore(pl.LightningModule):
         num_trade_history_features,
         non_categorical_size,
         category_sizes,
+        lstm_sizes=[460, 460],
+        embed_sizes=10,
+        tabular_sizes=[260, 10, 460],
+        final_sizes=[250, 600],
+        dropout=0.0,
         num_outputs=1
     ):
         super().__init__()
 
-        self.trade_history_lstm = nn.LSTM(
-            input_size=num_trade_history_features,
-            hidden_size=460,
-            num_layers=2,
-            dropout=0.0,
-            batch_first=True,
-        )
+        lstm_sizes = [num_trade_history_features] + lstm_sizes
+        self.trade_history_lstm = nn.ModuleList()
+        for i in range(len(lstm_sizes) - 1):
+            self.trade_history_lstm.append(
+                nn.LSTM(
+                    input_size=lstm_sizes[i],
+                    hidden_size=lstm_sizes[i+1],
+                    dropout=dropout,
+                    batch_first=True,
+                )
+            )
+        self.trade_history_final = nn.Linear(lstm_sizes[-1], lstm_sizes[-1])
 
         self.embed = nn.ModuleList()
         tabular_size = len(non_categorical_size)
-        for cat_name in category_sizes:
-            cat_size = category_sizes[cat_name]+1
-            self.embed.append(nn.Embedding(cat_size, 10))
-            tabular_size += 10
+        if isinstance(embed_sizes, list):
+            assert len(embed_sizes) == len(
+                category_sizes), "embed_sizes must be a list of the same length as category_sizes"
+            for emb_size, cat_name in zip(embed_sizes, category_sizes):
+                cat_size = category_sizes[cat_name]+1
+                self.embed.append(nn.Embedding(cat_size, emb_size))
+                tabular_size += emb_size
+        else:
+            for cat_name in category_sizes:
+                cat_size = category_sizes[cat_name]+1
+                self.embed.append(nn.Embedding(cat_size, embed_sizes))
+                tabular_size += embed_sizes
 
+        self.tabular_model = (
+            nn.Linear(tabular_size, tabular_sizes[0]),
+            nn.ReLU(),
+            nn.BatchNorm1d(tabular_sizes[0]),
+            nn.Dropout(dropout),
+            nn.Linear(tabular_sizes[0], tabular_sizes[1]),
+            nn.ReLU(),
+            nn.BatchNorm1d(tabular_sizes[1]),
+            nn.Dropout(dropout),
+            nn.Linear(tabular_sizes[1], tabular_sizes[2]),
+        )
         self.tabular_model = nn.Sequential(
-            nn.Linear(tabular_size, 260),
-            nn.ReLU(),
-            nn.BatchNorm1d(260),
-            nn.Linear(260, 10),
-            nn.ReLU(),
-            nn.BatchNorm1d(10),
-            nn.Linear(10, 460),
+            *self.tabular_model,
             nn.Tanh(),
         )
 
-        self.final_stage = nn.Sequential(
-            nn.Linear(460+460, 250),
+        self.final_stage = (
+            nn.Linear(lstm_sizes[-1]+tabular_sizes[-1], final_sizes[0]),
             nn.ReLU(),
-            nn.BatchNorm1d(250),
-            nn.Linear(250, 600),
+            nn.BatchNorm1d(final_sizes[0]),
+            nn.Dropout(dropout),
+            nn.Linear(final_sizes[0], final_sizes[1]),
             nn.Tanh(),
-            nn.BatchNorm1d(600),
-            nn.Linear(600, num_outputs),
+            nn.BatchNorm1d(final_sizes[1]),
+            nn.Dropout(dropout),
+        )
+        self.final_stage = nn.Sequential(
+            *self.final_stage,
+            nn.Linear(final_sizes[-1], num_outputs),
         )
 
         self.lr = 1e-4
 
     def forward(self, trade_history, noncat, *categorical):
-        trade_history = self.trade_history_lstm(trade_history)
-
-        # [0] to use the output vector, LSTM returns output vector and hidden state as a tuple
-        trade_history = trade_history[0]
+        for lstm in self.trade_history_lstm:
+            trade_history, (h, c) = lstm(trade_history)
 
         # PyTorch returns the output for each timestep, we only use the final one
         trade_history = trade_history[:, -1, :]
+        trade_history = F.relu(self.trade_history_final(trade_history))
 
         if len(categorical) == 1 and (isinstance(categorical[0], tuple) or isinstance(categorical[0], list)):
             categorical = categorical[0]
         categorical = [self.embed[i](categorical[i])
                        for i in range(len(categorical))]
 
-        tabular = self.tabular_model(torch.cat([noncat] + categorical, dim=-1))
+        tabular_input = torch.cat([noncat] + categorical, dim=-1)
+        tabular = self.tabular_model(tabular_input)
 
         return self.final_stage(torch.cat([trade_history, tabular], dim=-1))
 
@@ -88,23 +116,23 @@ class LSTMYieldSpreadModel(LSTMCore):
             category_sizes,
             **kwargs)
 
-    def training_step(self, batch, batch_idx):
+    def step(self, batch, name):
         x, y = batch[:-1], batch[-1].squeeze()
         z = self.forward(x[0], x[1], x[2:]).squeeze()
         loss = F.mse_loss(y, z)
 
-        self.log("train_loss", loss.item())
-        self.log("train_mae", torch.abs(z - y).mean().item())
+        self.log(f"{name}_loss", loss.item())
+        self.log(f"{name}_mae", torch.abs(z - y).mean().item())
         return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch[:-1], batch[-1].squeeze()
-        z = self.forward(x[0], x[1], x[2:]).squeeze()
-        loss = F.mse_loss(y, z)
+        return self.step(batch, "val")
 
-        self.log("val_loss", loss.item())
-        self.log("val_mae", torch.abs(z - y).mean().item())
-        return loss
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
@@ -126,7 +154,6 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
             num_outputs=2,
             **kwargs)
 
-
     def forward(self, trade_history, noncat, *categorical):
         log_scale = super().forward(trade_history, noncat, *categorical)
 
@@ -135,32 +162,31 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
     def loss(self, loc, scale, target):
         var = (scale ** 2)
         log_scale = scale.log()
-        log_prob = -((target - loc) ** 2) / (2 * var) - log_scale - math.log(math.sqrt(2 * math.pi))
+        log_prob = -((target - loc) ** 2) / (2 * var) - \
+            log_scale - math.log(math.sqrt(2 * math.pi))
         nll_loss = -log_prob.mean()
 
         return nll_loss
 
-    def training_step(self, batch, batch_idx):
+    def step(self, batch, name):
         x, y = batch[:-1], batch[-1].squeeze()
         loc, scale = self.forward(x[0], x[1], x[2:])
 
         # Compute NLL
         nll_loss = self.loss(loc, scale, y)
 
-        self.log("train_loss", nll_loss.item())
-        self.log("train_mae", torch.abs(loc - y).mean().item())
+        self.log(f"{name}_loss", nll_loss.item())
+        self.log(f"{name}_mae", torch.abs(loc - y).mean().item())
         return nll_loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch[:-1], batch[-1].squeeze()
-        loc, scale = self.forward(x[0], x[1], x[2:])
+        return self.step(batch, "val")
 
-        # Compute NLL
-        nll_loss = self.loss(loc, scale, y)
-
-        self.log("val_loss", nll_loss.item())
-        self.log("val_mae", torch.abs(loc - y).mean().item())
-        return nll_loss
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
@@ -174,10 +200,11 @@ class YieldSpreadSquaredError(nn.Module):
     ):
         super().__init__()
 
-        self.model = model
+        self.wrapped_model = model
 
     def forward(self, ground_truth, trade_history, noncat, *categorical):
-        estimate = self.model(trade_history, noncat, *categorical).squeeze()
+        estimate = self.wrapped_model(
+            trade_history, noncat, *categorical).squeeze()
         diff = (ground_truth - estimate)
         loss = diff.pow(2).mean()
         return loss.unsqueeze(0)
@@ -190,10 +217,10 @@ class VarianceWrapper(nn.Module):
     ):
         super().__init__()
 
-        self.model = model
+        self.wrapped_model = model
 
     def forward(self, trade_history, noncat, *categorical):
-        loc, scale = self.model(trade_history, noncat, *categorical)
+        loc, scale = self.wrapped_model(trade_history, noncat, *categorical)
         return scale.mean().unsqueeze(0)
 
 

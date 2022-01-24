@@ -1,8 +1,11 @@
 import torch
 import tqdm
 
+from PIL import Image
+
 import matplotlib.pyplot as plt
 import seaborn as sns
+import wandb as W
 
 from captum.attr import LayerIntegratedGradients
 from captum.attr._utils.input_layer_wrapper import ModelInputWrapper
@@ -34,7 +37,7 @@ def compute_integrated_gradient_attributions(
         end_idx = min(start_idx+BATCH_SIZE, x_eval[0].shape[0])
         x = [t[start_idx:end_idx, ...] for t in x_eval]
         ig_attr_test = ig.attribute(
-            tuple(x), internal_batch_size=1, n_steps=10)
+            tuple(x), internal_batch_size=1)
 
         if attributes is None:
             attributes = ig_attr_test
@@ -60,7 +63,7 @@ def compute_integrated_gradient_ysm_error_attributions(
         model = ModelInputWrapper(model)
 
     ig = LayerIntegratedGradients(model, [model.input_maps["trade_history"],
-                                  model.input_maps["noncat"]] + [e for e in model.module.model.embed.children()])
+                                  model.input_maps["noncat"]] + [e for e in model.module.wrapped_model.embed.children()])
 
     if torch.cuda.is_available():
         model = model.cuda()
@@ -76,7 +79,7 @@ def compute_integrated_gradient_ysm_error_attributions(
         end_idx = min(start_idx+BATCH_SIZE, x_eval[0].shape[0])
         x = [y_eval[start_idx:end_idx]] + [t[start_idx:end_idx, ...] for t in x_eval]
         ig_attr_test = ig.attribute(
-            tuple(x), internal_batch_size=1, n_steps=10)
+            tuple(x), internal_batch_size=1)
 
         if attributes is None:
             attributes = ig_attr_test
@@ -90,27 +93,69 @@ def compute_integrated_gradient_ysm_error_attributions(
 
     return attributes
 
-def visualize_trade_history_attribution(attrs):
+def visualize_trade_history_attribution(attrs, subtitle=None, wandb=None):
     fig, ax = plt.subplots(figsize=(15,10))
     xticklabels=list(range(attrs.shape[1]))
     yticklabels=["yield_spread", "par_traded", "trade_type 1", "trade_type 2", "seconds_ago"]
     ax = sns.heatmap(attrs.cpu().numpy().transpose(), xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2)
+    if subtitle is None:
+        title = "Trade History Attribution"
+    else:
+        title = f"Trade History Attribution ({subtitle})"
     plt.xlabel('Sequence Index')
     plt.ylabel('Feature Index')
+    fig.suptitle(title)
+
+    if wandb is not None:
+        pil_image = Image.frombytes('RGB', fig.canvas.get_width_height(),fig.canvas.tostring_rgb())
+        image = W.Image(pil_image)
+        if subtitle is None:
+            wandb.log({title: [image]})
+        else:
+            wandb.log({subtitle + "/" + title: [image]})
+
     plt.show()
 
-def visualize_trade_numerical_and_binary_attribution(attrs, numerical_features, binary_features):
+def visualize_trade_numerical_and_binary_attribution(attrs, numerical_features, binary_features, subtitle=None, wandb=None):
     fig, ax = plt.subplots(figsize=(15,2))
     yticklabels=[""]
     xticklabels=numerical_features + [b + " (binary)" for b in binary_features]
     ax = sns.heatmap(attrs.unsqueeze(-2).cpu().numpy(), xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2)
+    if subtitle is None:
+        title = "Numerical and Binary Attribution"
+    else:
+        title = f"Numerical and Binary Attribution ({subtitle})"
     plt.xlabel('Feature')
+    fig.suptitle(title)
+
+    if wandb is not None:
+        pil_image = Image.frombytes('RGB', fig.canvas.get_width_height(),fig.canvas.tostring_rgb())
+        image = W.Image(pil_image)
+        if subtitle is None:
+            wandb.log({title: [image]})
+        else:
+            wandb.log({subtitle + "/" + title: [image]})
+
     plt.show()
 
-def visualize_categorical_attribution(attrs, cat_features):
+def visualize_categorical_attribution(attrs, cat_features, subtitle=None, wandb=None):
     fig, ax = plt.subplots(figsize=(15,2))
     yticklabels=[""]
     xticklabels=cat_features
     ax = sns.heatmap(attrs.unsqueeze(-2).cpu().numpy(), xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2)
+    if subtitle is None:
+        title = "Categorical Attribution"
+    else:
+        title = f"Categorical Attribution ({subtitle})"
     plt.xlabel('Feature')
+    fig.suptitle(title)
+
+    if wandb is not None:
+        pil_image = Image.frombytes('RGB', fig.canvas.get_width_height(),fig.canvas.tostring_rgb())
+        image = W.Image(pil_image)
+        if subtitle is None:
+            wandb.log({title: [image]})
+        else:
+            wandb.log({subtitle + "/" + title: [image]})
+
     plt.show()
