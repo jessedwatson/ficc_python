@@ -77,8 +77,9 @@ def get_yield(cusip,
                                                                                                  time_delta, 
                                                                                                  last_period_accrues_from_date)
             try:
-                guess = 0.01
-                yield_estimate = optimize.newton(ytm_func, guess, maxiter=100)
+                lower_bound = 0
+                upper_bound = 1e3
+                yield_estimate = optimize.bisect(ytm_func, lower_bound, upper_bound, maxiter=1e3)
             except Exception as e:
                 print(e)
                 return None
@@ -153,4 +154,4 @@ def compute_yield(trade, price=None):
                      "yield_to_maturity": trade.maturity_date, 
                      "yta": "error", 
                      "yield_to_par_call": trade.par_call_date}
-        return (dict_yields[our_choice], date_dict[our_choice])
+        return dict_yields[our_choice], date_dict[our_choice]
