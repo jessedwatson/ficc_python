@@ -4,6 +4,7 @@
  # @ Description: This file implements functions to compute the yield of a trade
  # given the price.
  '''
+from multiprocessing.sharedctypes import Value
 import pandas as pd
 import scipy.optimize as optimize
 
@@ -15,7 +16,7 @@ from ficc.utils.truncation import trunc_and_round_yield
 from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_final_coupon_date, \
                                              price_of_bond_with_multiple_periodic_interest_payments, \
                                              get_prev_coupon_date_and_next_coupon_date
-from ficc.pricing.called_trade import end_date_for_called_bond, par_for_called_bond
+from ficc.pricing.called_trade import end_date_for_called_bond, refund_price_for_called_bond
 
 '''
 This function is a helper function for `compute_yield`. This function calculates the yield of a trade given the price and other trade features, using
@@ -87,7 +88,12 @@ def get_yield(cusip,
 '''
 This function computes the yield of a trade.
 '''
-def compute_yield(trade):
+def compute_yield(trade, price=None):
+    if price == None:
+        price = trade.dollar_price
+    elif type(price) == str:
+        raise ValueError('Price argument cannot be a string. It must be a numerical value.')
+
     frequency = trade.interest_payment_frequency
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
@@ -100,7 +106,7 @@ def compute_yield(trade):
                                                        trade.settlement_date, 
                                                        trade.accrual_date, 
                                                        trade.interest_payment_frequency,
-                                                       trade.dollar_price, 
+                                                       price, 
                                                        trade.coupon, 
                                                        par, 
                                                        time_delta, 
@@ -114,7 +120,7 @@ def compute_yield(trade):
     
     if trade.is_called:
         end_date = end_date_for_called_bond(trade)
-        par = par_for_called_bond(trade, par)
+        par = refund_price_for_called_bond(trade, par)
         yield_to_maturity = get_yield_caller(end_date, par)
         return yield_to_maturity, trade.called_redemption_date
     else:

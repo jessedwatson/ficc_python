@@ -27,7 +27,7 @@ def end_date_for_called_bond(trade):
 '''
 This function provides the par value for a called bond.
 '''
-def par_for_called_bond(trade, default_par):
+def refund_price_for_called_bond(trade, default_par):
     par = default_par
     if not pd.isnull(trade.refund_price):
         par = trade.refund_price
