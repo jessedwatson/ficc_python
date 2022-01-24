@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 23:20:00
- # @ Description: This file implements functions to compute the price of a trade
- # given the yield.
+ # @ Description: This file implements functions to compute the yield of a trade
+ # given the price.
  '''
 import pandas as pd
 import scipy.optimize as optimize
@@ -106,7 +106,7 @@ def compute_yield(trade):
                                                        time_delta, 
                                                        trade.last_period_accrues_from_date)
 
-    par = 100
+    par = trade.par_call_price
     if (not trade.is_called) and (not trade.is_callable):
         end_date = trade.maturity_date
         yield_to_maturity = get_yield_caller(end_date, par)
@@ -133,7 +133,7 @@ def compute_yield(trade):
         yield_to_next_call = get_yield_caller(end_date, par)
         
         end_date = trade.maturity_date
-        par = 100
+        par = trade.par_call_price
         yield_to_maturity = get_yield_caller(end_date, par)
         
         dict_yields = {"yield_to_next_call": yield_to_next_call, 
