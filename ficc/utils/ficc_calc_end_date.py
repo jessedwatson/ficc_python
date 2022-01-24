@@ -1,13 +1,17 @@
-# -*- coding: utf-8 -*-
-# @Author: jesse
-# @Date:   2021-10-04 09:38:00
-# @Last Modified by:   ahmad
-# @Last Modified time: 2021-12-06 13:49:32
+'''
+ # @ Author: Jesse Watson
+ # @ Create Time: 2021-10-04 09:38:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-01-24 13:15:08
+ # @ Description: This function estimates the date used to
+ # calculate the yield for the trade
+ '''
+
 
 import pandas as pd
 import numpy as np 
 
-def calc_end_date(trade):
+def calc_end_date(trade, column_used='dollar_price'):
 
     '''
     This function calculates the end date (sometimes called redemption 
@@ -20,8 +24,8 @@ def calc_end_date(trade):
     # First we check whether the dollar price is null.  If this is the case,
     # we check for a proximate price. 
 
-    if 'dollar_price' in trade and trade.dollar_price is not None: 
-        approx_price = trade.dollar_price
+    if column_used in trade and trade[column_used] is not None: 
+        approx_price = trade[column_used]
     elif 'last_price' in trade and trade.last_price is not None:
         approx_price = trade.last_price
     else:

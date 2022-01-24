@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-13 20:28:38
+ # @ Modified time: 2022-01-24 13:15:50
  # @ Description: This file is an example on how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The methond takes the following arguments. 
@@ -16,6 +16,7 @@
  '''
 
 
+from cgitb import reset
 import ficc.utils.globals as globals
 import os
 from google.cloud import bigquery
@@ -34,6 +35,7 @@ WHERE
   AND yield > 0 
   AND yield <= 3 
   AND par_traded IS NOT NULL
+  AND par_traded > 10000
   AND sp_long IS NOT NULL
   AND trade_date >= '2021-07-01' 
   AND trade_date <= '2021-10-01'
@@ -51,5 +53,6 @@ if __name__ == "__main__":
                               SEQUENCE_LENGTH,
                               NUM_FEATURES,
                               'data.pkl',
-                              "S&P")
+                              "S&P",
+                              estimate_calc_date=False)
     print(trade_data.head())
