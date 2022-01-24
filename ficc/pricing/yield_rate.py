@@ -136,10 +136,6 @@ def compute_yield(trade):
         par = 100
         yield_to_maturity = get_yield_caller(end_date, par)
         
-        # yield to anytime call below does not change anything, and we should remove this code after some testing: 
-        if yield_to_maturity == yield_to_next_call and trade.dollar_price < 100:
-            return yield_to_maturity, trade.maturity_date
-        
         dict_yields = {"yield_to_next_call": yield_to_next_call, 
                        "yield_to_maturity": yield_to_maturity, 
                        "yta": yta, 
