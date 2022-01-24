@@ -7,49 +7,32 @@ from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
 
 
-def _recent_trade_data_subset(df, N):
+def _recent_trade_data_subset(df, N, appended_features_names_and_functions):
     sorted_df = df.sort_values(by='trade_datetime')
 
+    appended_features_names = list(appended_features_names_and_functions.keys())
+    num_of_appended_features = len(appended_features_names)
+
+    # TODO: continue from here
+
     augmented_data = np.zeros(
-        shape=(len(sorted_df), 1 + N * 3), dtype=np.float32)
+        shape=(len(sorted_df), 1 + N * num_of_appended_features), dtype=np.float32)
 
     recent_trades = deque([])
     for idx, (i, row) in enumerate(sorted_df.iterrows()):
         augmented_data[idx, 0] = i
         for j, neighbor in enumerate(recent_trades):
 
-            augmented_data[idx, 1 + j * 3 + 0] = neighbor['yield_spread']
-            augmented_data[idx, 1 + j * 3 + 1] = (
+            augmented_data[idx, 1 + j * num_of_appended_features + 0] = neighbor['yield_spread']
+            augmented_data[idx, 1 + j * num_of_appended_features + 1] = (
                 row['trade_datetime'] - neighbor['trade_datetime']).total_seconds()
-            augmented_data[idx, 1 + j * 3 + 2] = neighbor['par_traded']
+            augmented_data[idx, 1 + j * num_of_appended_features + 2] = neighbor['par_traded']
 
         recent_trades.append(row)
         if len(recent_trades) > N:
             recent_trades.popleft()
 
     return augmented_data
-
-
-def append_recent_trade_data(df, N, categories=None):
-    assert 'trade_datetime' in df.columns, "trade_datetime column is required"
-
-    if categories is not None:
-        augmented_data = []
-        for _, subcategory_df in tqdm(df.groupby(categories)):
-            augmented_data.append(
-                _recent_trade_data_subset(subcategory_df, N))
-
-        augmented_data = np.concatenate(augmented_data, axis=0)
-    else:
-        augmented_data = _recent_trade_data_subset(df, N)
-
-    # Remove sorting
-    augmented_data = augmented_data[augmented_data[:, 0].argsort()]
-
-    for i in range(N):
-        df.loc[:, f'yield_spread_recent_{i}'] = augmented_data[:, 1 + i * 3 + 0]
-        df.loc[:, f'seconds_ago_recent_{i}'] = augmented_data[:, 1 + i * 3 + 1]
-        df.loc[:, f'par_traded_recent_{i}'] = augmented_data[:, 1 + i * 3 + 2]
 
 
 def _recent_trade_data_subset_similar(df, N, categories, header):
@@ -87,34 +70,44 @@ returns True iff the categories are considered similar by the function. The goal
 to augment each trade with previous trades that are similar to this one, where the 
 `is_similar` function determines whether two trades are similar.
 '''
-def append_recent_trade_data_similar(df, N, categories, is_similar):
-    augmented_data = []
-    
-    subcategory_headers = []
-    subcategory_dict = dict()
-    for subcategory_header, subcategory_df in df.groupby(categories):
-        subcategory_headers.append(subcategory_header)
-        subcategory_dict[subcategory_header] = subcategory_df
-    
-    for subcategory_header in tqdm(subcategory_headers):
-        related_subcategories = []
+def append_recent_trade_data(df, N, appended_features_names_and_functions, categories=None, is_similar=None):
+    assert 'trade_datetime' in df.columns, "trade_datetime column is required"
 
-        for other_subcategory_header in subcategory_headers:
-            if is_similar(categories, subcategory_header, other_subcategory_header):
-                related_subcategories.append(subcategory_dict[other_subcategory_header])
-        related_subcategories_df = pd.concat(related_subcategories)
+    if categories is not None:
+        augmented_data = []
 
-        augmented_data.append(_recent_trade_data_subset_similar(related_subcategories_df, N, categories, subcategory_header))
+        if is_similar is not None:
+            subcategory_headers = []
+            subcategory_dict = dict()
+            for subcategory_header, subcategory_df in df.groupby(categories):
+                subcategory_headers.append(subcategory_header)
+                subcategory_dict[subcategory_header] = subcategory_df
+            
+            for subcategory_header in tqdm(subcategory_headers):
+                related_subcategories = []
 
-    augmented_data = np.concatenate(augmented_data, axis=0)
+                for other_subcategory_header in subcategory_headers:
+                    if is_similar(categories, subcategory_header, other_subcategory_header):
+                        related_subcategories.append(subcategory_dict[other_subcategory_header])
+                related_subcategories_df = pd.concat(related_subcategories)
+
+                augmented_data.append(_recent_trade_data_subset_similar(related_subcategories_df, N, appended_features_names_and_functions, categories, subcategory_header))
+        else:   
+            for _, subcategory_df in tqdm(df.groupby(categories)):
+                augmented_data.append(_recent_trade_data_subset(subcategory_df, N, appended_features_names_and_functions))
+
+        augmented_data = np.concatenate(augmented_data, axis=0)
+    else:
+        augmented_data = _recent_trade_data_subset(df, N, appended_features_names_and_functions)
 
     # Remove sorting
     augmented_data = augmented_data[augmented_data[:, 0].argsort()]
 
+    appended_features_names = list(appended_features_names_and_functions.keys())
+    num_of_appended_features = len(appended_features_names)
     for i in range(N):
-        df.loc[:, f'yield_spread_recent_{i}'] = augmented_data[:, 1 + i * 3 + 0]
-        df.loc[:, f'seconds_ago_recent_{i}'] = augmented_data[:, 1 + i * 3 + 1]
-        df.loc[:, f'par_traded_recent_{i}'] = augmented_data[:, 1 + i * 3 + 2]
+        for j, appended_features_name in enumerate(appended_features_names):
+            df.loc[:, f'{appended_features_name}_{i}'] = augmented_data[:, 1 + i * num_of_appended_features + j]
 
 
 def _temporal_adjacency_subset(df, N=None):
