@@ -79,7 +79,7 @@ def get_yield(cusip,
             try:
                 lower_bound = 0
                 upper_bound = 1e3
-                yield_estimate = optimize.bisect(ytm_func, lower_bound, upper_bound, maxiter=1e3)
+                yield_estimate = optimize.bisect(ytm_func, lower_bound, upper_bound, maxiter=int(1e3))
             except Exception as e:
                 print(e)
                 return None
