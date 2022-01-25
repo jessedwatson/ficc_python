@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-24 13:06:45
+ # @ Modified time: 2022-01-25 14:53:56
  # @ Description:
  '''
 
@@ -33,7 +33,10 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
 
     return trade_dataframe
 
-def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date):
+def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity):
+    if estimate_calc_date == False and remove_short_maturity == True:
+        raise Exception("Cannot remove short maturity bonds without estimating calc date set estimate calc date to true")
+    
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
         print("Grabbing yield curve params")
         try:
@@ -65,7 +68,9 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
 
     # the trade history correctly
     print('Creating trade history')
-    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array)
+    if remove_short_maturity == True:
+        print("Removing trades with shorter maturity")
+    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity]))
     print('Trade history created')
 
     if estimate_calc_date == True:
