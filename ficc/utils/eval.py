@@ -53,6 +53,7 @@ def eval_model(
         wandb.log({"Full MAE": mae})
     else:
         print(f"Full MAE: {round(mae, 3)}")
+    full_mae = mae
 
     if categories is not None:
         for category, category_df in df.groupby(by=categories, squeeze=True):
@@ -71,3 +72,5 @@ def eval_model(
                 wandb.log({f"{category} MAE": mae})
             else:
                 print(f"{category} MAE: {round(mae, 3)}")
+
+    return full_mae
