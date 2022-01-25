@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-24 13:15:50
+ # @ Modified time: 2022-01-25 14:58:01
  # @ Description: This file is an example on how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The methond takes the following arguments. 
@@ -54,5 +54,7 @@ if __name__ == "__main__":
                               NUM_FEATURES,
                               'data.pkl',
                               "S&P",
-                              estimate_calc_date=False)
+                              estimate_calc_date=True,
+                              remove_short_maturity=True)
+                              
     print(trade_data.head())

@@ -18,7 +18,8 @@ class LSTMCore(pl.LightningModule):
         tabular_sizes=[260, 10, 460],
         final_sizes=[250, 600],
         dropout=0.0,
-        num_outputs=1
+        num_outputs=1,
+        **kwargs
     ):
         super().__init__()
 
@@ -81,7 +82,14 @@ class LSTMCore(pl.LightningModule):
             nn.Linear(final_sizes[-1], num_outputs),
         )
 
-        self.lr = 1e-4
+        if 'learning_rate' in kwargs:
+            self.lr = kwargs['learning_rate']
+        else:
+            self.lr = 1e-4
+
+        self.learning_schedule = kwargs["learning_schedule"]
+        if self.learning_schedule == "cyclic":
+            self.max_factor = kwargs["max_factor"]
 
     def forward(self, trade_history, noncat, *categorical):
         for lstm in self.trade_history_lstm:
@@ -135,8 +143,17 @@ class LSTMYieldSpreadModel(LSTMCore):
         return self.step(batch, "test")
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        return optimizer
+        if self.learning_schedule == "cyclic":
+            optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+            scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr, max_lr=self.lr * self.max_factor)
+            return [optimizer], [scheduler]
+        elif self.learning_schedule == "1cycle":
+            optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.lr, total_steps=2000)
+            return [optimizer], [scheduler]
+        else:
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+            return optimizer
 
 
 class LSTMYieldSpreadDistributionModel(LSTMCore):
