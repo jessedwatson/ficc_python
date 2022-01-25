@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-14 12:36:47
+ # @ Modified time: 2022-01-24 13:06:45
  # @ Description:
  '''
 
@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 
 from ficc.utils.auxiliary_functions import sqltodf
+from ficc.utils.auxiliary_variables import PREDICTORS
 from ficc.utils.pad_trade_history import pad_trade_history
 import ficc.utils.globals as globals
 from ficc.utils.ficc_calc_end_date import calc_end_date
@@ -27,17 +28,19 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
         print("Data file not found, Running query to fetch data")
         trade_dataframe = sqltodf(query,client)
         print("Saving data")
+        print(PATH)
         trade_dataframe.to_pickle(PATH)
 
     return trade_dataframe
 
-def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH):
-    print("Grabbing yield curve params")
-    try:
-        yield_curve_params(client)
-    except Exception as e:
-        print("Failed to grab yield curve parameters")
-        raise e
+def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date):
+    if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
+        print("Grabbing yield curve params")
+        try:
+            yield_curve_params(client)
+        except Exception as e:
+            print("Failed to grab yield curve parameters")
+            raise e
     
     trade_dataframe = fetch_trade_data(query, client, PATH)
 
@@ -46,23 +49,29 @@ def process_trade_history(query,client,SEQUENCE_LENGTH, NUM_FEATURES, PATH):
     trade_dataframe['empty_trade'] = trade_dataframe.recent.apply(lambda x: x[0]['rtrs_control_number'] is None)
     trade_dataframe = trade_dataframe[trade_dataframe.empty_trade == False]
 
-    print("Dropping trades less that $10,000")
-    trade_dataframe = trade_dataframe[trade_dataframe.par_traded > 10000]
-    #Taking only the most recent trades
+    # Moved to the query
+    # print("Dropping trades less that $10,000")
+    # trade_dataframe = trade_dataframe[trade_dataframe.par_traded > 10000]
+    
+    # Taking only the most recent trades
     trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
 
-    print('Estimating calculation date')
     trade_dataframe['calc_date'] = trade_dataframe.parallel_apply(calc_end_date, axis=1)
     trade_dataframe.recent =  trade_dataframe.apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)
 
-    print(trade_dataframe[['maturity_date','next_call_date','calc_date']])
+    if estimate_calc_date == True:
+        print('Estimating calculation date')
+        print(trade_dataframe[['maturity_date','next_call_date','calc_date']])
 
     # the trade history correctly
     print('Creating trade history')
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array)
     print('Trade history created')
 
-    trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
+    if estimate_calc_date == True:
+        trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
+    else:
+        trade_dataframe.drop(columns=['recent', 'empty_trade','calc_date'],inplace=True)
 
     print("Padding history")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES])
