@@ -1,6 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 23:04:00
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-01-24 12:17:00
  # @ Description: This file implements functions to compute the price of a trade
  # given the yield.
  '''
@@ -15,7 +17,7 @@ from ficc.utils.truncation import trunc_and_round_price
 from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_final_coupon_date, \
                                              price_of_bond_with_multiple_periodic_interest_payments, \
                                              get_prev_coupon_date_and_next_coupon_date
-from ficc.pricing.called_trade import end_date_for_called_bond, par_for_called_bond
+from ficc.pricing.called_trade import end_date_for_called_bond, refund_price_for_called_bond
 
 '''
 This function is a helper function for `compute_price`. This function calculates the price of a trade, where `yield_rate` 
@@ -111,19 +113,24 @@ def get_price(cusip,
 This function computes the price of a trade. For bonds that have not been called, the price is the lowest of
 three present values: to the next call date (which may be above par), to the next par call date, and to maturity.
 '''
-def compute_price(trade, yield_column_name='yield'):
+def compute_price(trade, yield_rate=None):
+    if yield_rate == None:
+        yield_rate = trade['yield']
+    elif type(yield_rate) == str:
+        raise ValueError('Yield rate argument cannot be a string. It must be a numerical value.')
+
     frequency = trade.interest_payment_frequency
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
 
-    par = 100    # can we rewrite this to not hard code the par value?
+    par = trade.par_call_price
     if trade.is_called:
         end_date = end_date_for_called_bond(trade)
         if compare_dates(end_date, trade.settlement_date) < 0:
             print(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")    # printing instead of raising an error to not disrupt processing large quantities of trades
             # raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")
             
-        par = par_for_called_bond(trade, par)
+        par = refund_price_for_called_bond(trade, par)
     else:
         end_date = trade.maturity_date    # not used later
 
@@ -135,7 +142,7 @@ def compute_price(trade, yield_column_name='yield'):
                                                        trade.settlement_date, 
                                                        trade.accrual_date, 
                                                        frequency, 
-                                                       trade[yield_column_name], 
+                                                       yield_rate, 
                                                        trade.coupon, 
                                                        par, 
                                                        time_delta, 
@@ -147,7 +154,7 @@ def compute_price(trade, yield_column_name='yield'):
     else:
         next_price = get_price_caller(trade.next_call_date, trade.next_call_price)
         to_par_price = get_price_caller(trade.par_call_date, trade.par_call_price)
-        maturity_price = get_price_caller(trade.maturity_date, 100)
+        maturity_price = get_price_caller(trade.maturity_date, trade.par_call_price)
 
         prices_and_dates = [(next_price, trade.next_call_date), 
                             (to_par_price, trade.par_call_date), 

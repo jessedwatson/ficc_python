@@ -61,23 +61,26 @@ def get_previous_coupon_date(first_coupon_date, start_date, accrual_date, time_d
 '''
 This function is valid for bonds that don't pay coupons, whereas the previous 
 two functions assume the bond pays coupons.
+Note: the ICE field of `next_coupon_payment_date` corresponds to our variable of 
+`next_coupon_date` (removing the word `payment`) for more concise and readable 
+code, and similarly with `previous_coupon_date`
 '''
 def get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta):
     if frequency == 0:
-        my_next_coupon_date = trade.maturity_date
-        my_prev_coupon_date = trade.accrual_date
+        next_coupon_date = trade.maturity_date
+        prev_coupon_date = trade.accrual_date
     else:
         if pd.isnull(trade.next_coupon_payment_date):
-            my_next_coupon_date = get_next_coupon_date(trade.first_coupon_date, trade.settlement_date, time_delta)
+            next_coupon_date = get_next_coupon_date(trade.first_coupon_date, trade.settlement_date, time_delta)
         else:
-            my_next_coupon_date = pd.to_datetime(trade.next_coupon_payment_date)
+            next_coupon_date = pd.to_datetime(trade.next_coupon_payment_date)
 
         if pd.isnull(trade.previous_coupon_payment_date):
-            my_prev_coupon_date = get_previous_coupon_date(trade.first_coupon_date, trade.settlement_date, trade.accrual_date, time_delta, my_next_coupon_date)
+            prev_coupon_date = get_previous_coupon_date(trade.first_coupon_date, trade.settlement_date, trade.accrual_date, time_delta, next_coupon_date)
         else:
-            my_prev_coupon_date = pd.to_datetime(trade.previous_coupon_payment_date)
+            prev_coupon_date = pd.to_datetime(trade.previous_coupon_payment_date)
 
-    return my_prev_coupon_date, my_next_coupon_date
+    return prev_coupon_date, next_coupon_date
 
 '''
 This function returns the number of interest payments and the final coupon 

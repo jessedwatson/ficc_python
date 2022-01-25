@@ -1,9 +1,12 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 23:20:00
- # @ Description: This file implements functions to compute the price of a trade
- # given the yield.
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-01-24 12:32:00
+ # @ Description: This file implements functions to compute the yield of a trade
+ # given the price.
  '''
+from multiprocessing.sharedctypes import Value
 import pandas as pd
 import scipy.optimize as optimize
 
@@ -15,7 +18,7 @@ from ficc.utils.truncation import trunc_and_round_yield
 from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_final_coupon_date, \
                                              price_of_bond_with_multiple_periodic_interest_payments, \
                                              get_prev_coupon_date_and_next_coupon_date
-from ficc.pricing.called_trade import end_date_for_called_bond, par_for_called_bond
+from ficc.pricing.called_trade import end_date_for_called_bond, refund_price_for_called_bond
 
 '''
 This function is a helper function for `compute_yield`. This function calculates the yield of a trade given the price and other trade features, using
@@ -74,8 +77,9 @@ def get_yield(cusip,
                                                                                                  time_delta, 
                                                                                                  last_period_accrues_from_date)
             try:
-                guess = 0.01
-                yield_estimate = optimize.newton(ytm_func, guess, maxiter=100)
+                lower_bound = 0
+                upper_bound = 1e3
+                yield_estimate = optimize.bisect(ytm_func, lower_bound, upper_bound, maxiter=1e3)
             except Exception as e:
                 print(e)
                 return None
@@ -87,7 +91,12 @@ def get_yield(cusip,
 '''
 This function computes the yield of a trade.
 '''
-def compute_yield(trade):
+def compute_yield(trade, price=None):
+    if price == None:
+        price = trade.dollar_price
+    elif type(price) == str:
+        raise ValueError('Price argument cannot be a string. It must be a numerical value.')
+
     frequency = trade.interest_payment_frequency
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
@@ -100,13 +109,13 @@ def compute_yield(trade):
                                                        trade.settlement_date, 
                                                        trade.accrual_date, 
                                                        trade.interest_payment_frequency,
-                                                       trade.dollar_price, 
+                                                       price, 
                                                        trade.coupon, 
                                                        par, 
                                                        time_delta, 
                                                        trade.last_period_accrues_from_date)
 
-    par = 100
+    par = trade.par_call_price
     if (not trade.is_called) and (not trade.is_callable):
         end_date = trade.maturity_date
         yield_to_maturity = get_yield_caller(end_date, par)
@@ -114,9 +123,9 @@ def compute_yield(trade):
     
     if trade.is_called:
         end_date = end_date_for_called_bond(trade)
-        par = par_for_called_bond(trade, par)
-        yield_to_maturity = get_yield_caller(end_date, par)
-        return yield_to_maturity, trade.called_redemption_date
+        par = refund_price_for_called_bond(trade, par)
+        yield_to_call = get_yield_caller(end_date, par)
+        return yield_to_call, end_date
     else:
         yield_to_next_call = float("inf")
         yield_to_maturity = float("inf")
@@ -133,12 +142,8 @@ def compute_yield(trade):
         yield_to_next_call = get_yield_caller(end_date, par)
         
         end_date = trade.maturity_date
-        par = 100
+        par = trade.par_call_price
         yield_to_maturity = get_yield_caller(end_date, par)
-        
-        # yield to anytime call below does not change anything, and we should remove this code after some testing: 
-        if yield_to_maturity == yield_to_next_call and trade.dollar_price < 100:
-            return yield_to_maturity, trade.maturity_date
         
         dict_yields = {"yield_to_next_call": yield_to_next_call, 
                        "yield_to_maturity": yield_to_maturity, 
@@ -149,4 +154,4 @@ def compute_yield(trade):
                      "yield_to_maturity": trade.maturity_date, 
                      "yta": "error", 
                      "yield_to_par_call": trade.par_call_date}
-        return (dict_yields[our_choice], date_dict[our_choice])
+        return dict_yields[our_choice], date_dict[our_choice]
