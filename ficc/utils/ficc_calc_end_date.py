@@ -2,7 +2,7 @@
  # @ Author: Jesse Watson
  # @ Create Time: 2021-10-04 09:38:00
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-24 13:15:08
+ # @ Modified time: 2022-01-25 15:36:08
  # @ Description: This function estimates the date used to
  # calculate the yield for the trade
  '''
