@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-26 13:54:44
+ # @ Modified time: 2022-01-26 15:03:54
  # @ Description:
  '''
 
@@ -64,6 +64,10 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
         print('Estimating calculation date')
         print(trade_dataframe[['maturity_date','next_call_date','calc_date']])
 
+    # Taking only the most recent trades
+    print(f"Restricting the history to the {SEQUENCE_LENGTH} most recent trades")
+    trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
+
     # the trade history correctly
     print('Creating trade history')
     if remove_short_maturity == True:
@@ -72,10 +76,6 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
         print("Removing trades with non transaction based compensation flag true")
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,remove_non_transaction_based_compensation]))
     print('Trade history created')
-
-    # Taking only the most recent trades
-    print(f"Restricting the history to the {SEQUENCE_LENGTH} most recent trades")
-    trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
 
     if estimate_calc_date == True:
         trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
