@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-26 13:00:36
+ # @ Modified time: 2022-01-26 13:54:44
  # @ Description:
  '''
 
@@ -68,6 +68,8 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     print('Creating trade history')
     if remove_short_maturity == True:
         print("Removing trades with shorter maturity")
+    if remove_non_transaction_based_compensation == True:
+        print("Removing trades with non transaction based compensation flag true")
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,remove_non_transaction_based_compensation]))
     print('Trade history created')
 
