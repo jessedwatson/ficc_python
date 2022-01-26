@@ -76,13 +76,17 @@ def get_yield(cusip,
                                                                                                  RV, 
                                                                                                  time_delta, 
                                                                                                  last_period_accrues_from_date)
-            try:
-                lower_bound = 0
-                upper_bound = 1e3
-                yield_estimate = optimize.bisect(ytm_func, lower_bound, upper_bound, maxiter=1e3)
-            except Exception as e:
-                print(e)
-                return None
+
+            def yield_estimator(lower, upper):
+                try:
+                    yield_estimate = optimize.bisect(ytm_func, lower, upper, maxiter=int(1e3))
+                    return yield_estimate
+                except OverflowError as e:
+                    return yield_estimator(lower, upper / 2)
+
+            lower_bound = 0
+            upper_bound = 200
+            yield_estimate = yield_estimator(lower_bound, upper_bound)
     elif coupon == 0:    # THIS LOGIC IS CURRENTLY UNTESTED
         # MSRB Rule Book G-33, rule (b)(ii)(A), since coupon == 0, the formula is simplified with R == 0
         yield_estimate = ((RV - price) / price) * (NUM_OF_DAYS_IN_YEAR / settlement_date_to_end_date)
