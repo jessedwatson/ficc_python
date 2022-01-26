@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-26 10:34:58
+ # @ Modified time: 2022-01-26 15:43:53
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -29,7 +29,13 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
         target_date = trade_dict['trade_datetime'].date()
     
     if remove_short_maturity == True:
-        days_to_calc = (calc_date - trade_dict['settlement_date']).days
+        try:
+            days_to_calc = (calc_date - trade_dict['settlement_date']).days
+        except Exception as e:
+            print(f"Calc date: {calc_date} settlement date: {trade_dict['settlement_date']}")    
+            for k in trade_dict.keys():
+                print(k,trade_dict[k])
+        
         if days_to_calc < 360:
             return None
     
