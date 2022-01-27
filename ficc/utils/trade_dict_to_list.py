@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-26 15:56:43
+ # @ Modified time: 2022-01-26 19:45:29
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -18,16 +18,19 @@ from datetime import datetime
 from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
 
-def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity) -> list:
+def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remove_non_transaction_based) -> list:
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
-    # This 
+    # We do not have weighted average maturity before July 27
     if trade_dict['trade_datetime'] < datetime(2021,7,27):
         target_date = datetime(2021,7,27).date()
     else:
         target_date = trade_dict['trade_datetime'].date()
     
+    if remove_non_transaction_based == True and trade_dict['is_non_transaction_based_compensation'] == True:
+        return None
+
     if remove_short_maturity == True:
         days_to_calc = (calc_date - trade_dict['settlement_date']).days
         if days_to_calc < 360:
