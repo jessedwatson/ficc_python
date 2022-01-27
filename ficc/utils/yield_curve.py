@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-10 09:35:04
+ # @ Modified time: 2022-01-26 15:34:50
  # @ Description: This file contains the code to get 
  # the ficc yield curve level using the calc_date
  '''
@@ -17,7 +17,10 @@ import ficc.utils.globals as globals
 
 def get_ficc_ycl(trade, **kwargs):
     target_date = None
-
+    
+    if 'date' in kwargs:
+        trade.calc_date = kwargs['date']
+    
     # We only have reliable data to estimate the yield curve after
     # july 27th, 2021.
     if trade.trade_date < datetime(2021, 7, 27).date():
