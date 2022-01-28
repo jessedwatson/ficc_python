@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-26 09:54:31
+ # @ Modified time: 2022-01-26 19:36:48
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -27,7 +27,7 @@ from ficc.utils.yield_curve import get_ficc_ycl
 
 
 
-def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FICC", estimate_calc_date=True,remove_short_maturity=False, remove_non_transaction_based_compensation=False, **kwargs):
+def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FICC", estimate_calc_date=True,remove_short_maturity=False, remove_non_transaction_based=False, **kwargs):
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
 
@@ -38,7 +38,7 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
                                       PATH,
                                       estimate_calc_date,
                                       remove_short_maturity,
-                                      remove_non_transaction_based_compensation)
+                                      remove_non_transaction_based)
 
     if YIELD_CURVE.upper() == "FICC":
         # Calculating yield spreads using ficc_ycl
@@ -69,6 +69,5 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
     
     
     
-
 
 
