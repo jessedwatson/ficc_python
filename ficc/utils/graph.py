@@ -7,20 +7,23 @@ from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
 
 
-def _recent_trade_data_subset(df, N, appended_features_names_and_functions, categories, header):
+def _recent_trade_data_subset(df, N, appended_features_names_and_functions, categories=None, header=None):
     sorted_df = df.sort_values(by='trade_datetime')
 
     appended_features_names = list(appended_features_names_and_functions.keys())
     num_of_appended_features = len(appended_features_names)
 
-    len_augmented_data = sum([tuple(row[categories]) == header for _, row in sorted_df.iterrows()])
+    if categories == None:
+        len_augmented_data = len(sorted_df)
+    else:
+        len_augmented_data = sum([tuple(row[categories]) == header for _, row in sorted_df.iterrows()])
 
     augmented_data = np.zeros(shape=(len_augmented_data, 1 + N * num_of_appended_features), dtype=np.float32)
 
     recent_trades = deque([])
     idx_adjustment = 0
     for idx, (i, row) in enumerate(sorted_df.iterrows()):
-        if tuple(row[categories]) == header:
+        if categories == None or tuple(row[categories]) == header:
             augmented_data[idx - idx_adjustment, 0] = i
             for j, neighbor in enumerate(recent_trades):
                 for k, appended_features_name in enumerate(appended_features_names):
