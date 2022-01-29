@@ -59,13 +59,19 @@ def append_recent_trade_data(df, N, appended_features_names_and_functions, categ
             subcategory_headers = []
             subcategory_dict = dict()
             for subcategory_header, subcategory_df in df.groupby(categories):
+                if type(subcategory_header) != tuple:
+                    subcategory_header = (subcategory_header,)
                 subcategory_headers.append(subcategory_header)
                 subcategory_dict[subcategory_header] = subcategory_df
-            
+
             for subcategory_header in tqdm(subcategory_headers):
+                if type(subcategory_header) != tuple:
+                    subcategory_header = (subcategory_header,)
                 related_subcategories = []
 
                 for other_subcategory_header in subcategory_headers:
+                    if type(other_subcategory_header) != tuple:
+                        other_subcategory_header = (other_subcategory_header,)
                     if is_similar(categories, subcategory_header, other_subcategory_header):
                         related_subcategories.append(subcategory_dict[other_subcategory_header])
                 related_subcategories_df = pd.concat(related_subcategories)
