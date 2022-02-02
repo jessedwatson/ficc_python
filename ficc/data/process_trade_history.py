@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-26 19:37:22
+ # @ Modified time: 2022-02-02 09:35:59
  # @ Description:
  '''
 
@@ -33,10 +33,10 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
 
     return trade_dataframe
 
-def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based):
+def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type):
     if estimate_calc_date == False and remove_short_maturity == True:
         raise Exception("Cannot remove short maturity bonds without estimating calc date set estimate calc date to true")
-    
+
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
         print("Grabbing yield curve params")
         try:
@@ -57,7 +57,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     # trade_dataframe = trade_dataframe[trade_dataframe.par_traded > 10000]
     
     # Taking only the most recent trades
-    trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
+    # trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
 
     trade_dataframe['calc_date'] = trade_dataframe.parallel_apply(calc_end_date, axis=1)
     trade_dataframe.recent =  trade_dataframe.apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)
@@ -68,15 +68,24 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
 
     # the trade history correctly
     print('Creating trade history')
+    
     if remove_short_maturity == True:
         print("Removing trades with shorter maturity")
-    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based]))
+    
+    if len(remove_trade_type) > 0:
+        print(f"Removing trade types {remove_trade_type}")
+    
+    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type]))
+    
     print('Trade history created')
 
     if estimate_calc_date == True:
         trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
     else:
         trade_dataframe.drop(columns=['recent', 'empty_trade','calc_date'],inplace=True)
+
+    print(f"Restricitng the trade history to the {SEQUENCE_LENGTH} most recent trades")
+    trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
 
     print("Padding history")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES])
