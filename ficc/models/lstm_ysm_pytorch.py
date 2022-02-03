@@ -7,6 +7,29 @@ import pytorch_lightning as pl
 from ficc.models.registration import register_model
 
 
+class ResBlock(nn.Module):
+    def __init__(
+        self,
+        input_width,
+        dropout=0.0,
+        multiplier = 4
+    ):
+        super().__init__()
+
+        self.block = nn.Sequential(
+            nn.Linear(input_width, input_width * multiplier),
+            nn.BatchNorm1d(input_width * multiplier),
+            nn.Dropout(dropout),
+            nn.ReLU(),
+            nn.Linear(input_width * multiplier, input_width),
+            nn.BatchNorm1d(input_width),
+            nn.Dropout(dropout),
+        )
+
+    def forward(self, x):
+        return self.block(x) + x
+
+
 class LSTMCore(pl.LightningModule):
     def __init__(
         self,
@@ -16,7 +39,9 @@ class LSTMCore(pl.LightningModule):
         lstm_sizes=[460, 460],
         embed_sizes=10,
         tabular_sizes=[260, 10, 460],
+        tabular_resblocks=0,
         final_sizes=[250, 600],
+        final_resblocks=0,
         dropout=0.0,
         num_outputs=1,
         **kwargs
@@ -61,7 +86,13 @@ class LSTMCore(pl.LightningModule):
             nn.BatchNorm1d(tabular_sizes[1]),
             nn.Dropout(dropout),
             nn.Linear(tabular_sizes[1], tabular_sizes[2]),
-        )
+        ) + (
+            ResBlock(tabular_sizes[-1]),
+            nn.ReLU()
+        ) * tabular_resblocks
+        if (tabular_resblocks > 0):
+            self.tabular_model = self.tabular_model[:-1]
+        
         self.tabular_model = nn.Sequential(
             *self.tabular_model,
             nn.Tanh(),
@@ -76,20 +107,29 @@ class LSTMCore(pl.LightningModule):
             nn.Tanh(),
             nn.BatchNorm1d(final_sizes[1]),
             nn.Dropout(dropout),
-        )
+        ) + (
+            ResBlock(final_sizes[-1]),
+            nn.ReLU()
+        ) * final_resblocks        
         self.final_stage = nn.Sequential(
             *self.final_stage,
             nn.Linear(final_sizes[-1], num_outputs),
         )
 
+        self.kwargs = kwargs
         if 'learning_rate' in kwargs:
             self.lr = kwargs['learning_rate']
         else:
             self.lr = 1e-4
+        if 'weight_decay' in kwargs:
+            self.weight_decay = kwargs['weight_decay']
+        else:
+            self.weight_decay = 1e-2
 
-        self.learning_schedule = kwargs["learning_schedule"]
-        if self.learning_schedule == "cyclic":
-            self.max_factor = kwargs["max_factor"]
+        if "learning_schedule" in kwargs:
+            self.learning_schedule = kwargs["learning_schedule"]
+            if self.learning_schedule == "cyclic":
+                self.max_factor = kwargs["max_factor"]
 
     def forward(self, trade_history, noncat, *categorical):
         for lstm in self.trade_history_lstm:
@@ -107,7 +147,8 @@ class LSTMCore(pl.LightningModule):
         tabular_input = torch.cat([noncat] + categorical, dim=-1)
         tabular = self.tabular_model(tabular_input)
 
-        return self.final_stage(torch.cat([trade_history, tabular], dim=-1))
+        final_input = torch.cat([trade_history, tabular], dim=-1)
+        return self.final_stage(final_input)
 
 
 class LSTMYieldSpreadModel(LSTMCore):
@@ -143,17 +184,18 @@ class LSTMYieldSpreadModel(LSTMCore):
         return self.step(batch, "test")
 
     def configure_optimizers(self):
-        if self.learning_schedule == "cyclic":
-            optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
-            scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr, max_lr=self.lr * self.max_factor)
-            return [optimizer], [scheduler]
-        elif self.learning_schedule == "1cycle":
-            optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.lr, total_steps=2000)
-            return [optimizer], [scheduler]
-        else:
-            optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-            return optimizer
+        if "learning_schedule" in self.kwargs:
+            if self.learning_schedule == "cyclic":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr, max_lr=self.lr * self.max_factor)
+                return [optimizer], [scheduler]
+            elif self.learning_schedule == "1cycle":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.lr, total_steps=2000)
+                return [optimizer], [scheduler]
+
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        return optimizer
 
 
 class LSTMYieldSpreadDistributionModel(LSTMCore):
@@ -174,7 +216,7 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
     def forward(self, trade_history, noncat, *categorical):
         log_scale = super().forward(trade_history, noncat, *categorical)
 
-        return log_scale[:, 0], log_scale[:, 1].clamp(min=1e-6)
+        return log_scale[:, 0], F.softplus(log_scale[:, 1])
 
     def loss(self, loc, scale, target):
         var = (scale ** 2)
@@ -194,6 +236,7 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
 
         self.log(f"{name}_loss", nll_loss.item())
         self.log(f"{name}_mae", torch.abs(loc - y).mean().item())
+        self.log(f"{name}_min_variance", scale.min())
         return nll_loss
 
     def training_step(self, batch, batch_idx):
@@ -206,7 +249,17 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
         return self.step(batch, "test")
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        if "learning_schedule" in self.kwargs:
+            if self.learning_schedule == "cyclic":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr, max_lr=self.lr * self.max_factor)
+                return [optimizer], [scheduler]
+            elif self.learning_schedule == "1cycle":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.lr, total_steps=2000)
+                return [optimizer], [scheduler]
+
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         return optimizer
 
 
