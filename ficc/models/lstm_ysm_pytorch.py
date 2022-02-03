@@ -219,11 +219,8 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
         return log_scale[:, 0], F.softplus(log_scale[:, 1])
 
     def loss(self, loc, scale, target):
-        var = (scale ** 2)
-        log_scale = scale.log()
-        log_prob = -((target - loc) ** 2) / (2 * var) - \
-            log_scale - math.log(math.sqrt(2 * math.pi))
-        nll_loss = -log_prob.mean()
+        distribution = torch.distributions.Normal(loc, scale)
+        nll_loss = -distribution.log_prob(target).mean()
 
         return nll_loss
 
