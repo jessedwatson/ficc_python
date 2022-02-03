@@ -18,7 +18,13 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
     else:
         len_augmented_data = sum([tuple(row[categories]) == header for _, row in sorted_df.iterrows()])
 
+    # initialization of augmented_data matrix
     augmented_data = np.zeros(shape=(len_augmented_data, 1 + N * num_of_appended_features), dtype=np.float32)
+    for k, appended_features_name in enumerate(appended_features_names):
+        _, init = appended_features_names_and_functions[appended_features_name]
+        if init != 0:
+            for j in range(N):
+                augmented_data[:, 1 + k + j * num_of_appended_features] = init * np.ones(len_augmented_data)
 
     recent_trades = deque([])
     idx_adjustment = 0
@@ -27,7 +33,7 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
             augmented_data[idx - idx_adjustment, 0] = i
             for j, neighbor in enumerate(recent_trades):
                 for k, appended_features_name in enumerate(appended_features_names):
-                    appended_features_function = appended_features_names_and_functions[appended_features_name]
+                    appended_features_function, _ = appended_features_names_and_functions[appended_features_name]
                     augmented_data[idx - idx_adjustment, 1 + j * num_of_appended_features + k] = appended_features_function(row, neighbor)
         else:
             idx_adjustment += 1
