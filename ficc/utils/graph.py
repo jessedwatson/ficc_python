@@ -49,10 +49,10 @@ to augment each trade with previous trades that are similar to this one, where t
 equal to None, then this is equivalent to the similarity function enforcing that 
 all categories amongst two trades must be equal in order to be considered similar.
 '''
-def append_recent_trade_data(df, N, appended_features_names_and_functions, categories=None, is_similar=None):
+def append_recent_trade_data(df, N, appended_features_names_and_functions, categories=[], is_similar=None):
     assert 'trade_datetime' in df.columns, 'trade_datetime column is required'
 
-    if categories is not None:
+    if categories:
         augmented_data = []
 
         if is_similar is not None:
