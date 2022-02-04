@@ -112,7 +112,9 @@ def visualize_trade_history_attribution(attrs, subtitle=None, wandb=None):
 
 
 def visualize_trade_numerical_and_binary_attribution(attrs, numerical_features, binary_features, subtitle=None, wandb=None):
-    fig, ax = plt.subplots(figsize=(15, 2))
+    fig, ax = plt.subplots(figsize=(15, 5))
+    plt.xticks(rotation='vertical')
+    fig.subplots_adjust(bottom=0.6)
     yticklabels = [""]
     xticklabels = numerical_features + \
         [b + " (binary)" for b in binary_features]
