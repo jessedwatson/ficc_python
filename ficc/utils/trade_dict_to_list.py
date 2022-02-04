@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-26 19:45:29
+ # @ Modified time: 2022-02-03 20:36:22
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -15,10 +15,13 @@
 import numpy as np
 from datetime import datetime
 
+from pandas import ExcelFile
+
 from ficc.utils.yield_curve import yield_curve_level
+from ficc.utils.get_mmd_level import get_mmd_level
 import ficc.utils.globals as globals
 
-def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remove_non_transaction_based) -> list:
+def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remove_non_transaction_based, remove_trade_type) -> list:
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
@@ -35,6 +38,9 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
         days_to_calc = (calc_date - trade_dict['settlement_date']).days
         if days_to_calc < 360:
             return None
+    
+    if len(remove_trade_type) > 0 and trade_dict['trade_type'] in remove_trade_type:
+        return None
 
     #calculating the time to maturity in years from the trade_date
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
@@ -47,6 +53,11 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
     
         trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
     
+    elif globals.YIELD_CURVE_TO_USE.upper() == "MMD":
+        time_to_maturity = (calc_date - target_date).days/365.25
+        yield_at_that_time = get_mmd_level(target_date.strftime('%Y-%m-%d'), time_to_maturity)
+        trade_list.append( (trade_dict['yield'] - yield_at_that_time) * 100 )
+
     elif globals.YIELD_CURVE_TO_USE.upper() == "S&P":
         trade_list.append(trade_dict['yield_spread'] * 100)
         
