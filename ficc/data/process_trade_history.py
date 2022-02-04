@@ -2,11 +2,12 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-02 09:35:59
+ # @ Modified time: 2022-02-03 20:21:42
  # @ Description:
  '''
 
 import os
+from telnetlib import SE
 import pandas as pd
 import numpy as np
 
@@ -17,6 +18,7 @@ import ficc.utils.globals as globals
 from ficc.utils.ficc_calc_end_date import calc_end_date
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
+from ficc.utils.create_mmd_data import create_mmd_data
 
 def fetch_trade_data(query, client, PATH='data.pkl'):
 
@@ -45,6 +47,14 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
             print("Failed to grab yield curve parameters")
             raise e
     
+    if globals.YIELD_CURVE_TO_USE.upper() == "MMD":
+        print("Grabbing MMD yield curve level")
+        try:
+            create_mmd_data(client)
+        except Exception as e:
+            print("Failed to grab MMD ycl")
+            raise e
+
     trade_dataframe = fetch_trade_data(query, client, PATH)
 
     #Dropping empty trades

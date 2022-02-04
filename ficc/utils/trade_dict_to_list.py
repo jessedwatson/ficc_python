@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-01 12:48:33
+ # @ Modified time: 2022-02-03 20:36:22
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -15,7 +15,10 @@
 import numpy as np
 from datetime import datetime
 
+from pandas import ExcelFile
+
 from ficc.utils.yield_curve import yield_curve_level
+from ficc.utils.get_mmd_level import get_mmd_level
 import ficc.utils.globals as globals
 
 def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remove_non_transaction_based, remove_trade_type) -> list:
@@ -50,6 +53,11 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
     
         trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
     
+    elif globals.YIELD_CURVE_TO_USE.upper() == "MMD":
+        time_to_maturity = (calc_date - target_date).days/365.25
+        yield_at_that_time = get_mmd_level(target_date.strftime('%Y-%m-%d'), time_to_maturity)
+        trade_list.append( (trade_dict['yield'] - yield_at_that_time) * 100 )
+
     elif globals.YIELD_CURVE_TO_USE.upper() == "S&P":
         trade_list.append(trade_dict['yield_spread'] * 100)
         
