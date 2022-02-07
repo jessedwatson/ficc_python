@@ -37,7 +37,7 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
                 # is handled by the LSTM and that there is a one minute gap between two 'nearby' trades, 
                 # since it only makes sense to have access to information from a prior trade (the one minute 
                 # threshold is because that is how frequently we update our data) 
-                if (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds() > ONE_MINUTE_TO_SECONDS and row['CUSIP'] != neighbor['CUSIP']:
+                if (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds() > ONE_MINUTE_TO_SECONDS and row['cusip'] != neighbor['cusip']:
                     for k, appended_features_name in enumerate(appended_features_names):
                         appended_features_function, _ = appended_features_names_and_functions[appended_features_name]
                         augmented_data[idx - idx_adjustment, 1 + j * num_of_appended_features + k] = appended_features_function(row, neighbor)
