@@ -6,6 +6,7 @@ import tensorflow as tf
 from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
 
+ONE_MINUTE_TO_SECONDS = 60
 
 def _recent_trade_data_subset(df, N, appended_features_names_and_functions, categories=None, header=None):
     sorted_df = df.sort_values(by='trade_datetime')
@@ -32,9 +33,14 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
         if categories == None or tuple(row[categories]) == header:
             augmented_data[idx - idx_adjustment, 0] = i
             for j, neighbor in enumerate(recent_trades):
-                for k, appended_features_name in enumerate(appended_features_names):
-                    appended_features_function, _ = appended_features_names_and_functions[appended_features_name]
-                    augmented_data[idx - idx_adjustment, 1 + j * num_of_appended_features + k] = appended_features_function(row, neighbor)
+                # the below condition ensures that recent trades don't come from the same CUSIP, since that 
+                # is handled by the LSTM and that there is a one minute gap between two 'nearby' trades, 
+                # since it only makes sense to have access to information from a prior trade (the one minute 
+                # threshold is because that is how frequently we update our data) 
+                if (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds() > ONE_MINUTE_TO_SECONDS and row['CUSIP'] != neighbor['CUSIP']:
+                    for k, appended_features_name in enumerate(appended_features_names):
+                        appended_features_function, _ = appended_features_names_and_functions[appended_features_name]
+                        augmented_data[idx - idx_adjustment, 1 + j * num_of_appended_features + k] = appended_features_function(row, neighbor)
         else:
             idx_adjustment += 1
 
