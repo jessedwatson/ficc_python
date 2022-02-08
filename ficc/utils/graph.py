@@ -28,10 +28,10 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
                 augmented_data[:, 1 + k + j * num_of_appended_features] = init * np.ones(len_augmented_data)
 
     recent_trades = deque([])
-    idx_adjustment = 0
+    idx_adjustment = 0    # this index adjustment is for when the sorted_df has moved forward to another row that is not one of the rows for the current header (but is a similar one)
     for idx, (i, row) in enumerate(sorted_df.iterrows()):
         if categories == None or tuple(row[categories]) == header:
-            augmented_data[idx - idx_adjustment, 0] = i
+            augmented_data[idx - idx_adjustment, 0] = i    # put the row position in the first column of augmented_data
             for j, neighbor in enumerate(recent_trades):
                 # the below condition ensures that recent trades don't come from the same CUSIP, since that 
                 # is handled by the LSTM and that there is a one minute gap between two 'nearby' trades, 
@@ -44,6 +44,7 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
         else:
             idx_adjustment += 1
 
+        # TODO: we may not be able to add every trade to recent_trades and then toss them off since we may be losing trades that are actually recent since the current one that just got put on may be from the same CUSIP as the next one (for example)
         recent_trades.append(row)
         if len(recent_trades) > N:
             recent_trades.popleft()
@@ -62,34 +63,36 @@ equal to None, then this is equivalent to the similarity function enforcing that
 all categories amongst two trades must be equal in order to be considered similar.
 '''
 def append_recent_trade_data(df, N, appended_features_names_and_functions, categories=[], is_similar=None):
-    assert 'trade_datetime' in df.columns, 'trade_datetime column is required'
+    assert 'trade_datetime' in df.columns, 'trade_datetime column is required'    # we use the datetime to determine the time of the trade
 
-    if categories:
+    if categories:    # entering here means that there are certain categories that need to be similar between two trades to be considered amongst the recent trades
         augmented_data = []
 
-        if is_similar is not None:
+        if is_similar is not None:    # entering here means that there is a similarity function
             subcategory_headers = []
             subcategory_dict = dict()
             for subcategory_header, subcategory_df in df.groupby(categories):
-                if type(subcategory_header) != tuple:
+                if type(subcategory_header) != tuple:    # this if statement converts a single item category value to a tuple to be consistent with the case when there are multiple categories
                     subcategory_header = (subcategory_header,)
                 subcategory_headers.append(subcategory_header)
                 subcategory_dict[subcategory_header] = subcategory_df
 
             for subcategory_header in tqdm(subcategory_headers):
+                # TODO: check if the following if statement may be unnecessary since subcategory_headers already is a list of tuples from lines 73-75
                 if type(subcategory_header) != tuple:
                     subcategory_header = (subcategory_header,)
                 related_subcategories = []
 
                 for other_subcategory_header in subcategory_headers:
+                    # TODO: check if the following if statement may be unnecessary since subcategory_headers already is a list of tuples from lines 73-75
                     if type(other_subcategory_header) != tuple:
                         other_subcategory_header = (other_subcategory_header,)
-                    if is_similar(categories, subcategory_header, other_subcategory_header):
+                    if is_similar(categories, subcategory_header, other_subcategory_header):    # check if each subcategory header is similar to any of the other subcategory headers (trivally similar to itself)
                         related_subcategories.append(subcategory_dict[other_subcategory_header])
                 related_subcategories_df = pd.concat(related_subcategories)
 
                 augmented_data.append(_recent_trade_data_subset(related_subcategories_df, N, appended_features_names_and_functions, categories, subcategory_header))
-        else:   
+        else:    # entering here means that there is no similarity function and all `categories` must be the same for two trades to be considered similar
             for subcategory_header, subcategory_df in tqdm(df.groupby(categories)):
                 augmented_data.append(_recent_trade_data_subset(subcategory_df, N, appended_features_names_and_functions, categories, subcategory_header))
 
