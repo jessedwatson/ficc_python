@@ -3,6 +3,8 @@ import tqdm
 
 from PIL import Image
 
+import numpy as np
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 import wandb as W
@@ -24,13 +26,16 @@ def compute_integrated_gradient_attributions(
         model = model_wrapper(model) if model_wrapper is not None else model
         model = ModelInputWrapper(model)
 
-    if model_wrapper is None:
-        ig = LayerIntegratedGradients(model, [model.input_maps["trade_history"],
-                                    model.input_maps["noncat"]] + [e for e in model.module.embed.children()])
-    else:
-        ig = LayerIntegratedGradients(model, [model.input_maps["trade_history"],
-                                    model.input_maps["noncat"]] + [e for e in model.module.wrapped_model.embed.children()])
+    # Build all the inputs for attribution
+    inputs = [model.input_maps["trade_history"], model.input_maps["noncat"]]
+    for module in model.modules():
+        if isinstance(module, torch.nn.Embedding):
+            inputs = inputs + [module]
 
+    # Build the integrated gradients model
+    ig = LayerIntegratedGradients(model, inputs)
+
+    # Move the model and the inputs to the GPU, if it's available
     if torch.cuda.is_available():
         model = model.cuda()
         x_eval = [x.cuda() for x in x_eval]
@@ -41,6 +46,7 @@ def compute_integrated_gradient_attributions(
         x_eval[0] = x_eval[0].float()
         x_eval[1] = x_eval[1].float()
 
+    # Compute the integrated gradients in batches
     attributes = None
     for start_idx in tqdm.tqdm(range(0, x_eval[0].shape[0], BATCH_SIZE)):
         end_idx = min(start_idx+BATCH_SIZE, x_eval[0].shape[0])
@@ -49,8 +55,7 @@ def compute_integrated_gradient_attributions(
         else:
             x = [y_eval[start_idx:end_idx]] + [t[start_idx:end_idx, ...]
                                                for t in x_eval]
-        ig_attr_test = ig.attribute(
-            tuple(x), internal_batch_size=1)
+        ig_attr_test = ig.attribute(tuple(x), internal_batch_size=1)
 
         if attributes is None:
             attributes = ig_attr_test
