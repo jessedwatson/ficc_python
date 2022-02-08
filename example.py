@@ -3,7 +3,7 @@
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
  # @ Modified time: 2022-02-03 20:40:05
- # @ Description: This file is an example on how to call the ficc data package. 
+ # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The methond takes the following arguments. 
  	#   1. A query that will be used to fetch data from BigQuery. 
