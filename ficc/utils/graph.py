@@ -33,21 +33,23 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
         if categories == None or tuple(row[categories]) == header:
             augmented_data[idx - idx_adjustment, 0] = i    # put the row position in the first column of augmented_data
             for j, neighbor in enumerate(recent_trades):
+                num_recent_trades_augmented = 0
                 # the below condition ensures that recent trades don't come from the same CUSIP, since that 
-                # is handled by the LSTM and that there is a one minute gap between two 'nearby' trades, 
-                # since it only makes sense to have access to information from a prior trade (the one minute 
-                # threshold is because that is how frequently we update our data) 
-                if (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds() > ONE_MINUTE_TO_SECONDS and row['cusip'] != neighbor['cusip']:
+                # is handled by the LSTM and that there is 15 minute window between two 'nearby' trades, since 
+                # it only makes sense to have access to information from a prior trade (the 15 minute threshold 
+                # is because that is the amount of time a trade must be reported to MSRB since being completed) 
+                if (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds() > 15 * ONE_MINUTE_TO_SECONDS and row['cusip'] != neighbor['cusip']:
                     for k, appended_features_name in enumerate(appended_features_names):
                         appended_features_function, _ = appended_features_names_and_functions[appended_features_name]
-                        augmented_data[idx - idx_adjustment, 1 + j * num_of_appended_features + k] = appended_features_function(row, neighbor)
+                        augmented_data[idx - idx_adjustment, 1 + num_recent_trades_augmented * num_of_appended_features + k] = appended_features_function(row, neighbor)
+                    num_recent_trades_augmented += 1
+                
+                    if num_recent_trades_augmented == N:   # going in here means that we have already filled the N recent trades for the current trade (`row`)
+                        break
         else:
             idx_adjustment += 1
 
-        # TODO: we may not be able to add every trade to recent_trades and then toss them off since we may be losing trades that are actually recent since the current one that just got put on may be from the same CUSIP as the next one (for example)
-        recent_trades.append(row)
-        if len(recent_trades) > N:
-            recent_trades.popleft()
+        recent_trades.appendleft(row)    # appendleft allows us to iterate from most recent to least recent when iterating through `recent_trades`
 
     return augmented_data
 
@@ -78,15 +80,9 @@ def append_recent_trade_data(df, N, appended_features_names_and_functions, categ
                 subcategory_dict[subcategory_header] = subcategory_df
 
             for subcategory_header in tqdm(subcategory_headers):
-                # TODO: check if the following if statement may be unnecessary since subcategory_headers already is a list of tuples from lines 73-75
-                if type(subcategory_header) != tuple:
-                    subcategory_header = (subcategory_header,)
                 related_subcategories = []
 
                 for other_subcategory_header in subcategory_headers:
-                    # TODO: check if the following if statement may be unnecessary since subcategory_headers already is a list of tuples from lines 73-75
-                    if type(other_subcategory_header) != tuple:
-                        other_subcategory_header = (other_subcategory_header,)
                     if is_similar(categories, subcategory_header, other_subcategory_header):    # check if each subcategory header is similar to any of the other subcategory headers (trivally similar to itself)
                         related_subcategories.append(subcategory_dict[other_subcategory_header])
                 related_subcategories_df = pd.concat(related_subcategories)
