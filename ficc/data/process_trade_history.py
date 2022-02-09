@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-03 20:21:42
+ # @ Modified time: 2022-02-08 18:31:25
  # @ Description:
  '''
 
@@ -69,7 +69,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     # Taking only the most recent trades
     # trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
 
-    trade_dataframe['calc_date'] = trade_dataframe.parallel_apply(calc_end_date, axis=1)
+    trade_dataframe['calc_date'] = trade_dataframe.apply(calc_end_date, axis=1)
     trade_dataframe.recent =  trade_dataframe.apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)
 
     if estimate_calc_date == True:
