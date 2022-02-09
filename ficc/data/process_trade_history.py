@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-08 18:31:25
+ # @ Modified time: 2022-02-09 09:22:05
  # @ Description:
  '''
 
@@ -84,7 +84,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     
     if len(remove_trade_type) > 0:
         print(f"Removing trade types {remove_trade_type}")
-    
+    print('Removing trades less than 15 minutes in the history')
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type]))
     
     print('Trade history created')
