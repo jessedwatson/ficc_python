@@ -32,8 +32,8 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
     for idx, (i, row) in enumerate(sorted_df.iterrows()):
         if categories == None or tuple(row[categories]) == header:
             augmented_data[idx - idx_adjustment, 0] = i    # put the row position in the first column of augmented_data
+            num_recent_trades_augmented = 0
             for j, neighbor in enumerate(recent_trades):
-                num_recent_trades_augmented = 0
                 # the below condition ensures that recent trades don't come from the same CUSIP, since that 
                 # is handled by the LSTM and that there is 15 minute window between two 'nearby' trades, since 
                 # it only makes sense to have access to information from a prior trade (the 15 minute threshold 
