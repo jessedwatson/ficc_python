@@ -2,14 +2,14 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2022-02-03 19:38:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-08 19:30:40
+ # @ Modified time: 2022-02-09 13:26:38
  # @ Description:
  '''
 
 import numpy as np
 import ficc.utils.globals as globals
 
-def get_mmd_level(target_date, maturity):
+def mmd_ycl(target_date, maturity):
     maturity = int(np.round(maturity))
     if maturity == 0:
         maturity = 1
