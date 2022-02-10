@@ -2,10 +2,10 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-09 13:57:38
- # @ Description: This file is an example on how to call the ficc data package. 
+ # @ Modified time: 2022-02-10 10:40:43
+ # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
- # The methond takes the following arguments. 
+ # The method takes the following arguments. 
  	#   1. A query that will be used to fetch data from BigQuery. 
 	#   2. BigQuery client. 
  	#   3. The sequence length of the trade history can take 32 as its maximum value. 

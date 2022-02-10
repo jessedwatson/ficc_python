@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-09 09:22:05
+ # @ Modified time: 2022-02-10 11:09:06
  # @ Description:
  '''
 
@@ -19,6 +19,9 @@ from ficc.utils.ficc_calc_end_date import calc_end_date
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.create_mmd_data import create_mmd_data
+from ficc.utils.auxiliary_functions import process_ratings, convert_object_to_category
+from ficc.utils.fill_missing_values import fill_missing_values
+
 
 def fetch_trade_data(query, client, PATH='data.pkl'):
 
@@ -56,6 +59,9 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
             raise e
 
     trade_dataframe = fetch_trade_data(query, client, PATH)
+    trade_dataframe = process_ratings(trade_dataframe)
+    trade_dataframe = convert_object_to_category(trade_dataframe)
+
 
     #Dropping empty trades
     print("Dropping empty trades")

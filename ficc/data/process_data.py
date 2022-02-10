@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-09 14:02:25
+ # @ Modified time: 2022-02-10 10:46:41
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -20,11 +20,9 @@ pandarallel.initialize(progress_bar=False)
 
 import ficc.utils.globals as globals
 from ficc.data.process_trade_history import process_trade_history
-from ficc.utils.auxiliary_functions import convert_dates, process_ratings
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
-
-
+from ficc.utils.auxiliary_functions import convert_dates
 
 
 def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FICC", estimate_calc_date = True, remove_short_maturity = False, remove_non_transaction_based = False, remove_trade_type = [], **kwargs):
@@ -56,12 +54,7 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
 
     # Dropping columns which are not used for training
     # trades_df = drop_extra_columns(trades_df)
-
-    # Converting BigQuery Date data type to pandas datatime data type
     trades_df = convert_dates(trades_df)
-    
-
-    trades_df = process_ratings(trades_df)
 
     print("Processing categorical features")
     trades_df = process_features(trades_df)
