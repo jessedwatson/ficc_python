@@ -35,10 +35,8 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
             num_recent_trades_augmented = 0
             for j, neighbor in enumerate(recent_trades):
                 # the below condition ensures that recent trades don't come from the same CUSIP, since that 
-                # is handled by the LSTM and that there is 15 minute window between two 'nearby' trades, since 
-                # it only makes sense to have access to information from a prior trade (the 15 minute threshold 
-                # is because that is the amount of time a trade must be reported to MSRB since being completed) 
-                if (row['trade_datetime'] - neighbor['trade_datetime']).total_seconds() >= ONE_MINUTE_TO_SECONDS and row['cusip'] != neighbor['cusip']:
+                # is handled by the LSTM 
+                if row['cusip'] != neighbor['cusip']:
                     for k, appended_features_name in enumerate(appended_features_names):
                         appended_features_function, _ = appended_features_names_and_functions[appended_features_name]
                         augmented_data[idx - idx_adjustment, 1 + num_recent_trades_augmented * num_of_appended_features + k] = appended_features_function(row, neighbor)
