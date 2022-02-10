@@ -6,6 +6,8 @@ import tensorflow as tf
 from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
 
+from ficc.utils.auxiliary_functions import compare_dates
+
 
 def _recent_trade_data_subset(df, N, appended_features_names_and_functions, categories=None, header=None):
     sorted_df = df.sort_values(by='trade_datetime')
@@ -35,7 +37,7 @@ def _recent_trade_data_subset(df, N, appended_features_names_and_functions, cate
             for j, neighbor in enumerate(recent_trades):
                 # the below condition ensures that recent trades don't come from the same CUSIP, since that 
                 # is handled by the LSTM 
-                if row['trade_datetime'] > neighbor['trade_datetime'] and row['cusip'] != neighbor['cusip']:
+                if compare_dates(row['trade_datetime'], neighbor['trade_datetime']) > 0 and row['cusip'] != neighbor['cusip']:
                     for k, appended_features_name in enumerate(appended_features_names):
                         appended_features_function, _ = appended_features_names_and_functions[appended_features_name]
                         augmented_data[idx - idx_adjustment, 1 + num_recent_trades_augmented * num_of_appended_features + k] = appended_features_function(row, neighbor)
