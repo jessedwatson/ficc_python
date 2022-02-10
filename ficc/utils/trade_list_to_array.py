@@ -12,7 +12,7 @@
 import numpy as np
 from ficc.utils.trade_dict_to_list import trade_dict_to_list
 
-def trade_list_to_array(trade_history, remove_short_maturity, remove_non_transaction_based, remove_trade_type):
+def trade_list_to_array(trade_history, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay):
     
     if len(trade_history) == 0:
         return np.array([])
@@ -24,7 +24,7 @@ def trade_list_to_array(trade_history, remove_short_maturity, remove_non_transac
     trades_list = []
 
     for entry in trade_history:
-        trades = trade_dict_to_list(entry,calc_date, remove_short_maturity, remove_non_transaction_based, remove_trade_type)
+        trades = trade_dict_to_list(entry,calc_date, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay)
         if trades is not None:
             trades_list.append(trades)
 

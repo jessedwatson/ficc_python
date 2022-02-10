@@ -97,6 +97,7 @@ def dates_are_equal(date1, date2):
 This function converts the columns with object datatypes to category data types
 '''
 def convert_object_to_category(df):
+    print("Converting object data type to categorical data type")
     for col_name in df.columns:
         if col_name.endswith("event") or col_name.endswith("redemption") or col_name.endswith("history") or col_name.endswith("date"):
             continue
