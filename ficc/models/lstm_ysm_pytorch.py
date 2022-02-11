@@ -260,7 +260,7 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
         return optimizer
 
 
-class YieldSpreadSquaredError(nn.Module):
+class YieldSpreadSquaredErrorWrapper(nn.Module):
     def __init__(
         self,
         model
@@ -272,9 +272,22 @@ class YieldSpreadSquaredError(nn.Module):
     def forward(self, ground_truth, trade_history, noncat, *categorical):
         estimate = self.wrapped_model(
             trade_history, noncat, *categorical).squeeze()
-        diff = (ground_truth - estimate)
-        loss = diff.pow(2).mean()
+        loss = (ground_truth - estimate).square().mean()
         return loss.unsqueeze(0)
+
+
+class MeanSquaredErrorWrapper(nn.Module):
+    def __init__(
+        self,
+        model
+    ):
+        super().__init__()
+
+        self.wrapped_model = model
+
+    def forward(self, ground_truth, trade_history, noncat, *categorical):
+        loc, scale = self.wrapped_model(trade_history, noncat, *categorical)
+        return (ground_truth - loc).square().mean().unsqueeze(0)
 
 
 class VarianceWrapper(nn.Module):

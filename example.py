@@ -62,4 +62,3 @@ if __name__ == "__main__":
                               remove_trade_type = ['S','P'],
                               trade_history_delay = 1)
     
-    trade_data.to_pickle('dealer_dealer.pkl')

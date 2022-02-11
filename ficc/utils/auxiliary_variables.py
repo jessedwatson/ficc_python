@@ -47,6 +47,7 @@ COUPON_FREQUENCY_DICT = {0:"Unknown",
                         36:"Single Interest Payment"}
 
 LARGE_NUMBER = 1e6
+VERY_LARGE_NUMBER = 1e9
 
 COUPON_FREQUENCY_TYPE = {"Unknown":LARGE_NUMBER,
                          "Semiannually":2,
