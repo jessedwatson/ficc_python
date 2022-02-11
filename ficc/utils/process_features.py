@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-20 09:33:43
+ # @ Modified time: 2022-02-10 11:07:25
  # @ Description:
  '''
 import numpy as np
@@ -39,7 +39,8 @@ def process_features(df):
     # Converting the dates to a number of days from the settlement date. 
     # We only consider trades to be reportedly correctly if the trades are settled within one month of the trade date. 
     df.loc[:,'days_to_settle'] = (df.settlement_date - df.trade_date).dt.days.fillna(0)
-    df = df[df.days_to_settle <= 31]
+    print('Removing trades which are settled more than a month from trade date')
+    df = df[df.days_to_settle < 30]
 
     df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days.fillna(0))
     df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days.fillna(0))

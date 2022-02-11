@@ -2,10 +2,10 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-03 20:40:05
+ # @ Modified time: 2022-02-10 10:40:43
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
- # The methond takes the following arguments. 
+ # The method takes the following arguments. 
  	#   1. A query that will be used to fetch data from BigQuery. 
 	#   2. BigQuery client. 
  	#   3. The sequence length of the trade history can take 32 as its maximum value. 
@@ -16,32 +16,34 @@
  '''
 
 
-from cgitb import reset
 import ficc.utils.globals as globals
 import os
+import pickle5 as pickle
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_variables import PREDICTORS
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/eng-reactor-287421-112eb767e1b3.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/shayaan/ficc/ml_models/sequence_predictors/eng-reactor-287421-112eb767e1b3.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 5
 DATA_QUERY = """ SELECT
   *
 FROM
-  `eng-reactor-287421.primary_views.speedy_trade_history` 
+  `eng-reactor-287421.auxiliary_views.materialized_trade_history`
 WHERE
   yield IS NOT NULL
   AND yield > 0 
-  AND yield <= 3 
+  AND yield <= 3
+  AND trade_type = 'D' 
   AND par_traded IS NOT NULL
-  AND par_traded > 10000
-  AND sp_long IS NOT NULL
   AND trade_date >= '2021-07-01' 
   AND trade_date <= '2021-10-01'
+  AND maturity_description_code = 2
+  AND incorporated_state_code <> 'US'
+  AND coupon_type = 8
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
 ORDER BY
-  trade_date DESC
+  trade_datetime DESC
 LIMIT 100
             """
 
@@ -55,8 +57,8 @@ if __name__ == "__main__":
                               'data.pkl',
                               "MMD",
                               estimate_calc_date=True,
-                              remove_short_maturity=False,
-                              remove_non_transaction_based=True,
-                              remove_trade_type = ['P'])
-                              
-    print(trade_data.head())
+                              remove_short_maturity=True,
+                              remove_non_transaction_based=False,
+                              remove_trade_type = ['S','P'],
+                              trade_history_delay = 1)
+    

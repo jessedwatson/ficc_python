@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-20 15:53:08
+ # @ Modified time: 2022-02-10 10:49:09
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -92,3 +92,16 @@ This function directly calls `compare_dates` to check if two dates are equal.
 '''
 def dates_are_equal(date1, date2):
     return compare_dates(date1, date2) == 0
+
+'''
+This function converts the columns with object datatypes to category data types
+'''
+def convert_object_to_category(df):
+    print("Converting object data type to categorical data type")
+    for col_name in df.columns:
+        if col_name.endswith("event") or col_name.endswith("redemption") or col_name.endswith("history") or col_name.endswith("date"):
+            continue
+
+        if df[col_name].dtype == "object" and col_name not in ['organization_primary_name','security_description','recent','issue_text','series_name']:
+            df[col_name] = df[col_name].astype("category")
+    return df

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-03 20:21:42
+ # @ Modified time: 2022-02-10 11:09:06
  # @ Description:
  '''
 
@@ -19,6 +19,9 @@ from ficc.utils.ficc_calc_end_date import calc_end_date
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.create_mmd_data import create_mmd_data
+from ficc.utils.auxiliary_functions import process_ratings, convert_object_to_category
+from ficc.utils.fill_missing_values import fill_missing_values
+
 
 def fetch_trade_data(query, client, PATH='data.pkl'):
 
@@ -35,7 +38,7 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
 
     return trade_dataframe
 
-def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type):
+def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type, trade_history_delay):
     if estimate_calc_date == False and remove_short_maturity == True:
         raise Exception("Cannot remove short maturity bonds without estimating calc date set estimate calc date to true")
 
@@ -56,6 +59,9 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
             raise e
 
     trade_dataframe = fetch_trade_data(query, client, PATH)
+    trade_dataframe = process_ratings(trade_dataframe)
+    trade_dataframe = convert_object_to_category(trade_dataframe)
+
 
     #Dropping empty trades
     print("Dropping empty trades")
@@ -69,7 +75,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     # Taking only the most recent trades
     # trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
 
-    trade_dataframe['calc_date'] = trade_dataframe.parallel_apply(calc_end_date, axis=1)
+    trade_dataframe['calc_date'] = trade_dataframe.apply(calc_end_date, axis=1)
     trade_dataframe.recent =  trade_dataframe.apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)
 
     if estimate_calc_date == True:
@@ -84,8 +90,8 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     
     if len(remove_trade_type) > 0:
         print(f"Removing trade types {remove_trade_type}")
-    
-    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type]))
+    print(f'Removing trades less than {trade_history_delay} minutes in the history')
+    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay]))
     
     print('Trade history created')
 
