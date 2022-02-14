@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-10 11:09:06
+ # @ Modified time: 2022-02-14 12:43:41
  # @ Description:
  '''
 
@@ -10,6 +10,7 @@ import os
 from telnetlib import SE
 import pandas as pd
 import numpy as np
+import pickle5 as pickle
 
 from ficc.utils.auxiliary_functions import sqltodf
 from ficc.utils.auxiliary_variables import PREDICTORS
@@ -23,19 +24,27 @@ from ficc.utils.auxiliary_functions import process_ratings, convert_object_to_ca
 from ficc.utils.fill_missing_values import fill_missing_values
 
 
+
 def fetch_trade_data(query, client, PATH='data.pkl'):
 
     if os.path.isfile(PATH):
-        print(f"Data file found {PATH}, reading data from file")
-        trade_dataframe = pd.read_pickle(PATH)
-        print("File read")
-    else:
-        print("Data file not found, Running query to fetch data")
-        trade_dataframe = sqltodf(query,client)
-        print("Saving data")
-        print(PATH)
-        trade_dataframe.to_pickle(PATH)
-
+        print(f"Data file {PATH} found, reading data from it")
+        with open(PATH, 'rb') as f: 
+            (q, trade_dataframe) = pickle.load(f)
+        if q == query:
+            return trade_dataframe
+        else:
+            raise Exception (f"Saved query is incorrect:\n{q}")
+    
+    print(f'Grabbing data from BigQuery')
+    trade_dataframe = sqltodf(query,client)
+    print(f"Saving query and data to {PATH}")
+    
+    ds = (query, trade_dataframe)
+    
+    with open(PATH, 'wb') as f: 
+        pickle.dump(ds, f)
+    
     return trade_dataframe
 
 def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type):
