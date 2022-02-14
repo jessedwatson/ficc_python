@@ -25,7 +25,7 @@ from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
 
 
-def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FICC", estimate_calc_date = True, remove_short_maturity = False, remove_non_transaction_based = False, remove_trade_type = [], **kwargs):
+def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FICC", estimate_calc_date = True, remove_short_maturity = False, remove_non_transaction_based = False, remove_trade_type = [], trade_history_delay=1, **kwargs):
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
 
@@ -37,18 +37,23 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
                                       estimate_calc_date,
                                       remove_short_maturity,
                                       remove_non_transaction_based,
-                                      remove_trade_type)
+                                      remove_trade_type,
+                                      trade_history_delay)
 
     if YIELD_CURVE.upper() == "FICC":
         # Calculating yield spreads using ficc_ycl
-        trades_df['ficc_ycl'] = trades_df.parallel_apply(get_ficc_ycl,axis=1)
+        print("Calculating yield spread using ficc yield curve")
+        trades_df['ficc_ycl'] = trades_df.apply(get_ficc_ycl,axis=1)
+        # As ficc ycl is already in basis points
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
     
     elif YIELD_CURVE.upper() == "MMD":
-        trades_df['mmd_ycl'] = trades_df.parallel_apply(get_mmd_ycl,axis=1)
+        print("Calculating yield spreads using MMD yield curve")
+        trades_df['mmd_ycl'] = trades_df.apply(get_mmd_ycl,axis=1)
         trades_df['yield_spread'] = (trades_df['yield'] - trades_df['mmd_ycl']) * 100
         
     elif YIELD_CURVE.upper() == "S&P":
+        print("Using yield spreds created from the S&P muni index")
         # Converting the yield spread to basis points
         trades_df['yield_spread'] = trades_df['yield_spread'] * 100
 
@@ -62,7 +67,9 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
     if 'training_features' in kwargs:
         trades_df = trades_df[kwargs['training_features']]
         trades_df.dropna(inplace=True)
+    
     print(f"Numbers of samples {len(trades_df)}")
+    
     return trades_df
 
 

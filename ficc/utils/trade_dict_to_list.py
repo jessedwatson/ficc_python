@@ -21,11 +21,11 @@ from ficc.utils.yield_curve import yield_curve_level
 from ficc.utils.mmd_ycl import mmd_ycl
 import ficc.utils.globals as globals
 
-def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remove_non_transaction_based, remove_trade_type) -> list:
+def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay) -> list:
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
-    if trade_dict['seconds_ago'] < (15 * 60):
+    if trade_dict['seconds_ago'] < (trade_history_delay * 60):
         return None
 
     # We do not have weighted average maturity before July 27 for ficc yc

@@ -11,8 +11,13 @@ import ficc.utils.globals as globals
 
 def mmd_ycl(target_date, maturity):
     maturity = int(np.round(maturity))
+    
     if maturity == 0:
         maturity = 1
+    
+    elif maturity > 30:
+        maturity = 30
+
     mmd_column_name = f"Year_{maturity}"
     return globals.mmd_ycl.loc[target_date][mmd_column_name].values[0]
     
