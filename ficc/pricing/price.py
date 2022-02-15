@@ -68,7 +68,7 @@ def get_price(cusip,
         # MSRB Rule Book G-33, rule (b)(i)(A)
         accrual_date_to_settlement_date = diff_in_days_two_dates(settlement_date, accrual_date)
         settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)
-        base = (RV + (settlement_date_to_end_date / NUM_OF_DAYS_IN_YEAR)) / \
+        base = (RV + (settlement_date_to_end_date / NUM_OF_DAYS_IN_YEAR) * coupon) / \
                (1 + (settlement_date_to_end_date - accrual_date_to_settlement_date) / NUM_OF_DAYS_IN_YEAR * yield_rate)
         accrued = coupon * accrual_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR
         price = base - accrued
