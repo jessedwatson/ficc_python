@@ -20,12 +20,8 @@ def end_date_for_called_bond(trade):
 '''
 This function provides the par value for a called bond.
 '''
-def refund_price_for_called_bond(trade, default_par):
-    par = default_par
+def refund_price_for_called_bond(trade):
     if not pd.isnull(trade.refund_price):
-        par = trade.refund_price
-    elif not pd.isnull(trade.next_call_price):
-        par = trade.next_call_price
+        return trade.refund_price
     else:
-        raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) is called, but no refund price or next call price.")
-    return par
+        raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) is called, but no refund price.")

@@ -16,7 +16,8 @@ from ficc.utils.frequency import get_time_delta_from_interest_frequency
 from ficc.utils.truncation import trunc_and_round_price
 from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_final_coupon_date, \
                                              price_of_bond_with_multiple_periodic_interest_payments, \
-                                             get_prev_coupon_date_and_next_coupon_date
+                                             get_prev_coupon_date_and_next_coupon_date, \
+                                             price_of_bond_with_interest_at_maturity
 from ficc.pricing.called_trade import end_date_for_called_bond, refund_price_for_called_bond
 
 '''
@@ -65,13 +66,14 @@ def get_price(cusip,
     # Right now we do not disambiguate zero coupon from interest at maturity. More specfically, 
     # we should add logic that separates the cases of MSRB Rule Book G-33, rule (b) and rule (c)
     if frequency == 0:
-        # MSRB Rule Book G-33, rule (b)(i)(A)
-        accrual_date_to_settlement_date = diff_in_days_two_dates(settlement_date, accrual_date)
-        settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)
-        base = (RV + (settlement_date_to_end_date / NUM_OF_DAYS_IN_YEAR)) / \
-               (1 + (settlement_date_to_end_date - accrual_date_to_settlement_date) / NUM_OF_DAYS_IN_YEAR * yield_rate)
-        accrued = coupon * accrual_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR
-        price = base - accrued
+        # See description for `price_of_bond_with_interest_at_maturity`
+        price = price_of_bond_with_interest_at_maturity(cusip, 
+                                                        settlement_date, 
+                                                        accrual_date, 
+                                                        end_date, 
+                                                        yield_rate, 
+                                                        coupon, 
+                                                        RV)
     else:
         num_of_interest_payments, final_coupon_date = get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, 
                                                                                                          end_date, 
@@ -123,41 +125,36 @@ def compute_price(trade, yield_rate=None):
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
 
-    par = trade.par_call_price
+    get_price_caller = lambda end_date, redemption_value: get_price(trade.cusip, 
+                                                                    my_prev_coupon_date, 
+                                                                    trade.first_coupon_date, 
+                                                                    my_next_coupon_date, 
+                                                                    end_date, 
+                                                                    trade.settlement_date, 
+                                                                    trade.accrual_date, 
+                                                                    frequency, 
+                                                                    yield_rate, 
+                                                                    trade.coupon, 
+                                                                    redemption_value, 
+                                                                    time_delta, 
+                                                                    trade.last_period_accrues_from_date)
+
     if trade.is_called:
         end_date = end_date_for_called_bond(trade)
         if compare_dates(end_date, trade.settlement_date) < 0:
             print(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")    # printing instead of raising an error to not disrupt processing large quantities of trades
             # raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")
-            
-        par = refund_price_for_called_bond(trade, par)
+        redemption_value_at_refund = refund_price_for_called_bond(trade)
+        calc_price = get_price_caller(end_date, redemption_value_at_refund)
+        calc_date = end_date
     else:
-        end_date = trade.maturity_date    # not used later
-
-    get_price_caller = lambda end_date, par: get_price(trade.cusip, 
-                                                       my_prev_coupon_date, 
-                                                       trade.first_coupon_date, 
-                                                       my_next_coupon_date, 
-                                                       end_date, 
-                                                       trade.settlement_date, 
-                                                       trade.accrual_date, 
-                                                       frequency, 
-                                                       yield_rate, 
-                                                       trade.coupon, 
-                                                       par, 
-                                                       time_delta, 
-                                                       trade.last_period_accrues_from_date)
-
-    if trade.is_called:
-        final = get_price_caller(end_date, par)
-        calc = end_date
-    else:
+        redemption_value_at_maturity = 100
         next_price = get_price_caller(trade.next_call_date, trade.next_call_price)
         to_par_price = get_price_caller(trade.par_call_date, trade.par_call_price)
-        maturity_price = get_price_caller(trade.maturity_date, trade.par_call_price)
+        maturity_price = get_price_caller(trade.maturity_date, redemption_value_at_maturity)
 
         prices_and_dates = [(next_price, trade.next_call_date), 
                             (to_par_price, trade.par_call_date), 
                             (maturity_price, trade.maturity_date)]
-        final, calc = min(prices_and_dates, key=lambda x:x[0])    # this function is stable and will choose the tuple which appears first in the case of ties with the sorting condition
-    return final, calc
+        calc_price, calc_date = min(prices_and_dates, key=lambda x:x[0])    # this function is stable and will choose the tuple which appears first in the case of ties with the sorting condition
+    return calc_price, calc_date
