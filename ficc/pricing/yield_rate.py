@@ -94,19 +94,19 @@ def compute_yield(trade, price=None):
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
 
-    get_yield_caller = lambda end_date, par: get_yield(trade.cusip, 
-                                                       my_prev_coupon_date, 
-                                                       trade.first_coupon_date, 
-                                                       my_next_coupon_date,
-                                                       end_date, 
-                                                       trade.settlement_date, 
-                                                       trade.accrual_date, 
-                                                       trade.interest_payment_frequency,
-                                                       price, 
-                                                       trade.coupon, 
-                                                       par, 
-                                                       time_delta, 
-                                                       trade.last_period_accrues_from_date)
+    get_yield_caller = lambda end_date, redemption_value: get_yield(trade.cusip, 
+                                                                    my_prev_coupon_date, 
+                                                                    trade.first_coupon_date, 
+                                                                    my_next_coupon_date,
+                                                                    end_date, 
+                                                                    trade.settlement_date, 
+                                                                    trade.accrual_date, 
+                                                                    trade.interest_payment_frequency,
+                                                                    price, 
+                                                                    trade.coupon, 
+                                                                    redemption_value, 
+                                                                    time_delta, 
+                                                                    trade.last_period_accrues_from_date)
 
     if (not trade.is_called) and (not trade.is_callable):
         yield_to_maturity = get_yield_caller(trade.maturity_date, trade.par_call_price)
@@ -114,8 +114,8 @@ def compute_yield(trade, price=None):
     
     if trade.is_called:
         end_date = end_date_for_called_bond(trade)
-        par = refund_price_for_called_bond(trade)
-        yield_to_call = get_yield_caller(end_date, par)
+        redemption_value_at_refund = refund_price_for_called_bond(trade)
+        yield_to_call = get_yield_caller(end_date, redemption_value_at_refund)
         return yield_to_call, end_date
     else:
         yield_to_next_call = float("inf")
@@ -126,17 +126,11 @@ def compute_yield(trade, price=None):
             end_date = trade.par_call_date
             yield_to_par_call = get_yield_caller(end_date, trade.par_call_price)
 
-        end_date = trade.next_call_date
-        yield_to_next_call = get_yield_caller(end_date, trade.next_call_price)
-        
-        end_date = trade.maturity_date
-        yield_to_maturity = get_yield_caller(end_date, trade.par_call_price)
-        
-        dict_yields = {"yield_to_next_call": yield_to_next_call, 
-                       "yield_to_maturity": yield_to_maturity, 
-                       "yield_to_par_call": yield_to_par_call}
-        our_choice = min(dict_yields, key=dict_yields.get)
-        date_dict = {"yield_to_next_call": trade.next_call_date, 
-                     "yield_to_maturity": trade.maturity_date, 
-                     "yield_to_par_call": trade.par_call_date}
-        return dict_yields[our_choice], date_dict[our_choice]
+        yield_to_next_call = get_yield_caller(trade.next_call_date, trade.next_call_price)
+        yield_to_maturity = get_yield_caller(trade.maturity_date, trade.par_call_price)
+
+        yield_rates_and_dates = [(yield_to_next_call, trade.next_call_date), 
+                                 (yield_to_par_call, trade.par_call_date), 
+                                 (yield_to_maturity, trade.maturity_date)]
+        yield_to_worst, calc_date = min(yield_rates_and_dates, key=lambda x:x[0])
+        return yield_to_worst, calc_date
