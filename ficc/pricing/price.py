@@ -123,17 +123,6 @@ def compute_price(trade, yield_rate=None):
     time_delta = get_time_delta_from_interest_frequency(frequency)
     my_prev_coupon_date, my_next_coupon_date = get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta)
 
-    par = trade.par_call_price
-    if trade.is_called:
-        end_date = end_date_for_called_bond(trade)
-        if compare_dates(end_date, trade.settlement_date) < 0:
-            print(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")    # printing instead of raising an error to not disrupt processing large quantities of trades
-            # raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")
-            
-        par = refund_price_for_called_bond(trade, par)
-    else:
-        end_date = trade.maturity_date    # not used later
-
     get_price_caller = lambda end_date, par: get_price(trade.cusip, 
                                                        my_prev_coupon_date, 
                                                        trade.first_coupon_date, 
@@ -149,12 +138,19 @@ def compute_price(trade, yield_rate=None):
                                                        trade.last_period_accrues_from_date)
 
     if trade.is_called:
+        end_date = end_date_for_called_bond(trade)
+        if compare_dates(end_date, trade.settlement_date) < 0:
+            print(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")    # printing instead of raising an error to not disrupt processing large quantities of trades
+            # raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")
+        par = refund_price_for_called_bond(trade)
+        
         final = get_price_caller(end_date, par)
         calc = end_date
     else:
+        par_value_for_maturity = 100
         next_price = get_price_caller(trade.next_call_date, trade.next_call_price)
         to_par_price = get_price_caller(trade.par_call_date, trade.par_call_price)
-        maturity_price = get_price_caller(trade.maturity_date, trade.par_call_price)
+        maturity_price = get_price_caller(trade.maturity_date, par_value_for_maturity)
 
         prices_and_dates = [(next_price, trade.next_call_date), 
                             (to_par_price, trade.par_call_date), 
