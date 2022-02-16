@@ -143,7 +143,7 @@ def compute_price(trade, yield_rate=None):
             print(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")    # printing instead of raising an error to not disrupt processing large quantities of trades
             # raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")
         redemption_value_at_refund = refund_price_for_called_bond(trade)
-        final = get_price_caller(end_date, redemption_value_at_refund)
+        calc_price = get_price_caller(end_date, redemption_value_at_refund)
         calc_date = end_date
     else:
         redemption_value_at_maturity = 100
@@ -154,5 +154,5 @@ def compute_price(trade, yield_rate=None):
         prices_and_dates = [(next_price, trade.next_call_date), 
                             (to_par_price, trade.par_call_date), 
                             (maturity_price, trade.maturity_date)]
-        final, calc_date = min(prices_and_dates, key=lambda x:x[0])    # this function is stable and will choose the tuple which appears first in the case of ties with the sorting condition
-    return final, calc_date
+        calc_price, calc_date = min(prices_and_dates, key=lambda x:x[0])    # this function is stable and will choose the tuple which appears first in the case of ties with the sorting condition
+    return calc_price, calc_date
