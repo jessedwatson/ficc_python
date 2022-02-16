@@ -16,7 +16,8 @@ from ficc.utils.frequency import get_time_delta_from_interest_frequency
 from ficc.utils.truncation import trunc_and_round_yield
 from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_final_coupon_date, \
                                              price_of_bond_with_multiple_periodic_interest_payments, \
-                                             get_prev_coupon_date_and_next_coupon_date
+                                             get_prev_coupon_date_and_next_coupon_date, \
+                                             price_of_bond_with_interest_at_maturity
 from ficc.pricing.called_trade import end_date_for_called_bond, refund_price_for_called_bond
 
 '''
@@ -45,40 +46,50 @@ def get_yield(cusip,
               last_period_accrues_from_date):
     settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)    # hold period days
 
-    if coupon != 0 and frequency != 0:    # coupon paid every M periods
+    if frequency == 0:
+        # See description for `price_of_bond_with_interest_at_maturity`
+        yield_func = lambda yield_rate: -price + price_of_bond_with_interest_at_maturity(cusip, 
+                                                                                         settlement_date, 
+                                                                                         accrual_date, 
+                                                                                         end_date, 
+                                                                                         yield_rate, 
+                                                                                         coupon, 
+                                                                                         RV)
+        yield_estimate = optimize.newton(yield_func, x0=0, maxiter=int(1e3))
+    else:
         num_of_interest_payments, final_coupon_date = get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, 
                                                                                                          end_date, 
                                                                                                          time_delta)
         prev_coupon_date_to_settlement_date = diff_in_days_two_dates(settlement_date, prev_coupon_date)    # accrued days from beginning of the interest payment period, used to be labelled `A`
         prev_coupon_date_to_end_date = diff_in_days_two_dates(end_date, prev_coupon_date)    # accrual days for final paid coupon
 
+        num_of_days_in_period = NUM_OF_DAYS_IN_YEAR / frequency    # number of days in interest payment period 
+        assert num_of_days_in_period == round(num_of_days_in_period)
+
         if compare_dates(end_date, next_coupon_date) <= 0:
             # MSRB Rule Book G-33, rule (b)(ii)(B)(1)
             # Recall: number of interest payments per year * number of days in interest payment period = number of days in a year, i.e., E * M = NUM_OF_DAYS_IN_YEAR
             yield_estimate = (((RV + (coupon * prev_coupon_date_to_end_date / NUM_OF_DAYS_IN_YEAR)) / \
-                               (price + (coupon * prev_coupon_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR))) - 1) * \
-                             (NUM_OF_DAYS_IN_YEAR / settlement_date_to_end_date)
+                            (price + (coupon * prev_coupon_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR))) - 1) * \
+                            (NUM_OF_DAYS_IN_YEAR / settlement_date_to_end_date)
         else:
             # MSRB Rule Book G-33, rule (b)(ii)(B)(2)
-            ytm_func = lambda Y: -price + price_of_bond_with_multiple_periodic_interest_payments(cusip, 
-                                                                                                 settlement_date, 
-                                                                                                 accrual_date, 
-                                                                                                 first_coupon_date, 
-                                                                                                 prev_coupon_date, 
-                                                                                                 next_coupon_date, 
-                                                                                                 final_coupon_date, 
-                                                                                                 end_date,  
-                                                                                                 frequency,
-                                                                                                 num_of_interest_payments, 
-                                                                                                 Y,
-                                                                                                 coupon, 
-                                                                                                 RV, 
-                                                                                                 time_delta, 
-                                                                                                 last_period_accrues_from_date)
-            yield_estimate = optimize.newton(ytm_func, x0=0, maxiter=int(1e3))
-    elif coupon == 0:    # THIS LOGIC IS CURRENTLY UNTESTED
-        # MSRB Rule Book G-33, rule (b)(ii)(A), since coupon == 0, the formula is simplified with R == 0
-        yield_estimate = ((RV - price) / price) * (NUM_OF_DAYS_IN_YEAR / settlement_date_to_end_date)
+            yield_func = lambda yield_rate: -price + price_of_bond_with_multiple_periodic_interest_payments(cusip, 
+                                                                                                   settlement_date, 
+                                                                                                   accrual_date, 
+                                                                                                   first_coupon_date, 
+                                                                                                   prev_coupon_date, 
+                                                                                                   next_coupon_date, 
+                                                                                                   final_coupon_date, 
+                                                                                                   end_date,  
+                                                                                                   frequency,
+                                                                                                   num_of_interest_payments, 
+                                                                                                   yield_rate,
+                                                                                                   coupon, 
+                                                                                                   RV, 
+                                                                                                   time_delta, 
+                                                                                                   last_period_accrues_from_date)
+            yield_estimate = optimize.newton(yield_func, x0=0, maxiter=int(1e3))
     return trunc_and_round_yield(yield_estimate * 100)
 
 '''
@@ -108,26 +119,25 @@ def compute_yield(trade, price=None):
                                                                     time_delta, 
                                                                     trade.last_period_accrues_from_date)
 
+    redemption_value_at_maturity = 100
     if (not trade.is_called) and (not trade.is_callable):
-        yield_to_maturity = get_yield_caller(trade.maturity_date, trade.par_call_price)
+        yield_to_maturity = get_yield_caller(trade.maturity_date, redemption_value_at_maturity)
         return yield_to_maturity, trade.maturity_date
-    
-    if trade.is_called:
+    elif trade.is_called:
         end_date = end_date_for_called_bond(trade)
         redemption_value_at_refund = refund_price_for_called_bond(trade)
         yield_to_call = get_yield_caller(end_date, redemption_value_at_refund)
         return yield_to_call, end_date
     else:
+        yield_to_par_call = float("inf")
         yield_to_next_call = float("inf")
         yield_to_maturity = float("inf")
-        yield_to_par_call = float("inf")
         
         if not pd.isnull(trade.par_call_date):
-            end_date = trade.par_call_date
-            yield_to_par_call = get_yield_caller(end_date, trade.par_call_price)
+            yield_to_par_call = get_yield_caller(trade.par_call_date, trade.par_call_price)
 
         yield_to_next_call = get_yield_caller(trade.next_call_date, trade.next_call_price)
-        yield_to_maturity = get_yield_caller(trade.maturity_date, trade.par_call_price)
+        yield_to_maturity = get_yield_caller(trade.maturity_date, redemption_value_at_maturity)
 
         yield_rates_and_dates = [(yield_to_next_call, trade.next_call_date), 
                                  (yield_to_par_call, trade.par_call_date), 

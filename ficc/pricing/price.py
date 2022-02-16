@@ -16,7 +16,8 @@ from ficc.utils.frequency import get_time_delta_from_interest_frequency
 from ficc.utils.truncation import trunc_and_round_price
 from ficc.pricing.auxiliary_functions import get_num_of_interest_payments_and_final_coupon_date, \
                                              price_of_bond_with_multiple_periodic_interest_payments, \
-                                             get_prev_coupon_date_and_next_coupon_date
+                                             get_prev_coupon_date_and_next_coupon_date, \
+                                             price_of_bond_with_interest_at_maturity
 from ficc.pricing.called_trade import end_date_for_called_bond, refund_price_for_called_bond
 
 '''
@@ -65,13 +66,14 @@ def get_price(cusip,
     # Right now we do not disambiguate zero coupon from interest at maturity. More specfically, 
     # we should add logic that separates the cases of MSRB Rule Book G-33, rule (b) and rule (c)
     if frequency == 0:
-        # MSRB Rule Book G-33, rule (b)(i)(A)
-        accrual_date_to_settlement_date = diff_in_days_two_dates(settlement_date, accrual_date)
-        settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)
-        base = (RV + (settlement_date_to_end_date / NUM_OF_DAYS_IN_YEAR) * coupon) / \
-               (1 + (settlement_date_to_end_date - accrual_date_to_settlement_date) / NUM_OF_DAYS_IN_YEAR * yield_rate)
-        accrued = coupon * accrual_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR
-        price = base - accrued
+        # See description for `price_of_bond_with_interest_at_maturity`
+        price = price_of_bond_with_interest_at_maturity(cusip, 
+                                                        settlement_date, 
+                                                        accrual_date, 
+                                                        end_date, 
+                                                        yield_rate, 
+                                                        coupon, 
+                                                        RV)
     else:
         num_of_interest_payments, final_coupon_date = get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, 
                                                                                                          end_date, 
