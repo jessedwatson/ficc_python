@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-14 15:14:31
+ # @ Modified time: 2022-02-22 14:36:36
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
