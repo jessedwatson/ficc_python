@@ -99,9 +99,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
         print(f"Removing trade types {remove_trade_type}")
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay]))
-    
     print('Trade history created')
-
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
     
