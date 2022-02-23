@@ -1,8 +1,9 @@
-import math
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
+import torchmetrics
 
 from ficc.models.registration import register_model
 
@@ -260,6 +261,176 @@ class LSTMYieldSpreadDistributionModel(LSTMCore):
         return optimizer
 
 
+class LSTMCalcDateModel(LSTMCore):
+    def __init__(
+        self,
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes,
+        **kwargs
+    ):
+        super().__init__(
+            num_trade_history_features,
+            non_categorical_size,
+            category_sizes,
+            num_outputs=4,
+            **kwargs)
+
+        self.acc = torchmetrics.Accuracy()
+
+    def forward(self, trade_history, noncat, *categorical):
+        logits = super().forward(trade_history, noncat, *categorical)
+
+        return logits
+
+    def step(self, batch, name):
+        x, y = batch[:-1], batch[-1].squeeze()
+        z = self.forward(x[0], x[1], x[2:]).squeeze()
+        loss = F.cross_entropy(z, y.long())
+
+        self.log(f"{name}_loss", loss.item())
+        self.log(f"{name}_accuracy", self.acc(z, y.long()))
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
+
+    def configure_optimizers(self):
+        if "learning_schedule" in self.kwargs:
+            if self.learning_schedule == "cyclic":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr, max_lr=self.lr * self.max_factor)
+                return [optimizer], [scheduler]
+            elif self.learning_schedule == "1cycle":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.lr, total_steps=2000)
+                return [optimizer], [scheduler]
+
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        return optimizer
+
+
+class DenoisingTensorDataset(torch.utils.data.Dataset):
+    def __init__(self, *tensors):
+        assert all(tensors[0].size(0) == tensor.size(0) for tensor in tensors), "Size mismatch between tensors"
+        self.tensors = tensors
+        self.fully_corrupted = [torch.empty_like(tensor) for tensor in tensors]
+        self.semi_corrupted = [torch.empty_like(tensor) for tensor in tensors]
+        self.mask = [torch.empty_like(tensor) for tensor in tensors]
+
+    def __getitem__(self, index):
+        return tuple(tensor[index] for tensor in self.tensors)
+
+    def __len__(self):
+        return self.tensors[0].size(0)
+            
+    def vime_corrupt(self, prob=0.3):
+        # Generate the corrupted copy of the trade history
+        trade_history_shape = self.tensors[0].shape
+        self.mask[0] = float(np.random.random(size=trade_history_shape) < prob)
+        for row in trade_history_shape[1]:
+            for col in trade_history_shape[2]:
+                self.fully_corrupted[0][:, row, col] = np.random.permutation(self.fully_corrupted[0][:, row, col])
+                self.semi_corrupted[0][:, row, col] *= 1.0 - self.mask[0][:, row, col]
+                self.semi_corrupted[0][:, row, col] += self.fully_corrupted[0][:, row, col] * self.mask[0][:, row, col]
+
+        # Generate the corrupted copy of the numerical and categorical features
+        for idx in range(1, len(self.tensors)):
+            self.mask[idx] = float(np.random.random(size=self.mask[idx].shape) < prob)
+            self.fully_corrupted[idx] = np.random.permutation(self.fully_corrupted[idx])
+            self.semi_corrupted[idx] *= 1.0 - self.mask[idx]
+            self.semi_corrupted[idx] += self.fully_corrupted[idx] * self.mask[idx]
+
+
+class DenoisingAutoencoderModel(nn.Module):
+    def __init__(
+        self,
+        num_trade_history_features,
+        numerical_size,
+        binary_size,
+        category_sizes,
+        **kwargs
+    ):
+        super().__init__()
+
+        self.encoder = LSTMCore(
+            num_trade_history_features,
+            numerical_size + binary_size,
+            category_sizes,
+            num_outputs=512,
+            **kwargs)
+            
+        self.numerical_size = numerical_size
+        self.binary_size = binary_size
+
+        # ANIS TODO
+        self.decoder = nn.Sequential()
+
+    def forward(self, trade_history, noncat, *categorical):
+        latent = self.encoder.forward(trade_history, noncat, *categorical)
+        # ANIS TODO
+
+        return self.decoder(latent)
+
+    def loss(self, loc, scale, target):
+        # ANIS TODO
+        distribution = torch.distributions.Normal(loc, scale)
+        nll_loss = -distribution.log_prob(target).mean()
+
+        return nll_loss
+
+    def step(self, batch, name):
+        # ANIS TODO
+        x, y = batch[:-1], batch[-1].squeeze()
+        loc, scale = self.forward(x[0], x[1], x[2:])
+
+        # Compute NLL
+        nll_loss = self.loss(loc, scale, y)
+
+        self.log(f"{name}_loss", nll_loss.item())
+        self.log(f"{name}_mae", torch.abs(loc - y).mean().item())
+        self.log(f"{name}_min_variance", scale.min())
+        return nll_loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
+
+    def on_train_epoch_start():
+        pass
+
+    def on_validation_epoch_start():
+        pass
+
+    def on_test_epoch_start():
+        pass
+
+    def configure_optimizers(self):
+        if "learning_schedule" in self.kwargs:
+            if self.learning_schedule == "cyclic":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr, max_lr=self.lr * self.max_factor)
+                return [optimizer], [scheduler]
+            elif self.learning_schedule == "1cycle":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.lr, total_steps=2000)
+                return [optimizer], [scheduler]
+
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        return optimizer
+
+
 class YieldSpreadSquaredErrorWrapper(nn.Module):
     def __init__(
         self,
@@ -336,3 +507,20 @@ def build_lstm_dist_model_v1(
 
 register_model("lstm_yield_spread_dist_model_pytorch", 1, build_lstm_dist_model_v1,
                "LSTM-based yield spread distribution model")
+
+
+def build_lstm_cd_model_v1(
+        hp,
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes,
+        **kwargs):
+    return LSTMCalcDateModel(
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes,
+        **kwargs)
+
+
+register_model("lstm_calc_date_model_pytorch", 1, build_lstm_cd_model_v1,
+               "Initial LSTM-based calc-date model")
