@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 23:20:00
  # @ Modified by: Mitas Ray
- # @ Modified time: 2022-01-24 12:32:00
+ # @ Modified time: 2022-02-25 14:04:00
  # @ Description: This file implements functions to compute the yield of a trade
  # given the price.
  '''
@@ -138,7 +138,7 @@ def compute_yield(trade, price=None):
         
         if not pd.isnull(trade.par_call_date):
             yield_to_par_call = get_yield_caller(trade.par_call_date, trade.par_call_price)
-        if not pd.insull(trade.next_call_date):
+        if not pd.isnull(trade.next_call_date):
             yield_to_next_call = get_yield_caller(trade.next_call_date, trade.next_call_price)
         yield_to_maturity = get_yield_caller(trade.maturity_date, redemption_value_at_maturity)
 
