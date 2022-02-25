@@ -17,3 +17,20 @@ WHERE
 ORDER BY
   trade_date DESC
 """
+
+
+relaxed_training_query = DATA_QUERY = '''
+SELECT
+  *
+FROM
+  `eng-reactor-287421.auxiliary_views.materialized_trade_history`
+WHERE
+  yield IS NOT NULL
+  AND trade_date >= '2021-07-01'
+  AND trade_date <= '2021-10-01'
+  AND maturity_description_code = 2
+  AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
+  AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
+ORDER BY
+  trade_datetime DESC
+'''
