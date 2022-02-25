@@ -125,22 +125,25 @@ def compute_yield(trade, price=None):
         return yield_to_maturity, trade.maturity_date
     elif trade.is_called:
         end_date = end_date_for_called_bond(trade)
+
+        if compare_dates(end_date, trade.settlement_date) < 0:
+            print(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")    # printing instead of raising an error to not disrupt processing large quantities of trades
+            # raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")
+
         redemption_value_at_refund = refund_price_for_called_bond(trade)
         yield_to_call = get_yield_caller(end_date, redemption_value_at_refund)
         return yield_to_call, end_date
     else:
-        yield_to_par_call = float("inf")
-        yield_to_next_call = float("inf")
-        yield_to_maturity = float("inf")
+        yield_to_par_call, yield_to_next_call, yield_to_maturity = float('inf'), float('inf'), float('inf')
         
         if not pd.isnull(trade.par_call_date):
             yield_to_par_call = get_yield_caller(trade.par_call_date, trade.par_call_price)
-
-        yield_to_next_call = get_yield_caller(trade.next_call_date, trade.next_call_price)
+        if not pd.insull(trade.next_call_date):
+            yield_to_next_call = get_yield_caller(trade.next_call_date, trade.next_call_price)
         yield_to_maturity = get_yield_caller(trade.maturity_date, redemption_value_at_maturity)
 
         yield_rates_and_dates = [(yield_to_next_call, trade.next_call_date), 
                                  (yield_to_par_call, trade.par_call_date), 
                                  (yield_to_maturity, trade.maturity_date)]
-        yield_to_worst, calc_date = min(yield_rates_and_dates, key=lambda x:x[0])
+        yield_to_worst, calc_date = min(yield_rates_and_dates, key=lambda pair: pair[0])    # this function is stable and will choose the pair which appears first in the case of ties for the lowest yield
         return yield_to_worst, calc_date

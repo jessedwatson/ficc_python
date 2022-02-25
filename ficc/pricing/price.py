@@ -58,9 +58,6 @@ def get_price(cusip,
               RV, 
               time_delta, 
               last_period_accrues_from_date):
-    if pd.isnull(end_date):
-        return np.inf
-    
     yield_rate = yield_rate / 100
     
     # Right now we do not disambiguate zero coupon from interest at maturity. More specfically, 
@@ -139,22 +136,30 @@ def compute_price(trade, yield_rate=None):
                                                                     time_delta, 
                                                                     trade.last_period_accrues_from_date)
 
-    if trade.is_called:
+    redemption_value_at_maturity = 100
+    if (not trade.is_called) and (not trade.is_callable):
+        yield_to_maturity = get_price_caller(trade.maturity_date, redemption_value_at_maturity)
+        return yield_to_maturity, trade.maturity_date
+    elif trade.is_called:
         end_date = end_date_for_called_bond(trade)
+
         if compare_dates(end_date, trade.settlement_date) < 0:
             print(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")    # printing instead of raising an error to not disrupt processing large quantities of trades
             # raise ValueError(f"Bond (CUSIP: {trade.cusip}, RTRS: {trade.rtrs_control_number}) has an end date ({end_date}) which is after the settlement date ({trade.settlement_date}).")
+        
         redemption_value_at_refund = refund_price_for_called_bond(trade)
-        calc_price = get_price_caller(end_date, redemption_value_at_refund)
-        calc_date = end_date
+        return get_price_caller(end_date, redemption_value_at_refund), end_date
     else:
-        redemption_value_at_maturity = 100
-        next_price = get_price_caller(trade.next_call_date, trade.next_call_price)
-        to_par_price = get_price_caller(trade.par_call_date, trade.par_call_price)
+        next_price, to_par_price, maturity_price = float('inf'), float('inf'), float('inf')
+
+        if not pd.isnull(trade.par_call_date):
+            to_par_price = get_price_caller(trade.par_call_date, trade.par_call_price)
+        if not pd.isnull(trade.next_call_date):
+            next_price = get_price_caller(trade.next_call_date, trade.next_call_price)
         maturity_price = get_price_caller(trade.maturity_date, redemption_value_at_maturity)
 
         prices_and_dates = [(next_price, trade.next_call_date), 
                             (to_par_price, trade.par_call_date), 
                             (maturity_price, trade.maturity_date)]
-        calc_price, calc_date = min(prices_and_dates, key=lambda x:x[0])    # this function is stable and will choose the tuple which appears first in the case of ties with the sorting condition
+        calc_price, calc_date = min(prices_and_dates, key=lambda pair: pair[0])    # this function is stable and will choose the pair which appears first in the case of ties for the lowest price
     return calc_price, calc_date
