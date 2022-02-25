@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-09 13:27:00
+ # @ Modified time: 2022-02-22 12:32:12
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -25,19 +25,34 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
-    if trade_dict['seconds_ago'] < (trade_history_delay * 60):
+    if trade_dict['rtrs_control_number'] is None:
+        print('rtrs control number is missing, skipping this trade')
         return None
 
+    # Checking if the seconds a go feature is missing
+    if trade_dict['seconds_ago'] is None:
+        print('Seconds a go missing, skipping this trade')
+        return None
+    elif trade_dict['seconds_ago'] < (trade_history_delay * 60):
+        return None
+    
+
     # We do not have weighted average maturity before July 27 for ficc yc
-    if trade_dict['trade_datetime'] < datetime(2021,7,27) and globals.YIELD_CURVE_TO_USE.upper() == 'FICC':
+    if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,7,27):
         target_date = datetime(2021,7,27).date()
-    else:
+    elif trade_dict['trade_datetime'] is not None:
         target_date = trade_dict['trade_datetime'].date()
+    else:
+        print("Trade date is missing, skipping this trade")
+        return None
     
     if remove_non_transaction_based == True and trade_dict['is_non_transaction_based_compensation'] == True:
         return None
 
-    if remove_short_maturity == True:
+    if trade_dict['settlement_date'] is None and remove_short_maturity == True:
+        print("Settlement date missing, skipping this trade")
+        return None
+    elif remove_short_maturity == True:
         days_to_calc = (calc_date - trade_dict['settlement_date']).days
         if days_to_calc < 400:
             return None
@@ -53,17 +68,33 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
         yield_at_that_time = yield_curve_level(time_to_maturity,target_date.strftime('%Y-%m-%d'),
                                             globals.nelson_params, globals.scalar_params)
 
-    
-        trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
+        if trade_dict['yield'] is not None:
+            trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
+        else:
+            print('Yield is missing, skipping trade')
+            return None
     
     elif globals.YIELD_CURVE_TO_USE.upper() == "MMD":
         time_to_maturity = (calc_date - target_date).days/365.25
         yield_at_that_time = mmd_ycl(target_date.strftime('%Y-%m-%d'), time_to_maturity)
-        trade_list.append( (trade_dict['yield'] - yield_at_that_time) * 100 )
+        if trade_dict['yield'] is not None:
+            trade_list.append( (trade_dict['yield'] - yield_at_that_time) * 100 )
+        else:
+            print('Yield is missing, skipping trade')
+            return None
 
     elif globals.YIELD_CURVE_TO_USE.upper() == "S&P":
-        trade_list.append(trade_dict['yield_spread'] * 100)
+        if trade_dict['yield'] is not None:
+            trade_list.append(trade_dict['yield_spread'] * 100)
+        else:
+            print('Yield is missing, skipping this trade')
+            return None
         
+    for key in ['par_traded','trade_type','seconds_ago']:
+        if trade_dict[key] is None:
+            print(f'{key} is missing, skipping this trade')
+            return None
+    
     trade_list.append(np.float32(np.log10(trade_dict['par_traded'])))        
     trade_list += trade_type_mapping[trade_dict['trade_type']]
 

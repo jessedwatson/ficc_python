@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-10 10:46:41
+ # @ Modified time: 2022-02-22 14:36:36
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -43,13 +43,13 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
     if YIELD_CURVE.upper() == "FICC":
         # Calculating yield spreads using ficc_ycl
         print("Calculating yield spread using ficc yield curve")
-        trades_df['ficc_ycl'] = trades_df.apply(get_ficc_ycl,axis=1)
+        trades_df['ficc_ycl'] = trades_df.parallel_apply(get_ficc_ycl,axis=1)
         # As ficc ycl is already in basis points
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
     
     elif YIELD_CURVE.upper() == "MMD":
         print("Calculating yield spreads using MMD yield curve")
-        trades_df['mmd_ycl'] = trades_df.apply(get_mmd_ycl,axis=1)
+        trades_df['mmd_ycl'] = trades_df.parallel_apply(get_mmd_ycl,axis=1)
         trades_df['yield_spread'] = (trades_df['yield'] - trades_df['mmd_ycl']) * 100
         
     elif YIELD_CURVE.upper() == "S&P":

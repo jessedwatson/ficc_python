@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-10 10:40:43
+ # @ Modified time: 2022-02-22 14:36:44
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -23,7 +23,7 @@ from google.cloud import bigquery
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_variables import PREDICTORS
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/shayaan/ficc/ml_models/sequence_predictors/eng-reactor-287421-112eb767e1b3.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/eng-reactor-287421-112eb767e1b3.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 5
 DATA_QUERY = """ SELECT
@@ -56,7 +56,7 @@ if __name__ == "__main__":
                               NUM_FEATURES,
                               'data.pkl',
                               "MMD",
-                              estimate_calc_date=True,
+                              estimate_calc_date=False,
                               remove_short_maturity=True,
                               remove_non_transaction_based=False,
                               remove_trade_type = ['S','P'],
