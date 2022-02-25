@@ -117,9 +117,11 @@ def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_par
     
     if len(nelson_siegel_daily_coef)==1:
         const, exponential, laguerre = nelson_siegel_daily_coef.values[0]
-    elif len(nelson_siegel_daily_coef)>1:
+    elif len(nelson_siegel_daily_coef.shape)>1 and len(nelson_siegel_daily_coef)>1:
         error = 'Multiple rows for target date in nelson_siegel_coef_daily, taking first one. Check bigquery table.'
         const, exponential, laguerre = nelson_siegel_daily_coef.iloc[0, :]
+    elif len(nelson_siegel_daily_coef)>1:
+        const, exponential, laguerre = nelson_siegel_daily_coef
     else:
         print(target_date)
         raise Exception("Nelson-Seigel coefficeints for the selected dates do not exist")
@@ -127,9 +129,11 @@ def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_par
    
     if len(scaler_daily_parameters)==1:
         exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters.values[0]
-    elif len(scaler_daily_parameters)>1:
+    elif len(scaler_daily_parameters.shape)>1 and len(scaler_daily_parameters)>1:
         error = 'Multiple rows for target date in standardscaler_parameters_daily, taking first one. Check bigquery table.'
         exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters.iloc[0, :]
+    elif len(scaler_daily_parameters)>1:
+        exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters
     else:
         raise Exception("Failed to grab scalar coefficient, they do not exist")
         sys.exit()

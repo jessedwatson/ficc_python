@@ -102,6 +102,36 @@ def get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, end_dat
     return num_of_interest_payments, final_coupon_date
 
 '''
+This function is called when the interest is only paid at maturity (which is represented 
+in the transformed dataframe as interest payment frequency equaling 0). There are two 
+cases when interest is paid at maturity. The first case is for short term bonds where 
+there is a single coupon payment at maturity, and this logic will reduce to the logic 
+in MSRB Rule Book G-33, rule (b)(i)(A). The second case is when when there is a compounding 
+accreted value (i.e., capital appreciation bonds) which accrues semianually. Then, to get 
+the price of this bond, we need to account for the accrued interest. This can be thought 
+of as a bond that pays a coupon semiannually through the duration of the bond, but all the 
+coupon payments are made as a single payment at the time the bond is called / maturity. 
+For more info and an example, see the link: 
+https://www.investopedia.com/terms/c/cav.asp#:~:text=Compound%20accreted%20value%20(CAV)%20is,useful%20metric%20for%20bond%20investors.
+'''
+def price_of_bond_with_interest_at_maturity(cusip,    # can be used for debugging purposes
+                                            settlement_date, 
+                                            accrual_date, 
+                                            end_date, 
+                                            yield_rate, 
+                                            coupon, 
+                                            RV):
+    NOMINAL_FREQUENCY = 2    # semiannual interest payment frequency
+    accrual_date_to_settlement_date = diff_in_days_two_dates(settlement_date, accrual_date)
+    settlement_date_to_end_date = diff_in_days_two_dates(end_date, settlement_date)
+    accrued = coupon * accrual_date_to_settlement_date / NUM_OF_DAYS_IN_YEAR
+    num_of_periods_from_settlement_date_to_end_date = settlement_date_to_end_date / (NUM_OF_DAYS_IN_YEAR / NOMINAL_FREQUENCY)
+    denom = (1 + yield_rate / NOMINAL_FREQUENCY) ** num_of_periods_from_settlement_date_to_end_date
+    accrual_date_to_end_date = diff_in_days_two_dates(end_date, accrual_date)
+    base = (RV + coupon * accrual_date_to_end_date / NUM_OF_DAYS_IN_YEAR) / denom
+    return base - accrued
+
+'''
 This function computes the price of a bond with multiple periodic interest 
 payments using MSRB Rule Book G-33, rule (b)(i)(B)(2). Comments with capital 
 letter symbols represent those same symbols seen in formula in MSRB rule book.
@@ -116,13 +146,13 @@ def price_of_bond_with_multiple_periodic_interest_payments(cusip,    # can be us
                                                            end_date, 
                                                            frequency,
                                                            num_of_interest_payments, 
-                                                           yield_price,
+                                                           yield_rate,
                                                            coupon, 
                                                            RV, 
                                                            time_delta, 
                                                            last_period_accrues_from_date):
     num_of_days_in_period = NUM_OF_DAYS_IN_YEAR / frequency
-    discount_rate = 1 + yield_price / frequency    # 1 + Y / M
+    discount_rate = 1 + yield_rate / frequency    # 1 + Y / M
     final_coupon_date_to_end_date = diff_in_days_two_dates(end_date, final_coupon_date)
     prev_coupon_date_to_settlement_date = diff_in_days_two_dates(settlement_date, prev_coupon_date)    # A
     interest_due_at_end_date = coupon * final_coupon_date_to_end_date / NUM_OF_DAYS_IN_YEAR
