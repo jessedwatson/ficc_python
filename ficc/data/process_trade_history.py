@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-10 11:09:06
+ # @ Modified time: 2022-02-22 14:37:28
  # @ Description:
  '''
 
@@ -10,6 +10,7 @@ import os
 from telnetlib import SE
 import pandas as pd
 import numpy as np
+import pickle5 as pickle
 
 from ficc.utils.auxiliary_functions import sqltodf
 from ficc.utils.auxiliary_variables import PREDICTORS
@@ -23,25 +24,31 @@ from ficc.utils.auxiliary_functions import process_ratings, convert_object_to_ca
 from ficc.utils.fill_missing_values import fill_missing_values
 
 
+
 def fetch_trade_data(query, client, PATH='data.pkl'):
 
     if os.path.isfile(PATH):
-        print(f"Data file found {PATH}, reading data from file")
-        trade_dataframe = pd.read_pickle(PATH)
-        print("File read")
-    else:
-        print("Data file not found, Running query to fetch data")
-        trade_dataframe = sqltodf(query,client)
-        print("Saving data")
-        print(PATH)
-        trade_dataframe.to_pickle(PATH)
-
+        print(f"Data file {PATH} found, reading data from it")
+        with open(PATH, 'rb') as f: 
+            (q, trade_dataframe) = pickle.load(f)
+        if q == query:
+            return trade_dataframe
+        else:
+            raise Exception (f"Saved query is incorrect:\n{q}")
+    
+    print(f'Grabbing data from BigQuery')
+    trade_dataframe = sqltodf(query,client)
+    print(f"Saving query and data to {PATH}")
+    
+    ds = (query, trade_dataframe)
+    
+    with open(PATH, 'wb') as f: 
+        pickle.dump(ds, f)
+    
     return trade_dataframe
 
 def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type, trade_history_delay):
-    if estimate_calc_date == False and remove_short_maturity == True:
-        raise Exception("Cannot remove short maturity bonds without estimating calc date set estimate calc date to true")
-
+    
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
         print("Grabbing yield curve params")
         try:
@@ -75,12 +82,12 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     # Taking only the most recent trades
     # trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
 
-    trade_dataframe['calc_date'] = trade_dataframe.apply(calc_end_date, axis=1)
-    trade_dataframe.recent =  trade_dataframe.apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)
-
     if estimate_calc_date == True:
+        trade_dataframe['calc_date'] = trade_dataframe.apply(calc_end_date, axis=1)
         print('Estimating calculation date')
         print(trade_dataframe[['maturity_date','next_call_date','calc_date']])
+
+    trade_dataframe.recent =  trade_dataframe.apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)        
 
     # the trade history correctly
     print('Creating trade history')
@@ -92,14 +99,10 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
         print(f"Removing trade types {remove_trade_type}")
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay]))
-    
     print('Trade history created')
 
-    if estimate_calc_date == True:
-        trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
-    else:
-        trade_dataframe.drop(columns=['recent', 'empty_trade','calc_date'],inplace=True)
-
+    trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
+    
     print(f"Restricitng the trade history to the {SEQUENCE_LENGTH} most recent trades")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
 
