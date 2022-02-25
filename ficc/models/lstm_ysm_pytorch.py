@@ -316,6 +316,68 @@ class LSTMCalcDateModel(LSTMCore):
         return optimizer
 
 
+class LSTMYieldSpreadCalcDateModel(LSTMCore):
+    def __init__(
+        self,
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes,
+        scale=10.0,
+        **kwargs
+    ):
+        super().__init__(
+            num_trade_history_features,
+            non_categorical_size,
+            category_sizes,
+            num_outputs=5,
+            **kwargs)
+
+        self.acc = torchmetrics.Accuracy()
+        self.scale = scale
+
+    def forward(self, trade_history, noncat, *categorical):
+        output = super().forward(trade_history, noncat, *categorical)
+        logits = output[:, :4]
+        yield_spread = output[:, 4]
+
+        return yield_spread, logits
+
+    def step(self, batch, name):
+        x, target_ysm, target_cd = batch[:-2], batch[-2], batch[-1].squeeze()
+        pred_ysm, pred_cd = self.forward(x[0], x[1], x[2:])
+        pred_ysm = pred_ysm.squeeze()
+        pred_cd = pred_cd.squeeze()
+        loss = F.mse_loss(target_ysm, pred_ysm) + self.scale * F.cross_entropy(pred_cd, target_cd.long())
+
+        self.log(f"{name}_loss", loss.item())
+        self.log(f"{name}_mae", torch.abs(pred_ysm - target_ysm).mean().item())
+        self.log(f"{name}_accuracy", self.acc(pred_cd, target_cd.long()))
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, "train")
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, "test")
+
+    def configure_optimizers(self):
+        if "learning_schedule" in self.kwargs:
+            if self.learning_schedule == "cyclic":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=self.lr, max_lr=self.lr * self.max_factor)
+                return [optimizer], [scheduler]
+            elif self.learning_schedule == "1cycle":
+                optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.lr, total_steps=2000)
+                return [optimizer], [scheduler]
+
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        return optimizer
+
+
 class DenoisingTensorDataset(torch.utils.data.Dataset):
     def __init__(self, *tensors):
         assert all(tensors[0].size(0) == tensor.size(0) for tensor in tensors), "Size mismatch between tensors"
@@ -524,3 +586,23 @@ def build_lstm_cd_model_v1(
 
 register_model("lstm_calc_date_model_pytorch", 1, build_lstm_cd_model_v1,
                "Initial LSTM-based calc-date model")
+
+               
+
+def build_lstm_ysm_cd_model_v1(
+        hp,
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes,
+        **kwargs):
+    return LSTMYieldSpreadCalcDateModel(
+        num_trade_history_features,
+        non_categorical_size,
+        category_sizes,
+        **kwargs)
+
+
+register_model("lstm_yield_spread_calc_date_model_pytorch", 1, build_lstm_ysm_cd_model_v1,
+               "Initial LSTM-based yield-spread + calc-date model")
+
+               
