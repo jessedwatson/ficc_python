@@ -168,8 +168,8 @@ def price_of_bond_with_multiple_periodic_interest_payments(cusip,    # can be us
     # The following logic statements are necessary to address odd first and final coupons
     if dates_are_equal(next_coupon_date, first_coupon_date):
         num_of_days_in_current_interest_payment_period = diff_in_days_two_dates(first_coupon_date, accrual_date)
-    elif compare_dates(settlement_date, last_period_accrues_from_date + time_delta) > 0:    # this logic has not been tested
-        num_of_days_in_current_interest_payment_period = 0
+    # elif compare_dates(settlement_date, last_period_accrues_from_date + time_delta) > 0:    # this logic has not been tested
+    #     num_of_days_in_current_interest_payment_period = 0
     else:
         num_of_days_in_current_interest_payment_period = num_of_days_in_period
 
