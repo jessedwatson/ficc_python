@@ -181,3 +181,10 @@ MUNI_ISSUE_TYPE_DICT = {1.0: 'Build America Bonds Direct Pay',
                         14.0: 'Green Bonds', 
                         15.0: 'Municipal Liquidity Facility', 
                         16.0: 'Property Assessed Clean Energy'}
+
+SALE_TYPE_DICT = {0: 'Unknown', 
+                  1: 'Competitive', 
+                  2: 'Negotiated', 
+                  3: 'Limited', 
+                  4: 'Private placement', 
+                  5: 'Remarketing'}
