@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-22 14:37:28
+ # @ Modified time: 2022-03-01 10:43:26
  # @ Description:
  '''
 
@@ -47,7 +47,7 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
     
     return trade_dataframe
 
-def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type, trade_history_delay):
+def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type, trade_history_delay, min_trades_in_history):
     
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
         print("Grabbing yield curve params")
@@ -87,9 +87,10 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
         print('Estimating calculation date')
         print(trade_dataframe[['maturity_date','next_call_date','calc_date']])
 
-    trade_dataframe.recent =  trade_dataframe.apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)        
+    # Chaning appply to parallel apply to save time. Might cause memory issues
+    trade_dataframe.recent =  trade_dataframe.parallel_apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)        
 
-    # the trade history correctly
+
     print('Creating trade history')
     
     if remove_short_maturity == True:
@@ -97,8 +98,12 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     
     if len(remove_trade_type) > 0:
         print(f"Removing trade types {remove_trade_type}")
+
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
-    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay]))
+    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
+                                                                                                        remove_non_transaction_based,
+                                                                                                        remove_trade_type,
+                                                                                                        trade_history_delay]))
     print('Trade history created')
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
@@ -107,7 +112,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
 
     print("Padding history")
-    trade_dataframe.trade_history = trade_dataframe.trade_history.apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES])
+    trade_dataframe.trade_history = trade_dataframe.trade_history.apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history])
     print("Padding completed")
 
     trade_dataframe.dropna(subset=['trade_history', 'yield_spread'], inplace=True)

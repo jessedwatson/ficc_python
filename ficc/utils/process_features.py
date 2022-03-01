@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-10 11:07:25
+ # @ Modified time: 2022-03-01 09:53:03
  # @ Description:
  '''
 import numpy as np
@@ -56,6 +56,7 @@ def process_features(df):
     # Adding features from MSRB rule 33G
     df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type="accrual", axis=1)
     df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
+    df.loc[:, 'A/E'] = df['accrued_days'] / (360/ df['days_in_interest_payment'])
 
     df = fill_missing_values(df)
 
