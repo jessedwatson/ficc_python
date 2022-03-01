@@ -188,3 +188,14 @@ SALE_TYPE_DICT = {0: 'Unknown',
                   3: 'Limited', 
                   4: 'Private placement', 
                   5: 'Remarketing'}
+
+ORIG_INSTRUMENT_ENHANCEMENT_TYPE_DICT = {1: 'Custodial receipt', 
+                                         2: 'Periodic auction/inverse floater', 
+                                         3: 'Prem municipal bond receipt', 
+                                         4: 'Pre-refunded', 
+                                         5: 'Third party put/tender option bond', 
+                                         6: 'Remarketing', 
+                                         7: 'Secondarily insured', 
+                                         8: 'Unit put & secondarily insured', 
+                                         9: 'Third party put unit', 
+                                         10: 'Unrefunded balance'}
