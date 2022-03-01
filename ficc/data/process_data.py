@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 10:50:29
+ # @ Modified time: 2022-03-01 12:49:53
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -65,6 +65,9 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
 
     print("Processing categorical features")
     trades_df = process_features(trades_df)
+
+    if remove_short_maturity == True:
+        trades_df = trades_df[trades_df.days_to_maturity >= np.log10(400)]
 
     if 'training_features' in kwargs:
         trades_df = trades_df[kwargs['training_features']]
