@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-01-28 16:57:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-03-01 09:52:57
  # @ Description:
  '''
 
@@ -104,7 +104,8 @@ NON_CAT_FEATURES = ['quantity',
                     'orig_principal_amount',
                     'max_amount_outstanding',
                     'accrued_days',
-                    'days_in_interest_payment']
+                    'days_in_interest_payment',
+                    'A/E']
 
 TRADE_HISTORY = ['trade_history']
 TARGET = ['yield_spread']
