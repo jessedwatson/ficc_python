@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:56:59
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-08 19:14:08
+ # @ Modified time: 2022-03-01 10:42:16
  # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
  # function to unpack the list of dictionaries and creates a list of historical trades. 
  # With each element in the list containing all the information for that particular trade

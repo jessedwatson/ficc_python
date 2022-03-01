@@ -20,3 +20,4 @@ from . import yield_curve
 from . import create_mmd_data
 from . import mmd_ycl
 from . import get_mmd_ycl
+from . import gcp_storage_functions
