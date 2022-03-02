@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 12:49:53
+ # @ Modified time: 2022-03-01 14:59:15
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -58,6 +58,8 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
         print("Using yield spreds created from the S&P muni index")
         # Converting the yield spread to basis points
         trades_df['yield_spread'] = trades_df['yield_spread'] * 100
+    
+    print('Yield spread calculated')
 
     # Dropping columns which are not used for training
     # trades_df = drop_extra_columns(trades_df)
