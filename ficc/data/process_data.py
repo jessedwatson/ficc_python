@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 14:59:15
+ # @ Modified time: 2022-03-01 20:05:52
  # @ Description: Source code to process trade history from BigQuery
  '''
 import pandas as pd
@@ -28,7 +28,7 @@ from ficc.utils.auxiliary_functions import convert_dates
 def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FICC", estimate_calc_date = True, remove_short_maturity = False, remove_non_transaction_based = False, remove_trade_type = [], trade_history_delay=1, min_trades_in_history=2, **kwargs):
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
-    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trad_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay}')
+    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trad_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay} \n min_trades_in_hist:{min_trades_in_history}')
 
     trades_df = process_trade_history(query,
                                       client, 
