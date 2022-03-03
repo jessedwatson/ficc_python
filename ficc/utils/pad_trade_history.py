@@ -17,7 +17,7 @@ import numpy as np
 
 def pad_trade_history(x, SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history):
     
-    if len(x) < SEQUENCE_LENGTH and len(x) > min_trades_in_history: 
+    if len(x) < SEQUENCE_LENGTH and len(x) >= min_trades_in_history: 
         temp = x.tolist()
         temp = temp + [[0]*NUM_FEATURES]*(SEQUENCE_LENGTH - len(x))
         try:
