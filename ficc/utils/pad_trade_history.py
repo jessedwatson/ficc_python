@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 14:51:09
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 10:50:08
+ # @ Modified time: 2022-03-01 16:07:38
  # @ Description:The pad_trade_history function pads the trade historie with zeros, to make their
  #  length equal to the sequence length. The function pads the end of trade history and creates 
  #  a single sequence. The paddings are added after the most recent trades.

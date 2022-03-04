@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-22 14:36:44
+ # @ Modified time: 2022-03-01 14:28:17
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -32,19 +32,22 @@ FROM
   `eng-reactor-287421.auxiliary_views.materialized_trade_history`
 WHERE
   yield IS NOT NULL
-  AND yield > 0 
-  AND yield <= 3
-  AND trade_type = 'D' 
-  AND par_traded IS NOT NULL
-  AND trade_date >= '2021-07-01' 
-  AND trade_date <= '2021-10-01'
+  AND yield > 0
+  AND par_traded >= 10000
+  AND trade_date >= '2021-01-01'
+  AND trade_date <= '2021-12-31'
   AND maturity_description_code = 2
-  AND incorporated_state_code <> 'US'
-  AND coupon_type = 8
+  AND (coupon_type = 8 or coupon_type = 4 or coupon_type = 10)
+  AND capital_type <> 10. 
+  AND default_exists <> TRUE
+  AND sale_type <> 4
+  AND sec_regulation is null 
+  AND most_recent_default_event is null
+  AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
-ORDER BY
-  trade_datetime DESC
-LIMIT 100
+  ORDER BY
+      trade_datetime DESC
+  limit 100
             """
 
 bq_client = bigquery.Client()
@@ -60,5 +63,6 @@ if __name__ == "__main__":
                               remove_short_maturity=True,
                               remove_non_transaction_based=False,
                               remove_trade_type = ['S','P'],
-                              trade_history_delay = 1)
+                              trade_history_delay = 1,
+                              min_trades_in_history = 2)
     
