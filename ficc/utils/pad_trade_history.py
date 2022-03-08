@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 14:51:09
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 16:07:38
+ # @ Modified time: 2022-03-07 14:22:47
  # @ Description:The pad_trade_history function pads the trade historie with zeros, to make their
  #  length equal to the sequence length. The function pads the end of trade history and creates 
  #  a single sequence. The paddings are added after the most recent trades.
@@ -29,6 +29,7 @@ def pad_trade_history(x, SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history):
                 
     #returning none for data less than the minimum required number of trades in history
     elif len(x) < min_trades_in_history:
+        # TODO call the similarity model to get min_trades_in_history similar trades
         return None
     else:
         return x
