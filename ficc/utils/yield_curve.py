@@ -27,7 +27,11 @@ def get_ficc_ycl(trade, **kwargs):
         target_date = datetime(2021, 7, 27).date()
     else:
         target_date = trade.trade_date
-    duration = (trade.calc_date - target_date).days/365.25
+    try:
+        duration = (trade.calc_date - target_date).days/365.25
+    except Exception as e:
+        print(f'Calc date {trade.calc_date} type {type(trade.calc_date)}')
+        print(f'Target date {trade.target} type {type(trade.target)}')
     
     try:
         ficc_yl = yield_curve_level(duration,
