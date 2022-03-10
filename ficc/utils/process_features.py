@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-08 09:18:23
+ # @ Modified time: 2022-03-09 13:00:12
  # @ Description:
  '''
 import numpy as np
@@ -26,6 +26,7 @@ def process_features(df):
     df.issue_amount = np.log10(df.issue_amount.astype(np.float32))
     df.maturity_amount = np.log10(1.0 + df.maturity_amount.astype(float))
     df.orig_principal_amount = np.log10(1.0 + df.orig_principal_amount.astype(float))
+    #Check the outstanding_amount
     df.max_amount_outstanding = np.log10(1.0 + df.max_amount_outstanding.astype(float))
     
     # Creating Binary features
