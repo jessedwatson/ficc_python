@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-10 13:10:06
+ # @ Modified time: 2022-03-10 13:19:48
  # @ Description: This file contains the code to get 
  # the ficc yield curve level using the calc_date
  '''
@@ -37,7 +37,10 @@ def get_ficc_ycl(trade, **kwargs):
         else:
             target_date = trade.trade_date
 
-    duration = (trade.calc_date - target_date).days/365.25
+    try:
+        duration = (trade.calc_date - target_date).days/365.25
+    except Exception as e:
+        duration = (trade.calc_date.date() - target_date).days/365.25
     
     try:
         ficc_yl = yield_curve_level(duration,
