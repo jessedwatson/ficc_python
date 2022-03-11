@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 09:53:03
+ # @ Modified time: 2022-03-11 10:40:16
  # @ Description:
  '''
 import numpy as np
@@ -26,6 +26,7 @@ def process_features(df):
     df.issue_amount = np.log10(df.issue_amount.astype(np.float32))
     df.maturity_amount = np.log10(1.0 + df.maturity_amount.astype(float))
     df.orig_principal_amount = np.log10(1.0 + df.orig_principal_amount.astype(float))
+    #Check the outstanding_amount
     df.max_amount_outstanding = np.log10(1.0 + df.max_amount_outstanding.astype(float))
     
     # Creating Binary features
@@ -42,11 +43,17 @@ def process_features(df):
     print('Removing trades which are settled more than a month from trade date')
     df = df[df.days_to_settle < 30]
 
-    df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days.fillna(0))
-    df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days.fillna(0))
-    df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.settlement_date).dt.days.fillna(0))
-    df.loc[:, 'days_to_par'] = np.log10(1 + (df.par_call_date - df.settlement_date).dt.days.fillna(0))
-    df.loc[:, 'call_to_maturity'] = np.log10(1 + (df.maturity_date - df.next_call_date).dt.days.fillna(0))
+    df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days).fillna(0)
+    df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days).fillna(0)
+    df.days_to_call.replace(-np.inf, np.nan, inplace=True)
+    df.days_to_call.fillna(0, inplace=True)
+    df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.settlement_date).dt.days).fillna(0)
+    
+    df.loc[:, 'days_to_par'] = np.log10(1 + (df.par_call_date - df.settlement_date).dt.days).fillna(0)
+    df.days_to_par.replace(-np.inf, np.nan, inplace=True)
+    df.days_to_par.fillna(0, inplace=True)
+
+    df.loc[:, 'call_to_maturity'] = np.log10(1 + (df.maturity_date - df.next_call_date).dt.days).fillna(0)
     
     # Adding features of the last trade i.e the trade before the most recent trade
     df.loc[:, 'last_seconds_ago'] = df.trade_history.apply(get_latest_trade_feature, args=["seconds_ago"])

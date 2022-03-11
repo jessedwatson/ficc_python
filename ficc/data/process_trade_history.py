@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 15:02:25
+ # @ Modified time: 2022-03-07 10:00:41
  # @ Description:
  '''
 
@@ -69,16 +69,13 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     trade_dataframe = process_ratings(trade_dataframe)
     trade_dataframe = convert_object_to_category(trade_dataframe)
 
-
+    print(f'Raw data contains {len(trade_dataframe)} samples')
+    
     #Dropping empty trades
     print("Dropping empty trades")
     trade_dataframe['empty_trade'] = trade_dataframe.recent.apply(lambda x: x[0]['rtrs_control_number'] is None)
     trade_dataframe = trade_dataframe[trade_dataframe.empty_trade == False]
 
-    # Moved to the query
-    # print("Dropping trades less that $10,000")
-    # trade_dataframe = trade_dataframe[trade_dataframe.par_traded > 10000]
-    
     # Taking only the most recent trades
     # trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
 
@@ -115,7 +112,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     print(f"Minimum number of trades required in the history {min_trades_in_history}")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history])
     print("Padding completed")
-
+     
     trade_dataframe.dropna(subset=['trade_history', 'yield_spread'], inplace=True)
-
+    print(f'Processed trade history contain {len(trade_dataframe)} samples')
     return trade_dataframe
