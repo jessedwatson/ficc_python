@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-09 12:44:43
+ # @ Modified time: 2022-03-10 13:21:38
  # @ Description:
  '''
 
@@ -15,7 +15,8 @@ def fill_missing_values(df):
     df.sink_amount_type.fillna(0, inplace=True)
     df.issue_text.fillna('No issue text', inplace=True)
     df.state_tax_status.fillna(0, inplace=True)
-    df.series_name.fillna('No series name', inplace=True)   
+    df.series_name.fillna('No series name', inplace=True) 
+    df.transaction_type.fillna('I', inplace=True)  
 
     df.next_call_price.fillna(100, inplace=True)
     df.par_call_price.fillna(100, inplace=True)
