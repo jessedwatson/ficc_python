@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='ficc',
-    version='0.2.4',
+    version='0.2.5',
     description='Ficc.ai internal library',
     author='Ficc.ai',
     author_email='anis@ficc.ai',
