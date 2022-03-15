@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 19:35:01
+ # @ Modified time: 2022-03-15 13:05:02
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -52,8 +52,9 @@ def convert_dates(df):
 This function  
 '''
 def process_ratings(df):
-    # df.sp_long.fillna('NR', inplace=True)
-    df = df[df.sp_long.isin(['BBB+','A-','A','A+','AA-','AA','AA+','AAA','NR'])] 
+    # MR is for missing ratings
+    df.sp_long.fillna('MR', inplace=True)
+    df = df[df.sp_long.isin(['BBB+','A-','A','A+','AA-','AA','AA+','AAA','NR','MR'])] 
     df['rating'] = df['sp_long']
     return df
     
