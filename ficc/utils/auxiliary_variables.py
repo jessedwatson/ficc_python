@@ -290,7 +290,11 @@ PURPOSE_SUB_CLASS_DICT = {1.0: 'None',
                           122.0: 'University', 
                           123.0: 'Utility', 
                           124.0: 'Various Purpose', 
-                          125.0: 'Water'}
+                          125.0: 'Water', 
+                          126.0: 'Charter School', 
+                          127.0: 'Lottery', 
+                          128.0: 'Student Housing', 
+                          129.0: 'Water & Sewer'}
 
 MUNI_ISSUE_TYPE_DICT = {1.0: 'Build America Bonds Direct Pay', 
                         2.0: 'Build America Bonds Tax Credit', 
