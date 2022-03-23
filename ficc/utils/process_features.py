@@ -63,7 +63,7 @@ def process_features(df):
     # Adding features from MSRB rule 33G
     df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type="accrual", axis=1)
     df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
-    df.loc[:, 'A/E'] = df['accrued_days'] /  df['days_in_interest_payment']
+    df.loc[:, 'A/E'] = df['accrued_days'] / df['days_in_interest_payment']
 
     df = fill_missing_values(df)
 
