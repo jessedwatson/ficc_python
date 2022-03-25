@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-22 11:54:09
+ # @ Modified time: 2022-03-24 11:04:30
  # @ Description:
  '''
 import numpy as np
@@ -11,6 +11,7 @@ from ficc.utils.auxiliary_functions import get_latest_trade_feature
 from ficc.utils.diff_in_days import diff_in_days
 from ficc.utils.days_in_interest_payment import days_in_interest_payment
 from ficc.utils.fill_missing_values import fill_missing_values
+from ficc.utils.auxiliary_functions import calculate_a_over_e
 
 def process_features(df):
     # Removing bonds from Puerto Rico
@@ -63,8 +64,8 @@ def process_features(df):
     # Adding features from MSRB rule 33G
     df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type="accrual", axis=1)
     df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
-    df.loc[:, 'A/E'] = df['accrued_days'] / df['days_in_interest_payment']
-
+    df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360/df['days_in_interest_payment'])
+    df.loc[:, 'A/E'] = df.apply(calculate_a_over_e, axis=1)
     df = fill_missing_values(df)
 
     return df
