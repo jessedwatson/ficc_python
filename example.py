@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-10 10:42:15
+ # @ Modified time: 2022-03-25 11:10:16
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -26,31 +26,41 @@ from ficc.utils.auxiliary_variables import PREDICTORS
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/eng-reactor-287421-112eb767e1b3.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 5
-# DATA_QUERY = """ SELECT
-#   *
-# FROM
-#   `eng-reactor-287421.auxiliary_views.materialized_trade_history`
-# WHERE
-#   yield IS NOT NULL
-#   AND yield > 0
-#   AND par_traded >= 10000
-#   AND trade_date >= '2022-03-01'
-#   AND trade_date <= '2022-03-08'
-#   AND maturity_description_code = 2
-#   AND (coupon_type = 8 or coupon_type = 4 or coupon_type = 10)
-#   AND capital_type <> 10. 
-#   AND default_exists <> TRUE
-#   AND sale_type <> 4
-#   AND sec_regulation is null 
-#   AND most_recent_default_event is null
-#   AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
-#   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
-#   AND rtrs_control_number = 2022030704788100
-#   ORDER BY
-#       trade_datetime DESC
-#             """
 
-DATA_QUERY = """Select * from `eng-reactor-287421.auxiliary_views.materialized_trade_history` where cusip = '275381BF7' order by trade_date desc; """
+DATA_QUERY = ''' 
+SELECT
+  *
+FROM
+  `eng-reactor-287421.auxiliary_views.materialized_trade_history`
+WHERE
+  yield IS NOT NULL
+  AND yield > 0
+  AND par_traded >= 10000
+  AND trade_date >= '2021-08-01'
+  AND trade_date <= '2022-03-11'
+  AND maturity_description_code = 2
+  AND (coupon_type = 8 OR coupon_type = 4 OR coupon_type = 10)
+  AND capital_type <> 10
+  AND default_exists <> TRUE
+  AND sale_type <> 4
+  AND sec_regulation IS NULL
+  AND most_recent_default_event IS NULL
+  AND default_indicator IS FALSE
+  AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
+  AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
+  AND (purpose_sub_class is null or 
+       purpose_sub_class <> 6 or 
+       purpose_sub_class <> 20 or 
+       purpose_sub_class <> 21 or 
+       purpose_sub_class <> 22 or 
+       purpose_sub_class <> 57 or 
+       purpose_sub_class <> 44 or 
+       purpose_sub_class <> 106)
+ AND state_tax_status = 1
+ AND (called_redemption_type is null or called_redemption_type <> 18 or called_redemption_type <> 19)
+ORDER BY
+  trade_datetime DESC limit 1000''' 
+
 
 bq_client = bigquery.Client()
 
@@ -66,5 +76,6 @@ if __name__ == "__main__":
                               remove_non_transaction_based=False,
                               remove_trade_type = [],
                               trade_history_delay = 1,
-                              min_trades_in_history = 1)
-    
+                              min_trades_in_history = 1,
+                              process_ratings=False)
+    print(trade_data)

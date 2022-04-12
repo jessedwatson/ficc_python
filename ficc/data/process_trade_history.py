@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-07 10:00:41
+ # @ Modified time: 2022-03-25 11:09:35
  # @ Description:
  '''
 
@@ -47,7 +47,7 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
     
     return trade_dataframe
 
-def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type, trade_history_delay, min_trades_in_history):
+def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, estimate_calc_date, remove_short_maturity, remove_non_transaction_based,remove_trade_type, trade_history_delay, min_trades_in_history, process_ratings_bool):
     
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
         print("Grabbing yield curve params")
@@ -66,7 +66,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
             raise e
 
     trade_dataframe = fetch_trade_data(query, client, PATH)
-    trade_dataframe = process_ratings(trade_dataframe)
+    trade_dataframe = process_ratings(trade_dataframe, process_ratings_bool)
     trade_dataframe = convert_object_to_category(trade_dataframe)
 
     print(f'Raw data contains {len(trade_dataframe)} samples')

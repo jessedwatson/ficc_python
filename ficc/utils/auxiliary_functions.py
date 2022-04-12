@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-15 13:05:02
+ # @ Modified time: 2022-03-25 11:08:40
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -51,10 +51,11 @@ def convert_dates(df):
 '''
 This function  
 '''
-def process_ratings(df):
+def process_ratings(df, process_ratings):
     # MR is for missing ratings
     df.sp_long.fillna('MR', inplace=True)
-    df = df[df.sp_long.isin(['BBB+','A-','A','A+','AA-','AA','AA+','AAA','NR','MR'])] 
+    if process_ratings == True:
+        df = df[df.sp_long.isin(['BBB+','A-','A','A+','AA-','AA','AA+','AAA','NR','MR'])] 
     df['rating'] = df['sp_long']
     return df
     
@@ -107,3 +108,10 @@ def convert_object_to_category(df):
         if df[col_name].dtype == "object" and col_name not in ['organization_primary_name','security_description','recent','issue_text','series_name']:
             df[col_name] = df[col_name].astype("category")
     return df
+
+def calculate_a_over_e(df):
+    if not pd.isnull(df.previous_coupon_payment_date):
+        A = (df.settlement_date - df.previous_coupon_payment_date).days
+        return A/df.days_in_interest_payment
+    else:
+        return df['accrued_days']/360
