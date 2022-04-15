@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-09 12:50:52
+ # @ Modified time: 2022-04-15 14:32:53
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -36,6 +36,8 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
     elif trade_dict['seconds_ago'] < (trade_history_delay * 60):
         return None
     
+    if trade_dict['seconds_ago'] > 1000000:
+        return None
 
     # We do not have weighted average maturity before July 27 for ficc yc
     if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,7,27):
