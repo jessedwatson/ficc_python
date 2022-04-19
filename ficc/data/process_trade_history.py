@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-25 11:09:35
+ # @ Modified time: 2022-04-18 16:41:13
  # @ Description:
  '''
 
@@ -85,7 +85,7 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
         print(trade_dataframe[['maturity_date','next_call_date','calc_date']])
 
     # Chaning appply to parallel apply to save time. Might cause memory issues
-    trade_dataframe.recent =  trade_dataframe.parallel_apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)        
+    # trade_dataframe.recent =  trade_dataframe.parallel_apply(lambda x: np.append(x['recent'],np.array(x['calc_date'])),axis=1)        
 
 
     print('Creating trade history')
