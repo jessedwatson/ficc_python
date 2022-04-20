@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-03-10 17:11:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-04-20 14:59:59
  # @ Description:
  '''
 
@@ -86,8 +86,6 @@ BINARY = ['callable',
 CATEGORICAL_FEATURES = ['rating',
                         'incorporated_state_code',
                         'trade_type',
-                        'transaction_type',
-                        'maturity_description_code',
                         'purpose_class']
 
 NON_CAT_FEATURES = ['quantity',

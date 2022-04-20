@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:56:59
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-01 10:42:16
+ # @ Modified time: 2022-04-18 16:41:40
  # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
  # function to unpack the list of dictionaries and creates a list of historical trades. 
  # With each element in the list containing all the information for that particular trade
@@ -19,12 +19,12 @@ def trade_list_to_array(trade_history, remove_short_maturity, remove_non_transac
 
     # The calc date for a trade is added as the last
     # feautre in the trade history
-    calc_date = trade_history[-1]
-    trade_history = trade_history[:-1] 
+    # calc_date = trade_history[-1]
+    # trade_history = trade_history[:-1] 
     trades_list = []
 
     for entry in trade_history:
-        trades = trade_dict_to_list(entry,calc_date, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay)
+        trades = trade_dict_to_list(entry, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay)
         if trades is not None:
             trades_list.append(trades)
 
