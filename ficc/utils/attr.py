@@ -12,7 +12,7 @@ import wandb as W
 from captum.attr import LayerIntegratedGradients
 from captum.attr._utils.input_layer_wrapper import ModelInputWrapper
 
-from ficc.models.lstm_ysm_pytorch import YieldSpreadSquaredErrorWrapper, VarianceWrapper
+from ficc.models.lstm_ysm_pytorch import YieldSpreadSquaredErrorWrapper, VarianceWrapper, CalcDateErrorWrapper
 
 
 def compute_integrated_gradient_attributions(
@@ -85,6 +85,15 @@ def compute_integrated_gradient_variance_attributions(
     BATCH_SIZE=1000
 ):
     return compute_integrated_gradient_attributions(model, x_eval, model_wrapper=VarianceWrapper, BATCH_SIZE=BATCH_SIZE)
+
+
+def compute_integrated_gradient_calc_date_error_attributions(
+    model,
+    x_eval,
+    y_eval,
+    BATCH_SIZE=1000
+):
+    return compute_integrated_gradient_attributions(model, x_eval, y_eval, model_wrapper=CalcDateErrorWrapper, BATCH_SIZE=BATCH_SIZE)
 
 
 def visualize_trade_history_attribution(attrs, subtitle=None, wandb=None):
