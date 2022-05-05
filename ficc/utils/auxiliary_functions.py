@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-25 11:08:40
+ # @ Modified time: 2022-05-05 04:13:23
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -102,7 +102,7 @@ This function converts the columns with object datatypes to category data types
 def convert_object_to_category(df):
     print("Converting object data type to categorical data type")
     for col_name in df.columns:
-        if col_name.endswith("event") or col_name.endswith("redemption") or col_name.endswith("history") or col_name.endswith("date"):
+        if col_name.endswith("event") or col_name.endswith("redemption") or col_name.endswith("history") or col_name.endswith("date") or col_name.endswith("issue"):
             continue
 
         if df[col_name].dtype == "object" and col_name not in ['organization_primary_name','security_description','recent','issue_text','series_name']:
