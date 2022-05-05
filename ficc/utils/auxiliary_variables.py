@@ -106,7 +106,7 @@ NON_CAT_FEATURES = ['quantity',
                     'A/E']
 
 TRADE_HISTORY = ['trade_history']
-TARGET = ['yield_spread']
+TARGET = ['yield_spread', 'calc_day_cat']
 
 PREDICTORS = BINARY + CATEGORICAL_FEATURES + NON_CAT_FEATURES + TARGET + TRADE_HISTORY
 
