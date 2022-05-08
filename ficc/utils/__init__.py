@@ -11,6 +11,7 @@ from . import globals
 from . import graph
 from . import nelson_seigel_model
 from . import pad_trade_history
+from . import plotting
 from . import process_features
 from . import trade_dict_to_list
 from . import trade_list_to_array
