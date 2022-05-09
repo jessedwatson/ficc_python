@@ -2,7 +2,7 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-20 15:48:48
+ # @ Modified time: 2022-05-09 03:37:41
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
@@ -12,6 +12,7 @@
 import numpy as np 
 import pandas as pd
 import sys
+from datetime import datetime, timedelta
 from google.cloud import bigquery
 
 PROJECT_ID = "eng-reactor-287421"
@@ -48,9 +49,26 @@ def load_model_parameters(target_date, nelson_params, scalar_params):
     '''
     This function grabs the nelson siegel and standard scalar coefficient from the dataframes 
     '''
-
-    nelson_coeff = nelson_params.loc[target_date]
-    scalar_coeff = scalar_params.loc[target_date]
+    try:
+        nelson_coeff = nelson_params.loc[target_date]
+        scalar_coeff = scalar_params.loc[target_date]
+    except Exception as e:
+        count = 5
+        while target_date not in nelson_params.index:
+            # Corner case when no date is in the index
+            # will limit the iterations to 5
+            count -= 1
+            if count <= 0:
+                break
+            temp_date = datetime.strptime(target_date, '%Y-%m-%d').date()
+            temp_date = temp_date - timedelta(days=1)
+            target_date = datetime.strftime(temp_date, '%Y-%m-%d')
+        
+        if target_date not in scalar_params:
+            raise Exception(f"Date {target_date} not in Nelson-Siegel coefficients")
+        
+        nelson_coeff = nelson_params.loc[target_date]
+        scalar_coeff = scalar_params.loc[target_date]
 
     return nelson_coeff, scalar_coeff
 
