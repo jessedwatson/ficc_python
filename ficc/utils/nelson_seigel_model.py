@@ -2,16 +2,18 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-01-20 15:48:48
+ # @ Modified time: 2022-05-11 06:11:59
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
  # instead of grabbing them from memory store
  '''
 
+from shutil import ExecError
 import numpy as np 
 import pandas as pd
 import sys
+from datetime import datetime, timedelta
 from google.cloud import bigquery
 
 PROJECT_ID = "eng-reactor-287421"
@@ -49,6 +51,10 @@ def load_model_parameters(target_date, nelson_params, scalar_params):
     This function grabs the nelson siegel and standard scalar coefficient from the dataframes 
     '''
 
+    # temp_date = datetime.strptime(target_date, '%Y-%m-%d')
+    # dates = list(nelson_params.index)
+    # cloz_dict = { abs(temp_date.timestamp() - date.timestamp()) : date for date in dates}
+    # target_date = cloz_dict[min(cloz_dict.keys())].date().strftime('%Y-%m-%d')
     nelson_coeff = nelson_params.loc[target_date]
     scalar_coeff = scalar_params.loc[target_date]
 

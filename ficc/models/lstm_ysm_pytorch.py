@@ -509,6 +509,22 @@ class YieldSpreadSquaredErrorWrapper(nn.Module):
         return loss.unsqueeze(0)
 
 
+class CalcDateErrorWrapper(nn.Module):
+    def __init__(
+        self,
+        model
+    ):
+        super().__init__()
+
+        self.wrapped_model = model
+
+    def forward(self, ground_truth, trade_history, noncat, *categorical):
+        z = self.wrapped_model.forward(trade_history, noncat, *categorical).squeeze()
+        loss = F.cross_entropy(z, ground_truth.long())
+
+        return loss.mean().unsqueeze(0)
+
+
 class MeanSquaredErrorWrapper(nn.Module):
     def __init__(
         self,

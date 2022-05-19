@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-25 11:10:16
+ # @ Modified time: 2022-05-10 06:17:05
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -37,7 +37,7 @@ WHERE
   AND yield > 0
   AND par_traded >= 10000
   AND trade_date >= '2021-08-01'
-  AND trade_date <= '2022-03-11'
+  AND trade_date <= '2022-04-30'
   AND maturity_description_code = 2
   AND (coupon_type = 8 OR coupon_type = 4 OR coupon_type = 10)
   AND capital_type <> 10
@@ -48,16 +48,7 @@ WHERE
   AND default_indicator IS FALSE
   AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
-  AND (purpose_sub_class is null or 
-       purpose_sub_class <> 6 or 
-       purpose_sub_class <> 20 or 
-       purpose_sub_class <> 21 or 
-       purpose_sub_class <> 22 or 
-       purpose_sub_class <> 57 or 
-       purpose_sub_class <> 44 or 
-       purpose_sub_class <> 106)
  AND state_tax_status = 1
- AND (called_redemption_type is null or called_redemption_type <> 18 or called_redemption_type <> 19)
 ORDER BY
   trade_datetime DESC limit 1000''' 
 
@@ -76,6 +67,6 @@ if __name__ == "__main__":
                               remove_non_transaction_based=False,
                               remove_trade_type = [],
                               trade_history_delay = 1,
-                              min_trades_in_history = 1,
+                              min_trades_in_history = 0,
                               process_ratings=False)
     print(trade_data)

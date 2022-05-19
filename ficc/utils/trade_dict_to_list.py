@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-09 12:50:52
+ # @ Modified time: 2022-04-18 16:41:48
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -21,7 +21,7 @@ from ficc.utils.yield_curve import yield_curve_level
 from ficc.utils.mmd_ycl import mmd_ycl
 import ficc.utils.globals as globals
 
-def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay) -> list:
+def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay) -> list:
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
@@ -35,7 +35,6 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
         return None
     elif trade_dict['seconds_ago'] < (trade_history_delay * 60):
         return None
-    
 
     # We do not have weighted average maturity before July 27 for ficc yc
     if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,7,27):
@@ -64,6 +63,7 @@ def trade_dict_to_list(trade_dict: dict, calc_date, remove_short_maturity, remov
     if len(remove_trade_type) > 0 and trade_dict['trade_type'] in remove_trade_type:
         return None
 
+    calc_date = trade_dict['calc_date']
     #calculating the time to maturity in years from the trade_date
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
         time_to_maturity = (calc_date - target_date).days/365.25
