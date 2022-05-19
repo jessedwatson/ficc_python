@@ -37,10 +37,13 @@ FEATURES_AND_DEFAULT_VALUES = (('purpose_class', 0),    # unknown
                                ('days_to_par', 0), 
                                ('call_to_maturity', 0))
 
-def fill_missing_values(df):
+def fill_missing_values(df, feature_to_default_value_dict):
     df.dropna(subset=['instrument_primary_name'], inplace=True)
 
     for feature, default_value in FEATURES_AND_DEFAULT_VALUES:
+        if feature in feature_to_default_value_dict:
+            default_value = feature_to_default_value_dict
+
         if callable(default_value):    # checks whether the default_value is a function that needs to be called on the dataframe
             df[feature].fillna(default_value(df), inplace=True)
         else:
