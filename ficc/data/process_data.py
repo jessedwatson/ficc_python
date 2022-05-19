@@ -38,6 +38,7 @@ def process_data(query,
                  min_trades_in_history=2, 
                  process_ratings=True, 
                  feature_to_default_value_dict={}, 
+                 add_missingness_flag=False, 
                  **kwargs):
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
@@ -81,7 +82,7 @@ def process_data(query,
     trades_df = convert_dates(trades_df)
 
     print("Processing categorical features")
-    trades_df = process_features(trades_df, feature_to_default_value_dict)
+    trades_df = process_features(trades_df, feature_to_default_value_dict, add_missingness_flag)
 
     if remove_short_maturity == True:
         trades_df = trades_df[trades_df.days_to_maturity >= np.log10(400)]

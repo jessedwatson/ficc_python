@@ -13,7 +13,7 @@ from ficc.utils.days_in_interest_payment import days_in_interest_payment
 from ficc.utils.fill_missing_values import fill_missing_values
 from ficc.utils.auxiliary_functions import calculate_a_over_e
 
-def process_features(df, feature_to_default_value_dict):
+def process_features(df, feature_to_default_value_dict, add_missingness_flag):
     # Removing bonds from Puerto Rico
     df = df[df.incorporated_state_code != 'PR']
 
@@ -64,6 +64,6 @@ def process_features(df, feature_to_default_value_dict):
     df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
     df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360/df['days_in_interest_payment'])
     df.loc[:, 'A/E'] = df.apply(calculate_a_over_e, axis=1)
-    df = fill_missing_values(df, feature_to_default_value_dict)
+    df = fill_missing_values(df, feature_to_default_value_dict, add_missingness_flag)
 
     return df
