@@ -42,7 +42,7 @@ def process_data(query,
                  **kwargs):
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
-    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trad_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay} \n min_trades_in_hist:{min_trades_in_history} \n process_ratings:{process_ratings}')
+    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trade_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay} \n min_trades_in_hist:{min_trades_in_history} \n process_ratings:{process_ratings}')
 
     trades_df = process_trade_history(query,
                                       client, 
@@ -81,7 +81,7 @@ def process_data(query,
     # trades_df = drop_extra_columns(trades_df)
     trades_df = convert_dates(trades_df)
 
-    print("Processing categorical features")
+    print("Processing features")
     trades_df = process_features(trades_df, feature_to_default_value_dict, add_missingness_flag)
 
     if remove_short_maturity == True:
