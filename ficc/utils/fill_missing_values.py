@@ -7,38 +7,38 @@
  '''
 
 
-FEATURES_AND_DEFAULT_VALUES = (('purpose_class', 0),    # unknown
-                               ('call_timing', 0),    # unknown
-                               ('call_timing_in_part', 0),    # unknown
-                               ('sink_frequency', 0),    # under special circumstances
-                               ('sink_amount_type', 10), 
-                               ('issue_text', 'No issue text'), 
-                               ('state_tax_status', 0), 
-                               ('series_name', 'No series name'), 
-                               ('transaction_type', 'I'), 
-                               ('next_call_price', 100), 
-                               ('par_call_price', 100), 
-                               ('min_amount_outstanding', 0), 
-                               ('max_amount_outstanding', 0), 
-                               ('days_to_par', 0), 
-                               ('maturity_amount', 0), 
-                               ('issue_price', lambda df: df.issue_price.mean()), 
-                               ('orig_principal_amount', lambda df: df.orig_principal_amount.mean()), 
-                               ('par_price', 100), 
-                               ('called_redemption_type', 0), 
-                               ('extraordinary_make_whole_call', False), 
-                               ('make_whole_call', False), 
-                               ('default_indicator', False), 
-                               ('called_redemption_type', 0), 
-                               ('days_to_settle', 0), 
-                               ('days_to_maturity', 0), 
-                               ('days_to_call', 0), 
-                               ('days_to_refund', 0), 
-                               ('days_to_par', 0), 
-                               ('call_to_maturity', 0))
+FEATURES_AND_DEFAULT_VALUES = {'purpose_class': 0,    # unknown
+                               'call_timing': 0,    # unknown
+                               'call_timing_in_part': 0,    # unknown
+                               'sink_frequency': 0,    # under special circumstances
+                               'sink_amount_type': 10, 
+                               'issue_text': 'No issue text', 
+                               'state_tax_status': 0, 
+                               'series_name': 'No series name', 
+                               'transaction_type': 'I', 
+                               'next_call_price': 100, 
+                               'par_call_price': 100, 
+                               'min_amount_outstanding': 0, 
+                               'max_amount_outstanding': 0, 
+                               'days_to_par': 0, 
+                               'maturity_amount': 0, 
+                               'issue_price': lambda df: df.issue_price.mean(), 
+                               'orig_principal_amount': lambda df: df.orig_principal_amount.mean(), 
+                               'par_price': 100, 
+                               'called_redemption_type': 0, 
+                               'extraordinary_make_whole_call': False, 
+                               'make_whole_call': False, 
+                               'default_indicator': False, 
+                               'called_redemption_type': 0, 
+                               'days_to_settle': 0, 
+                               'days_to_maturity': 0, 
+                               'days_to_call': 0, 
+                               'days_to_refund': 0, 
+                               'days_to_par': 0, 
+                               'call_to_maturity': 0}
 
 
-def replace_nan_value(df, feature, default_value):
+def replace_nan_with_value(df, feature, default_value):
     if callable(default_value):    # checks whether the default_value is a function that needs to be called on the dataframe
         df[feature].fillna(default_value(df), inplace=True)
     else:
@@ -48,6 +48,6 @@ def replace_nan_value(df, feature, default_value):
 def fill_missing_values(df, keep_nan):
     df.dropna(subset=['instrument_primary_name'], inplace=True)
     if not keep_nan:
-        for feature, default_value in FEATURES_AND_DEFAULT_VALUES:
-            replace_nan_value(df, feature, default_value)
+        for feature, default_value in FEATURES_AND_DEFAULT_VALUES.values():
+            replace_nan_with_value(df, feature, default_value)
     return df
