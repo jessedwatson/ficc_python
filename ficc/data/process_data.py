@@ -37,8 +37,7 @@ def process_data(query,
                  trade_history_delay=1, 
                  min_trades_in_history=2, 
                  process_ratings=True, 
-                 feature_to_default_value_dict={}, 
-                 add_missingness_flag=False, 
+                 keep_nan=False, 
                  **kwargs):
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
@@ -82,7 +81,7 @@ def process_data(query,
     trades_df = convert_dates(trades_df)
 
     print("Processing features")
-    trades_df = process_features(trades_df, feature_to_default_value_dict, add_missingness_flag)
+    trades_df = process_features(trades_df, keep_nan)
 
     if remove_short_maturity == True:
         trades_df = trades_df[trades_df.days_to_maturity >= np.log10(400)]

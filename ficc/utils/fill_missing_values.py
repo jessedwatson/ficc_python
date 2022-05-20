@@ -37,20 +37,17 @@ FEATURES_AND_DEFAULT_VALUES = (('purpose_class', 0),    # unknown
                                ('days_to_par', 0), 
                                ('call_to_maturity', 0))
 
-def fill_missing_values(df, feature_to_default_value_dict, add_missingness_flag):
+
+def replace_nan_value(df, feature, default_value):
+    if callable(default_value):    # checks whether the default_value is a function that needs to be called on the dataframe
+        df[feature].fillna(default_value(df), inplace=True)
+    else:
+        df[feature].fillna(default_value, inplace=True)
+
+
+def fill_missing_values(df, keep_nan):
     df.dropna(subset=['instrument_primary_name'], inplace=True)
-
-    for feature, default_value in FEATURES_AND_DEFAULT_VALUES:
-        if df[feature].isnull().values.any():    # checks if any of the values for `feature` are null
-            if add_missingness_flag:
-                df[feature + '_missing'] = df[feature].isnull()
-
-            if feature in feature_to_default_value_dict:
-                default_value = feature_to_default_value_dict
-
-            if callable(default_value):    # checks whether the default_value is a function that needs to be called on the dataframe
-                df[feature].fillna(default_value(df), inplace=True)
-            else:
-                df[feature].fillna(default_value, inplace=True)
-    
+    if not keep_nan:
+        for feature, default_value in FEATURES_AND_DEFAULT_VALUES:
+            replace_nan_value(df, feature, default_value)
     return df
