@@ -48,7 +48,7 @@ def compute_integrated_gradient_attributions(
 
     # Compute the integrated gradients in batches
     attributes = None
-    for start_idx in tqdm.tqdm(range(0, x_eval[0].shape[0], BATCH_SIZE)):
+    for start_idx in range(0, x_eval[0].shape[0], BATCH_SIZE):
         end_idx = min(start_idx+BATCH_SIZE, x_eval[0].shape[0])
         if y_eval is None:
             x = [t[start_idx:end_idx, ...] for t in x_eval]
@@ -96,20 +96,26 @@ def compute_integrated_gradient_calc_date_error_attributions(
     return compute_integrated_gradient_attributions(model, x_eval, y_eval, model_wrapper=CalcDateErrorWrapper, BATCH_SIZE=BATCH_SIZE)
 
 
-def visualize_trade_history_attribution(attrs, subtitle=None, wandb=None):
-    fig, ax = plt.subplots(figsize=(15, 10))
+def visualize_trade_history_attribution(attrs, subtitle=None, wandb=None, fig_ax=None):
+    if fig_ax is None:
+        fig, ax = plt.subplots(figsize=(15, 10))
+    else:
+        fig, ax = fig_ax
     xticklabels = list(range(attrs.shape[1]))
     yticklabels = ["yield_spread", "par_traded",
                    "trade_type 1", "trade_type 2", "seconds_ago"]
-    ax = sns.heatmap(attrs.cpu().numpy().transpose(
-    ), xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2)
-    if subtitle is None:
-        title = "Trade History Attribution"
+    sns.heatmap(attrs.cpu().numpy().transpose(
+    ), xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2, ax=ax)
+    if ax is None:
+        if subtitle is None:
+            title = "Trade History Attribution"
+        else:
+            title = f"Trade History Attribution ({subtitle})"
     else:
-        title = f"Trade History Attribution ({subtitle})"
+        title = subtitle
     plt.xlabel('Sequence Index')
     plt.ylabel('Feature Index')
-    fig.suptitle(title)
+    ax.set_title(title)
 
     if wandb is not None:
         pil_image = Image.frombytes(
@@ -122,24 +128,28 @@ def visualize_trade_history_attribution(attrs, subtitle=None, wandb=None):
         else:
             wandb.log({subtitle + "/" + title: [image]})
 
-    # plt.show()
 
-
-def visualize_trade_numerical_and_binary_attribution(attrs, numerical_features, binary_features, subtitle=None, wandb=None):
-    fig, ax = plt.subplots(figsize=(15, 5))
+def visualize_trade_numerical_and_binary_attribution(attrs, numerical_features, binary_features, subtitle=None, wandb=None, fig_ax=None):
+    if fig_ax is None:
+        fig, ax = plt.subplots(figsize=(15, 5))
+    else:
+        fig, ax = fig_ax
     plt.xticks(rotation='vertical')
     fig.subplots_adjust(bottom=0.6)
     yticklabels = [""]
     xticklabels = numerical_features + \
         [b + " (binary)" for b in binary_features]
     ax = sns.heatmap(attrs.unsqueeze(-2).cpu().numpy(),
-                     xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2)
-    if subtitle is None:
-        title = "Numerical and Binary Attribution"
+                     xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2, ax=ax)
+    if ax is None:
+        if subtitle is None:
+            title = "Numerical and Binary Attribution"
+        else:
+            title = f"Numerical and Binary Attribution ({subtitle})"
     else:
-        title = f"Numerical and Binary Attribution ({subtitle})"
+        title = subtitle
     plt.xlabel('Feature')
-    fig.suptitle(title)
+    ax.set_title(title)
 
     if wandb is not None:
         pil_image = Image.frombytes(
@@ -151,21 +161,25 @@ def visualize_trade_numerical_and_binary_attribution(attrs, numerical_features, 
         else:
             wandb.log({subtitle + "/" + title: [image]})
 
-    # plt.show()
 
-
-def visualize_categorical_attribution(attrs, cat_features, subtitle=None, wandb=None):
-    fig, ax = plt.subplots(figsize=(15, 2))
+def visualize_categorical_attribution(attrs, cat_features, subtitle=None, wandb=None, fig_ax=None, values=None):
+    if fig_ax is None:
+        fig, ax = plt.subplots(figsize=(15, 2))
+    else:
+        fig, ax = fig_ax
     yticklabels = [""]
     xticklabels = cat_features
     ax = sns.heatmap(attrs.unsqueeze(-2).cpu().numpy(),
-                     xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2)
-    if subtitle is None:
-        title = "Categorical Attribution"
+                     xticklabels=xticklabels, yticklabels=yticklabels, linewidth=0.2, ax=ax)
+    if ax is None:
+        if subtitle is None:
+            title = "Categorical Attribution"
+        else:
+            title = f"Categorical Attribution ({subtitle})"
     else:
-        title = f"Categorical Attribution ({subtitle})"
+        title = subtitle
     plt.xlabel('Feature')
-    fig.suptitle(title)
+    ax.set_title(title)
 
     if wandb is not None:
         pil_image = Image.frombytes(
@@ -176,5 +190,3 @@ def visualize_categorical_attribution(attrs, cat_features, subtitle=None, wandb=
             wandb.log({title: [image]})
         else:
             wandb.log({subtitle + "/" + title: [image]})
-
-    # plt.show()
