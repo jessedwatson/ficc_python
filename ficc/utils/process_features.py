@@ -17,7 +17,6 @@ def process_features(df, keep_nan):
     # Removing bonds from Puerto Rico
     df = df[df.incorporated_state_code != 'PR']
 
-    global COUPON_FREQUENCY_DICT
     df.interest_payment_frequency.fillna(0, inplace=True)
     df.loc[:,'interest_payment_frequency'] = df.interest_payment_frequency.apply(lambda x: COUPON_FREQUENCY_DICT[x])
     
@@ -39,10 +38,7 @@ def process_features(df, keep_nan):
     df.loc[:,'deferred'] = (df.interest_payment_frequency == 'Unknown') | df.zerocoupon
     
     # Converting the dates to a number of days from the settlement date. 
-    # We only consider trades to be reportedly correctly if the trades are settled within one month of the trade date. 
     df.loc[:,'days_to_settle'] = (df.settlement_date - df.trade_date).dt.days
-    print('Removing trades which are settled more than a month from trade date')
-    df = df[df.days_to_settle < 30]
 
     df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days)
     df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days)

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Mitas Ray
- # @ Modified time: 2022-03-17 13:19:00
+ # @ Modified time: 2022-06-02 13:19:00
  # @ Description: fill in features with the corresponding default values.
  '''
 
@@ -50,4 +50,7 @@ def fill_missing_values(df, keep_nan):
     if not keep_nan:
         for feature, default_value in FEATURES_AND_DEFAULT_VALUES.values():
             replace_nan_with_value(df, feature, default_value)
+    # We only consider trades to be reportedly correctly if the trades are settled within one month of the trade date. 
+    print('Removing trades which are settled more than a month from trade date')
+    df = df[df.days_to_settle < 30]
     return df
