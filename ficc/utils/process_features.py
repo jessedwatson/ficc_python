@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-04-20 14:59:53
+ # @ Modified time: 2022-06-02 13:43:46
  # @ Description:
  '''
 import numpy as np
@@ -17,7 +17,6 @@ def process_features(df):
     # Removing bonds from Puerto Rico
     df = df[df.incorporated_state_code != 'PR']
 
-    global COUPON_FREQUENCY_DICT
     df.interest_payment_frequency.fillna(0, inplace=True)
     df.loc[:,'interest_payment_frequency'] = df.interest_payment_frequency.apply(lambda x: COUPON_FREQUENCY_DICT[x])
     
@@ -43,18 +42,18 @@ def process_features(df):
     df.loc[:,'days_to_settle'] = (df.settlement_date - df.trade_date).dt.days.fillna(0)
     print('Removing trades which are settled more than a month from trade date')
     df = df[df.days_to_settle < 30]
+    print('Trades with settlement date removed')
 
-    df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days).fillna(0)
-    df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days).fillna(0)
+    df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days)
+    df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days)
+    df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.settlement_date).dt.days)
+    df.loc[:, 'days_to_par'] = np.log10(1 + (df.par_call_date - df.settlement_date).dt.days)
+    df.loc[:, 'call_to_maturity'] = np.log10(1 + (df.maturity_date - df.next_call_date).dt.days)
+
+    df.days_to_maturity.replace(-np.inf, np.nan, inplace=True)
     df.days_to_call.replace(-np.inf, np.nan, inplace=True)
-    df.days_to_call.fillna(0, inplace=True)
-    df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.settlement_date).dt.days).fillna(0)
-    
-    df.loc[:, 'days_to_par'] = np.log10(1 + (df.par_call_date - df.settlement_date).dt.days).fillna(0)
+    df.days_to_refund.replace(-np.inf, np.nan, inplace=True)
     df.days_to_par.replace(-np.inf, np.nan, inplace=True)
-    df.days_to_par.fillna(0, inplace=True)
-
-    df.loc[:, 'call_to_maturity'] = np.log10(1 + (df.maturity_date - df.next_call_date).dt.days).fillna(0)
     
     # Adding features of the last trade i.e the trade before the most recent trade
     df.loc[:, 'last_seconds_ago'] = df.trade_history.apply(get_latest_trade_feature, args=["seconds_ago"])
@@ -66,6 +65,6 @@ def process_features(df):
     df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
     df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360/df['days_in_interest_payment'])
     df.loc[:, 'A/E'] = df.apply(calculate_a_over_e, axis=1)
-    df = fill_missing_values(df)
+    # df = fill_missing_values(df)
 
     return df

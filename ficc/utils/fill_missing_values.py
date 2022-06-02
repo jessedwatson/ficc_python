@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-10 13:21:38
+ # @ Modified time: 2022-06-02 13:42:29
  # @ Description:
  '''
 
@@ -17,12 +17,15 @@ def fill_missing_values(df):
     df.state_tax_status.fillna(0, inplace=True)
     df.series_name.fillna('No series name', inplace=True) 
     df.transaction_type.fillna('I', inplace=True)  
-
+ 
     df.next_call_price.fillna(100, inplace=True)
     df.par_call_price.fillna(100, inplace=True)
     df.min_amount_outstanding.fillna(0, inplace=True)
     df.max_amount_outstanding.fillna(0, inplace=True)
-    # df.call_to_maturity.fillna(0, inplace=True)
+    df.days_to_maturity.fillna(0, inplace=True)
+    df.days_to_call.fillna(0, inplace=True)
+    df.days_to_refund.fillna(0, inplace=True)
+    df.days_to_par.fillna(0, inplace=True)
     df.days_to_par.fillna(0, inplace=True)
     df.maturity_amount.fillna(0, inplace=True)
     df.issue_price.fillna(df.issue_price.mean(), inplace=True)
