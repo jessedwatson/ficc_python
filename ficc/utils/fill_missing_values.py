@@ -22,8 +22,8 @@ FEATURES_AND_DEFAULT_VALUES = {'purpose_class': 0,    # unknown
                                'max_amount_outstanding': 0, 
                                'days_to_par': 0, 
                                'maturity_amount': 0, 
-                               'issue_price': lambda df: df.issue_price.mean(), 
-                               'orig_principal_amount': lambda df: df.orig_principal_amount.mean(), 
+                               'issue_price': lambda df: df.issue_price.mean(),    # leakage; computing the mean over the entire dataset uses the test data
+                               'orig_principal_amount': lambda df: df.orig_principal_amount.mean(),    # leakage; computing the mean over the entire dataset uses the test data
                                'par_price': 100, 
                                'called_redemption_type': 0, 
                                'extraordinary_make_whole_call': False, 
