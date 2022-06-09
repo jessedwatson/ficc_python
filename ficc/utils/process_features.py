@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-06-02 13:43:46
+ # @ Modified time: 2022-06-06 09:01:53
  # @ Description:
  '''
 import numpy as np
@@ -65,6 +65,6 @@ def process_features(df):
     df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
     df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360/df['days_in_interest_payment'])
     df.loc[:, 'A/E'] = df.apply(calculate_a_over_e, axis=1)
-    # df = fill_missing_values(df)
+    df = fill_missing_values(df)
 
     return df
