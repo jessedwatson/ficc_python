@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-06-10 18:22:59
+ # @ Modified time: 2022-06-10 18:26:37
  # @ Description:
  '''
 
@@ -31,7 +31,7 @@ def fill_missing_values(df):
     df.issue_price.fillna(df.issue_price.mean(), inplace=True)
     df.orig_principal_amount.fillna(df.orig_principal_amount.mean(), inplace=True)
     df.original_yield.fillna(0, inplace=True)
-    df.par_price.fillna(100, inplace=True)
+    # df.par_price.fillna(100, inplace=True)s
     df.called_redemption_type.fillna(0, inplace=True)
 
     df.extraordinary_make_whole_call.fillna(False, inplace=True)
