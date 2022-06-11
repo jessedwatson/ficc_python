@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-06-02 13:42:29
+ # @ Modified time: 2022-06-10 18:22:59
  # @ Description:
  '''
 
@@ -12,7 +12,7 @@ def fill_missing_values(df):
     df.call_timing.fillna(0, inplace=True) #Unknown
     df.call_timing_in_part.fillna(0, inplace=True) #Unknown
     df.sink_frequency.fillna(10, inplace=True) #Under special circumstances
-    df.sink_amount_type.fillna(0, inplace=True)
+    # df.sink_amount_type.fillna(0, inplace=True)
     df.issue_text.fillna('No issue text', inplace=True)
     df.state_tax_status.fillna(0, inplace=True)
     df.series_name.fillna('No series name', inplace=True) 
