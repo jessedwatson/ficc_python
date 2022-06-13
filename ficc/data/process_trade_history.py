@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-04-18 16:41:13
+ # @ Modified time: 2022-06-13 15:34:27
  # @ Description:
  '''
 
@@ -95,6 +95,10 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     
     if len(remove_trade_type) > 0:
         print(f"Removing trade types {remove_trade_type}")
+
+    print('Getting last dollar price')
+    trade_dataframe['last_dollar_price'] = trade_dataframe.recent.apply(lambda x:x[0]['dollar_price'])
+    print('Done processing last dollar price')
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
