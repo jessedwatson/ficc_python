@@ -51,12 +51,20 @@ class LSTMCore(pl.LightningModule):
 
         lstm_sizes = [num_trade_history_features] + lstm_sizes
         self.trade_history_lstm = nn.ModuleList()
+        self.trade_history_dropout = nn.ModuleList()
         for i in range(len(lstm_sizes) - 1):
+            if i > 0:
+                self.trade_history_dropout.append(
+                    nn.Dropout(dropout)
+                )
+            else:
+                self.trade_history_dropout.append(
+                    nn.Identity()
+                )
             self.trade_history_lstm.append(
                 nn.LSTM(
                     input_size=lstm_sizes[i],
                     hidden_size=lstm_sizes[i+1],
-                    dropout=dropout,
                     batch_first=True,
                 )
             )
@@ -133,7 +141,8 @@ class LSTMCore(pl.LightningModule):
                 self.max_factor = kwargs["max_factor"]
 
     def forward(self, trade_history, noncat, *categorical):
-        for lstm in self.trade_history_lstm:
+        for dropout, lstm in zip(self.trade_history_dropout, self.trade_history_lstm):
+            trade_history = dropout(trade_history)
             trade_history, (h, c) = lstm(trade_history)
 
         # PyTorch returns the output for each timestep, we only use the final one
