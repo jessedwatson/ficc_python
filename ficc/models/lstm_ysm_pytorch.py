@@ -52,6 +52,7 @@ class LSTMCore(pl.LightningModule):
         lstm_sizes = [num_trade_history_features] + lstm_sizes
         self.trade_history_lstm = nn.ModuleList()
         self.trade_history_dropout = nn.ModuleList()
+        self.trade_history_attention = nn.ModuleList()
         for i in range(len(lstm_sizes) - 1):
             if i > 0:
                 self.trade_history_dropout.append(
@@ -66,6 +67,14 @@ class LSTMCore(pl.LightningModule):
                     input_size=lstm_sizes[i],
                     hidden_size=lstm_sizes[i+1],
                     batch_first=True,
+                )
+            )
+            self.trade_history_attention.append(
+                nn.MultiheadAttention(
+                    embed_dim=lstm_sizes[i+1],
+                    num_heads=1,
+                    dropout=dropout,
+                    batch_first=True
                 )
             )
         self.trade_history_final = nn.Linear(lstm_sizes[-1], lstm_sizes[-1])
@@ -141,9 +150,10 @@ class LSTMCore(pl.LightningModule):
                 self.max_factor = kwargs["max_factor"]
 
     def forward(self, trade_history, noncat, *categorical):
-        for dropout, lstm in zip(self.trade_history_dropout, self.trade_history_lstm):
+        for dropout, lstm, attn in zip(self.trade_history_dropout, self.trade_history_lstm, self.trade_history_attention):
             trade_history = dropout(trade_history)
             trade_history, (h, c) = lstm(trade_history)
+            trade_history = attn(trade_history, trade_history, trade_history)[0]
 
         # PyTorch returns the output for each timestep, we only use the final one
         trade_history = trade_history[:, -1, :]
