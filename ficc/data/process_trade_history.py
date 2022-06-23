@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-06-13 15:34:27
+ # @ Modified time: 2022-06-23 16:33:08
  # @ Description:
  '''
 
@@ -99,6 +99,10 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     print('Getting last dollar price')
     trade_dataframe['last_dollar_price'] = trade_dataframe.recent.apply(lambda x:x[0]['dollar_price'])
     print('Done processing last dollar price')
+
+    print('Getting last calc day')
+    trade_dataframe['last_calc_date'] = trade_dataframe.recent.apply(lambda x:x[0]['calc_date'])
+    print('Done processing last calc day cat')
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
