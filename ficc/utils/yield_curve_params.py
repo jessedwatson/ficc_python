@@ -21,8 +21,10 @@ def yield_curve_params(client):
     # The below sets the index of both dataframes to date column and converts the data type to datetime.
     globals.nelson_params.set_index("date", drop=True, inplace=True)
     globals.scalar_params.set_index("date", drop=True, inplace=True)
-    globals.scalar_params.index = pd.to_datetime(globals.scalar_params.index)
-    globals.nelson_params.index = pd.to_datetime(globals.nelson_params.index)
+    globals.nelson_params = globals.nelson_params.to_dict()
+    globals.scalar_params = globals.scalar_params.to_dict()
+    # globals.scalar_params.index = pd.to_datetime(globals.scalar_params.index)
+    # globals.nelson_params.index = pd.to_datetime(globals.nelson_params.index)
 
     # globals.nelson_params.drop_duplicates(inplace=True)
     # globals.scalar_params.drop_duplicates(inplace=True)
