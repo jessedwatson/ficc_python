@@ -44,7 +44,7 @@ def get_ficc_ycl(trade, **kwargs):
     
     try:
         ficc_yl = yield_curve_level(duration,
-                                target_date.strftime('%Y-%m-%d'),
+                                target_date,
                                 globals.nelson_params,
                                 globals.scalar_params)
     except Exception as e:
@@ -55,7 +55,7 @@ def get_ficc_ycl(trade, **kwargs):
         bq_client = kwargs['client']
         yield_curve_params(bq_client)
         ficc_yl = yield_curve_level(duration,
-                                target_date.strftime('%Y-%m-%d'),
+                                target_date,
                                 globals.nelson_params,
                                 globals.scalar_params)
     return ficc_yl

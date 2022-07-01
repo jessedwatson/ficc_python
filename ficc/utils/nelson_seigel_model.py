@@ -55,6 +55,7 @@ def load_model_parameters(target_date, nelson_params, scalar_params):
     # dates = list(nelson_params.index)
     # cloz_dict = { abs(temp_date.timestamp() - date.timestamp()) : date for date in dates}
     # target_date = cloz_dict[min(cloz_dict.keys())].date().strftime('%Y-%m-%d')
+    target_date = pd.to_datetime(target_date)
     nelson_coeff = nelson_params.loc[target_date]
     scalar_coeff = scalar_params.loc[target_date]
 
