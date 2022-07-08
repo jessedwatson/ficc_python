@@ -26,5 +26,7 @@ def yield_curve_params(client):
     globals.nelson_params = globals.nelson_params[~globals.nelson_params.index.duplicated(keep='first')]
     globals.scalar_params = globals.scalar_params[~globals.scalar_params.index.duplicated(keep='first')]
 
-    globals.nelson_params = globals.nelson_params.to_dict()
-    globals.scalar_params = globals.scalar_params.to_dict()
+    # Transpose here so we can index along the longer of the two dimensions once. Otherwise we would have to index
+    # the target_date once for each sub-param
+    globals.nelson_params = globals.nelson_params.transpose().to_dict()
+    globals.scalar_params = globals.scalar_params.transpose().to_dict()
