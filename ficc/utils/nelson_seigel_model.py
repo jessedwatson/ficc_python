@@ -2,19 +2,14 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-05-11 06:11:59
+ # @ Modified time: 2022-07-11 12:48:11
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
  # instead of grabbing them from memory store
  '''
 
-from shutil import ExecError
 import numpy as np 
-import pandas as pd
-import sys
-from datetime import datetime, timedelta
-from google.cloud import bigquery
 
 PROJECT_ID = "eng-reactor-287421"
 
@@ -55,8 +50,8 @@ def load_model_parameters(target_date, nelson_params, scalar_params):
     # dates = list(nelson_params.index)
     # cloz_dict = { abs(temp_date.timestamp() - date.timestamp()) : date for date in dates}
     # target_date = cloz_dict[min(cloz_dict.keys())].date().strftime('%Y-%m-%d')
-    nelson_coeff = nelson_params.loc[target_date]
-    scalar_coeff = scalar_params.loc[target_date]
+    nelson_coeff = nelson_params[target_date].values()
+    scalar_coeff = scalar_params[target_date].values()
 
     return nelson_coeff, scalar_coeff
 
@@ -121,28 +116,8 @@ def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_par
     except Exception as e:
         raise e 
     
-    if len(nelson_siegel_daily_coef)==1:
-        const, exponential, laguerre = nelson_siegel_daily_coef.values[0]
-    elif len(nelson_siegel_daily_coef.shape)>1 and len(nelson_siegel_daily_coef)>1:
-        error = 'Multiple rows for target date in nelson_siegel_coef_daily, taking first one. Check bigquery table.'
-        const, exponential, laguerre = nelson_siegel_daily_coef.iloc[0, :]
-    elif len(nelson_siegel_daily_coef)>1:
-        const, exponential, laguerre = nelson_siegel_daily_coef
-    else:
-        print(target_date)
-        raise Exception("Nelson-Seigel coefficeints for the selected dates do not exist")
-        sys.exit()
-   
-    if len(scaler_daily_parameters)==1:
-        exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters.values[0]
-    elif len(scaler_daily_parameters.shape)>1 and len(scaler_daily_parameters)>1:
-        error = 'Multiple rows for target date in standardscaler_parameters_daily, taking first one. Check bigquery table.'
-        exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters.iloc[0, :]
-    elif len(scaler_daily_parameters)>1:
-        exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters
-    else:
-        raise Exception("Failed to grab scalar coefficient, they do not exist")
-        sys.exit()
+    const, exponential, laguerre = nelson_siegel_daily_coef
+    exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters
     
     #If the function gets this far, the values are correct. A prediction is made and returned appropriately.
     prediction = predict_ytw(t, const, exponential, laguerre, exponential_mean, exponential_std, laguerre_mean, laguerre_std)

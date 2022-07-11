@@ -2,10 +2,10 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-25 12:29:14
+ # @ Modified time: 2022-07-11 12:47:23
  # @ Description: Source code to process trade history from BigQuery
  '''
-import pandas as pd
+
 import numpy as np
 
 # Pandaralled is a python package that is 

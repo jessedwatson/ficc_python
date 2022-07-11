@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-04-18 16:41:48
+ # @ Modified time: 2022-07-11 12:47:46
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -13,7 +13,7 @@
  '''
 
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from pandas import ExcelFile
 
@@ -69,7 +69,7 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
         time_to_maturity = (calc_date - target_date).days/365.25
         global nelson_params
         global scalar_params
-        yield_at_that_time = yield_curve_level(time_to_maturity,target_date.strftime('%Y-%m-%d'),
+        yield_at_that_time = yield_curve_level(time_to_maturity,target_date,
                                             globals.nelson_params, globals.scalar_params)
 
         if trade_dict['yield'] is not None:
