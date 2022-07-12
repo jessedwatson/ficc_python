@@ -2,14 +2,11 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-04-18 16:41:13
+ # @ Modified time: 2022-07-11 12:48:56
  # @ Description:
  '''
 
 import os
-from telnetlib import SE
-import pandas as pd
-import numpy as np
 import pickle5 as pickle
 
 from ficc.utils.auxiliary_functions import sqltodf
@@ -94,6 +91,14 @@ def process_trade_history(query, client, SEQUENCE_LENGTH, NUM_FEATURES, PATH, es
     
     if len(remove_trade_type) > 0:
         print(f"Removing trade types {remove_trade_type}")
+
+    print('Getting last dollar price')
+    trade_dataframe['last_dollar_price'] = trade_dataframe.recent.apply(lambda x:x[0]['dollar_price'])
+    print('Done processing last dollar price')
+
+    print('Getting last calc day')
+    trade_dataframe['last_calc_date'] = trade_dataframe.recent.apply(lambda x:x[0]['calc_date'])
+    print('Done processing last calc day cat')
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,

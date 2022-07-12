@@ -2,19 +2,14 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-05-11 06:11:59
+ # @ Modified time: 2022-07-11 12:48:11
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
  # instead of grabbing them from memory store
  '''
 
-from shutil import ExecError
 import numpy as np 
-import pandas as pd
-import sys
-from datetime import datetime, timedelta
-from google.cloud import bigquery
 
 PROJECT_ID = "eng-reactor-287421"
 

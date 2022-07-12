@@ -2,17 +2,13 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-03-10 13:19:48
+ # @ Modified time: 2022-07-11 12:46:26
  # @ Description: This file contains the code to get 
  # the ficc yield curve level using the calc_date
  '''
 
 
-import pandas as pd
 from datetime import datetime
-import sys
-
-from pexpect import ExceptionPexpect
 from ficc.utils.nelson_seigel_model import yield_curve_level
 from ficc.utils.yield_curve_params import yield_curve_params
 import ficc.utils.globals as globals
@@ -50,8 +46,7 @@ def get_ficc_ycl(trade, **kwargs):
     except Exception as e:
         if 'client' not in kwargs:
             raise Exception("Need to provide bigquery client if being used as a stand alone function")
-            sys.exit(0)
-        
+            
         bq_client = kwargs['client']
         yield_curve_params(bq_client)
         ficc_yl = yield_curve_level(duration,

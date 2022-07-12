@@ -38,17 +38,23 @@ def process_features(df, keep_nan):
     df.loc[:,'deferred'] = (df.interest_payment_frequency == 'Unknown') | df.zerocoupon
     
     # Converting the dates to a number of days from the settlement date. 
-    df.loc[:,'days_to_settle'] = (df.settlement_date - df.trade_date).dt.days
+
+    # We only consider trades to be reportedly correctly if the trades are settled within one month of the trade date. 
+    df.loc[:,'days_to_settle'] = (df.settlement_date - df.trade_date).dt.days.fillna(0)
+    print('Removing trades which are settled more than a month from trade date')
+    df = df[df.days_to_settle < 30]
+    print('Trades with settlement date removed')
 
     df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days)
     df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days)
-    df.days_to_call.replace(-np.inf, np.nan, inplace=True)
     df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.settlement_date).dt.days)
-    
     df.loc[:, 'days_to_par'] = np.log10(1 + (df.par_call_date - df.settlement_date).dt.days)
-    df.days_to_par.replace(-np.inf, np.nan, inplace=True)
-
     df.loc[:, 'call_to_maturity'] = np.log10(1 + (df.maturity_date - df.next_call_date).dt.days)
+
+    df.days_to_maturity.replace(-np.inf, np.nan, inplace=True)
+    df.days_to_call.replace(-np.inf, np.nan, inplace=True)
+    df.days_to_refund.replace(-np.inf, np.nan, inplace=True)
+    df.days_to_par.replace(-np.inf, np.nan, inplace=True)
     
     # Adding features of the last trade i.e the trade before the most recent trade
     df.loc[:, 'last_seconds_ago'] = df.trade_history.apply(get_latest_trade_feature, args=["seconds_ago"])

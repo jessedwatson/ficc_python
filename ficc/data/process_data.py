@@ -5,6 +5,7 @@
  # @ Modified time: 2022-05-18 16:45:00
  # @ Description: Source code to process trade history from BigQuery
  '''
+ 
 import numpy as np
 
 # Pandaralled is a python package that is 
