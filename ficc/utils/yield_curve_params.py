@@ -21,12 +21,12 @@ def yield_curve_params(client):
     # The below sets the index of both dataframes to date column and converts the data type to datetime.
     globals.nelson_params.set_index("date", drop=True, inplace=True)
     globals.scalar_params.set_index("date", drop=True, inplace=True)
-    globals.nelson_params = globals.nelson_params.to_dict()
-    globals.scalar_params = globals.scalar_params.to_dict()
-    # globals.scalar_params.index = pd.to_datetime(globals.scalar_params.index)
-    # globals.nelson_params.index = pd.to_datetime(globals.nelson_params.index)
 
-    # globals.nelson_params.drop_duplicates(inplace=True)
-    # globals.scalar_params.drop_duplicates(inplace=True)
+    # Drop rows with duplicate indices, keeping the first such row. This approach was measured fastest per https://stackoverflow.com/a/34297689
+    globals.nelson_params = globals.nelson_params[~globals.nelson_params.index.duplicated(keep='first')]
+    globals.scalar_params = globals.scalar_params[~globals.scalar_params.index.duplicated(keep='first')]
 
-    
+    # Transpose here so we can index along the longer of the two dimensions once. Otherwise we would have to index
+    # the target_date once for each sub-param
+    globals.nelson_params = globals.nelson_params.transpose().to_dict()
+    globals.scalar_params = globals.scalar_params.transpose().to_dict()
