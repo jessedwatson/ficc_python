@@ -1,42 +1,56 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-06-10 18:26:37
- # @ Description:
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-06-02 13:19:00
+ # @ Description: fill in features with the corresponding default values.
  '''
 
-def fill_missing_values(df):
-    df.dropna(subset=['instrument_primary_name'], inplace=True)
-    df.purpose_class.fillna(0 ,inplace=True) #Unknown
-    df.call_timing.fillna(0, inplace=True) #Unknown
-    df.call_timing_in_part.fillna(0, inplace=True) #Unknown
-    df.sink_frequency.fillna(10, inplace=True) #Under special circumstances
-    # df.sink_amount_type.fillna(0, inplace=True)
-    df.issue_text.fillna('No issue text', inplace=True)
-    df.state_tax_status.fillna(0, inplace=True)
-    df.series_name.fillna('No series name', inplace=True) 
-    df.transaction_type.fillna('I', inplace=True)  
- 
-    df.next_call_price.fillna(100, inplace=True)
-    df.par_call_price.fillna(100, inplace=True)
-    df.min_amount_outstanding.fillna(0, inplace=True)
-    df.max_amount_outstanding.fillna(0, inplace=True)
-    df.days_to_maturity.fillna(0, inplace=True)
-    df.days_to_call.fillna(0, inplace=True)
-    df.days_to_refund.fillna(0, inplace=True)
-    df.days_to_par.fillna(0, inplace=True)
-    df.days_to_par.fillna(0, inplace=True)
-    df.maturity_amount.fillna(0, inplace=True)
-    df.issue_price.fillna(df.issue_price.mean(), inplace=True)
-    df.orig_principal_amount.fillna(df.orig_principal_amount.mean(), inplace=True)
-    df.original_yield.fillna(0, inplace=True)
-    # df.par_price.fillna(100, inplace=True)s
-    df.called_redemption_type.fillna(0, inplace=True)
 
-    df.extraordinary_make_whole_call.fillna(False, inplace=True)
-    df.make_whole_call.fillna(False, inplace=True)
-    df.default_indicator.fillna(False, inplace=True)
-    df.called_redemption_type.fillna(0, inplace=True)
-    
+FEATURES_AND_DEFAULT_VALUES = {'purpose_class': 0,    # unknown
+                               'call_timing': 0,    # unknown
+                               'call_timing_in_part': 0,    # unknown
+                               'sink_frequency': 0,    # under special circumstances
+                               'sink_amount_type': 10, 
+                               'issue_text': 'No issue text', 
+                               'state_tax_status': 0, 
+                               'series_name': 'No series name', 
+                               'transaction_type': 'I', 
+                               'next_call_price': 100, 
+                               'par_call_price': 100, 
+                               'min_amount_outstanding': 0, 
+                               'max_amount_outstanding': 0, 
+                               'days_to_par': 0, 
+                               'maturity_amount': 0, 
+                               'issue_price': lambda df: df.issue_price.mean(),    # leakage; computing the mean over the entire dataset uses the test data (low priority, since this barely affects the model)
+                               'orig_principal_amount': lambda df: df.orig_principal_amount.mean(),    # leakage; computing the mean over the entire dataset uses the test data (low priority, since this barely affects the model)
+                               'par_price': 100, 
+                               'called_redemption_type': 0, 
+                               'extraordinary_make_whole_call': False, 
+                               'make_whole_call': False, 
+                               'default_indicator': False, 
+                               'called_redemption_type': 0, 
+                               'days_to_settle': 0, 
+                               'days_to_maturity': 0, 
+                               'days_to_call': 0, 
+                               'days_to_refund': 0, 
+                               'days_to_par': 0, 
+                               'call_to_maturity': 0}
+
+
+def replace_nan_with_value(df, feature, default_value):
+    if callable(default_value):    # checks whether the default_value is a function that needs to be called on the dataframe
+        df[feature].fillna(default_value(df), inplace=True)
+    else:
+        df[feature].fillna(default_value, inplace=True)
+
+
+def fill_missing_values(df, keep_nan):
+    df.dropna(subset=['instrument_primary_name'], inplace=True)
+    if not keep_nan:
+        for feature, default_value in FEATURES_AND_DEFAULT_VALUES.values():
+            replace_nan_with_value(df, feature, default_value)
+    # We only consider trades to be reportedly correctly if the trades are settled within one month of the trade date. 
+    print('Removing trades which are settled more than a month from trade date')
+    df = df[df.days_to_settle < 30]
     return df

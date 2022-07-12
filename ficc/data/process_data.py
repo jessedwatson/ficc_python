@@ -1,11 +1,11 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-11 12:47:23
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-05-18 16:45:00
  # @ Description: Source code to process trade history from BigQuery
  '''
-
+ 
 import numpy as np
 
 # Pandaralled is a python package that is 
@@ -25,10 +25,24 @@ from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
 
 
-def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FICC", estimate_calc_date = True, remove_short_maturity = False, remove_non_transaction_based = False, remove_trade_type = [], trade_history_delay=1, min_trades_in_history=2, process_ratings=True, **kwargs):
+def process_data(query, 
+                 client, 
+                 SEQUENCE_LENGTH, 
+                 NUM_FEATURES, 
+                 PATH, 
+                 YIELD_CURVE="FICC", 
+                 estimate_calc_date=False, 
+                 remove_short_maturity=False, 
+                 remove_non_transaction_based=False, 
+                 remove_trade_type=[], 
+                 trade_history_delay=1, 
+                 min_trades_in_history=2, 
+                 process_ratings=True, 
+                 keep_nan=False, 
+                 **kwargs):
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
-    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trad_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay} \n min_trades_in_hist:{min_trades_in_history} \n process_ratings:{process_ratings}')
+    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trade_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay} \n min_trades_in_hist:{min_trades_in_history} \n process_ratings:{process_ratings}')
 
     trades_df = process_trade_history(query,
                                       client, 
@@ -67,8 +81,8 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
     # trades_df = drop_extra_columns(trades_df)
     trades_df = convert_dates(trades_df)
 
-    print("Processing categorical features")
-    trades_df = process_features(trades_df)
+    print("Processing features")
+    trades_df = process_features(trades_df, keep_nan)
 
     if remove_short_maturity == True:
         trades_df = trades_df[trades_df.days_to_maturity >= np.log10(400)]
@@ -80,11 +94,3 @@ def process_data(query,client,SEQUENCE_LENGTH,NUM_FEATURES,PATH,YIELD_CURVE="FIC
     print(f"Numbers of samples {len(trades_df)}")
     
     return trades_df
-
-
-    
-    
-    
-    
-
-
