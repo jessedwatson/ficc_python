@@ -48,7 +48,7 @@ def replace_nan_with_value(df, feature, default_value):
 def fill_missing_values(df, keep_nan):
     df.dropna(subset=['instrument_primary_name'], inplace=True)
     if not keep_nan:
-        for feature, default_value in FEATURES_AND_DEFAULT_VALUES.values():
+        for feature, default_value in FEATURES_AND_DEFAULT_VALUES.items():
             replace_nan_with_value(df, feature, default_value)
     # We only consider trades to be reportedly correctly if the trades are settled within one month of the trade date. 
     print('Removing trades which are settled more than a month from trade date')
