@@ -13,6 +13,8 @@ def apply_exclusions(df):
     df = df[~df.purpose_sub_class.isin([6, 20, 21, 22, 44, 57, 90, 106])]
     df = df[~df.called_redemption_type.isin([18, 19])]
 
+    return df
+
 # TODO: We should have this function take in a potential trade, test to see if it would have been excluded. If not,
 # return None, else return a message explaining why.
 def test_for_exclusion():
