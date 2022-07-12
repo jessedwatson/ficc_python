@@ -30,10 +30,10 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
         print(f"Data file {PATH} found, reading data from it")
         with open(PATH, 'rb') as f: 
             (q, trade_dataframe) = pickle.load(f)
-        if q == query:
-            return trade_dataframe
-        else:
-            raise Exception (f"Saved query is incorrect:\n{q}")
+        # if q == query:
+        return trade_dataframe
+        # else:
+        #     raise Exception (f"Saved query is incorrect:\n{q}")
     
     print(f'Grabbing data from BigQuery')
     trade_dataframe = sqltodf(query,client)
