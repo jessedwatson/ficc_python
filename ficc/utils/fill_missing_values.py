@@ -50,5 +50,4 @@ def fill_missing_values(df, keep_nan):
     if not keep_nan:
         for feature, default_value in FEATURES_AND_DEFAULT_VALUES.items():
             replace_nan_with_value(df, feature, default_value)
-    # We only consider trades to be reportedly correctly if the trades are settled within one month of the trade date. 
     return df
