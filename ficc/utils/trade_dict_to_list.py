@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-04-18 16:41:48
+ # @ Modified time: 2022-07-11 12:47:46
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -13,7 +13,7 @@
  '''
 
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from pandas import ExcelFile
 
