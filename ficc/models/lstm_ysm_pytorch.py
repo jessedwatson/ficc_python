@@ -51,13 +51,30 @@ class LSTMCore(pl.LightningModule):
 
         lstm_sizes = [num_trade_history_features] + lstm_sizes
         self.trade_history_lstm = nn.ModuleList()
+        self.trade_history_dropout = nn.ModuleList()
+        self.trade_history_attention = nn.ModuleList()
         for i in range(len(lstm_sizes) - 1):
+            if i > 0:
+                self.trade_history_dropout.append(
+                    nn.Dropout(dropout)
+                )
+            else:
+                self.trade_history_dropout.append(
+                    nn.Identity()
+                )
             self.trade_history_lstm.append(
                 nn.LSTM(
                     input_size=lstm_sizes[i],
                     hidden_size=lstm_sizes[i+1],
-                    dropout=dropout,
                     batch_first=True,
+                )
+            )
+            self.trade_history_attention.append(
+                nn.MultiheadAttention(
+                    embed_dim=lstm_sizes[i+1],
+                    num_heads=1,
+                    dropout=dropout,
+                    batch_first=True
                 )
             )
         self.trade_history_final = nn.Linear(lstm_sizes[-1], lstm_sizes[-1])
@@ -114,8 +131,8 @@ class LSTMCore(pl.LightningModule):
         ) * final_resblocks        
         self.final_stage = nn.Sequential(
             *self.final_stage,
-            nn.Linear(final_sizes[-1], num_outputs),
         )
+        self.latent_reduction = nn.Linear(final_sizes[-1], num_outputs)
 
         self.kwargs = kwargs
         if 'learning_rate' in kwargs:
@@ -133,12 +150,14 @@ class LSTMCore(pl.LightningModule):
                 self.max_factor = kwargs["max_factor"]
 
     def forward(self, trade_history, noncat, *categorical):
-        for lstm in self.trade_history_lstm:
+        for dropout, lstm, attn in zip(self.trade_history_dropout, self.trade_history_lstm, self.trade_history_attention):
+            trade_history = dropout(trade_history)
             trade_history, (h, c) = lstm(trade_history)
+            trade_history = attn(trade_history, trade_history, trade_history)[0]
 
         # PyTorch returns the output for each timestep, we only use the final one
         trade_history = trade_history[:, -1, :]
-        trade_history = F.relu(self.trade_history_final(trade_history))
+        self.trade_history_latent = F.relu(self.trade_history_final(trade_history))
 
         if len(categorical) == 1 and (isinstance(categorical[0], tuple) or isinstance(categorical[0], list)):
             categorical = categorical[0]
@@ -148,8 +167,9 @@ class LSTMCore(pl.LightningModule):
         tabular_input = torch.cat([noncat] + categorical, dim=-1)
         tabular = self.tabular_model(tabular_input)
 
-        final_input = torch.cat([trade_history, tabular], dim=-1)
-        return self.final_stage(final_input)
+        final_input = torch.cat([self.trade_history_latent, tabular], dim=-1)
+        self.latent = self.final_stage(final_input)                 # Save this interim result incase we want it as latent input features
+        return self.latent_reduction(self.latent)
 
 
 class LSTMYieldSpreadModel(LSTMCore):
@@ -491,6 +511,34 @@ class DenoisingAutoencoderModel(nn.Module):
 
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         return optimizer
+
+
+class ExtractLatentWrapper(nn.Module):
+    def __init__(
+        self,
+        model
+    ):
+        super().__init__()
+
+        self.wrapped_model = model
+
+    def forward(self, trade_history, noncat, *categorical):
+        self.wrapped_model(trade_history, noncat, *categorical)
+        return self.wrapped_model.latent
+
+
+class ExtractTradeHistoryLatentWrapper(nn.Module):
+    def __init__(
+        self,
+        model
+    ):
+        super().__init__()
+
+        self.wrapped_model = model
+
+    def forward(self, trade_history, noncat, *categorical):
+        self.wrapped_model(trade_history, noncat, *categorical)
+        return self.wrapped_model.trade_history_latent
 
 
 class YieldSpreadSquaredErrorWrapper(nn.Module):

@@ -21,7 +21,6 @@ from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.create_mmd_data import create_mmd_data
 from ficc.utils.auxiliary_functions import process_ratings, convert_object_to_category
-from ficc.utils.fill_missing_values import fill_missing_values
 
 
 

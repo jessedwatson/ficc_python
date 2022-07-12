@@ -29,7 +29,7 @@ WHERE
   AND yield > 0
   AND par_traded >= 10000
   AND trade_date >= '2021-08-01'
-  AND trade_date <= '2022-03-31'
+  AND trade_date <= '2022-04-30'
   AND maturity_description_code = 2
   AND coupon_type in (8, 4, 10)
   AND capital_type <> 10

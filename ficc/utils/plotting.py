@@ -1,22 +1,24 @@
 import matplotlib.patches as mpatches
+import matplotlib.ticker as mticker
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-def plot_cusip(df, cusip, data, limit=None):
-    sdf = df[df['cusip'] == cusip]
-    sdf = sdf.sort_values('trade_datetime')
+def plot_cusip(sdf, data_type, limit=None):
     if limit is not None:
         sdf = sdf[:limit]
 
-    sdf['trade_datetime'] = pd.to_datetime(sdf.trade_datetime).apply(lambda date: date.timestamp())
+    sdf.loc[:, 'trade_datetime'] = pd.to_datetime(sdf.trade_datetime).apply(lambda date: date.timestamp())
 
-    if data.lower() == 'prices':
+    if data_type.lower() == 'prices':
         ficc = 'price_calc_from_yield'
         target = 'msrb_price'
-    elif data.lower() == 'yield_spread':
+    elif data_type.lower() == 'yield_spread':
         ficc = 'ficc_spread'
         target = 'yield_spread'
+    elif data_type.lower() == 'calc_date':
+        ficc = 'calc_date_prediction'
+        target = 'calc_date_cat'
 
     sns.set(rc={'figure.figsize':(12,9)})
     ax1 = plt.subplot()
@@ -28,6 +30,7 @@ def plot_cusip(df, cusip, data, limit=None):
     # get current xtick labels
     xticks = ax1.get_xticks()
     # convert all xtick labels to selected format from ms timestamp
+    ax1.xaxis.set_major_locator(mticker.FixedLocator(ax1.get_xticks().tolist()))
     ax1.set_xticklabels([pd.to_datetime(tm, unit='s').strftime('%Y-%m-%d\n %H:%M:%S') for tm in xticks],rotation=50)
     ax1.set(xlabel='DATE', ylabel='$ PRICE')
     

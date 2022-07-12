@@ -69,7 +69,7 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
         time_to_maturity = (calc_date - target_date).days/365.25
         global nelson_params
         global scalar_params
-        yield_at_that_time = yield_curve_level(time_to_maturity,target_date.strftime('%Y-%m-%d'),
+        yield_at_that_time = yield_curve_level(time_to_maturity,target_date,
                                             globals.nelson_params, globals.scalar_params)
 
         if trade_dict['yield'] is not None:
