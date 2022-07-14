@@ -2,12 +2,16 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Mitas Ray
- # @ Modified time: 2022-07-13 11:52:00
+ # @ Modified time: 2022-07-14 11:23:00
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
+
 import pandas as pd
 import numpy as np
+
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
+
 
 def sqltodf(sql, bq_client):
     bqr = bq_client.query(sql).result()
@@ -123,9 +127,10 @@ Assumes that the predicted yield spreads are in basis points.'''
 def calculate_dollar_error(df, predicted_ys):
     assert len(predicted_ys) == len(df), 'There must be a predicted yield spread for each of the trades in the passed in dataframe'
     columns_set = set(df.columns)
-    assert 'quantity' in columns_set
+    assert 'quantity' in columns_set    # assumes that the quantity is log10 transformed
     assert 'ficc_ycl' in columns_set    # represents the ficc yield curve level
     assert 'yield' in columns_set    # represents yield to worst from the MSRB data
     assert 'calc_date' in columns_set and 'settlement_date' in columns_set    # need these two features to compute the number of years from the settlement date to the calc date
-    years_to_calc_date = (df['calc_date'] - df['settlement_date']) / np.timedelta64(1, 'Y')    # the division by `np.timedelta64(1, 'Y')` converts the quantity to years
-    return ((predicted_ys + df['ficc_ycl']) / 100 - df['yield']) * df['quantity'] * years_to_calc_date    # dollar error = duration * quantity * (ytw - ficc_ytw) [in percentage points]; duration = calc_date - settlement_date [in years]
+    years_to_calc_date = (df['calc_date'] - df['settlement_date']) / np.timedelta64(NUM_OF_DAYS_IN_YEAR, 'D')    # the division by `np.timedelta64(NUM_OF_DAYS_IN_YEAR, 'D')` converts the quantity to years according to the MSRB convention of NUM_OF_DAYS_IN_YEAR in a year
+    ytw_error = ((predicted_ys + df['ficc_ycl']) / 100 - df['yield']) / 100    # the second divide by 100 is because the unit of the dividend is in percent
+    return ytw_error * (10 ** df['quantity']) * years_to_calc_date    # dollar error = duration * quantity * ytw error; duration = calc_date - settlement_date [in years]
