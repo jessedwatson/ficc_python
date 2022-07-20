@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2022-02-03 19:38:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 15:20:04
+ # @ Modified time: 2022-07-19 21:41:33
  # @ Description:
  '''
 
@@ -20,7 +20,7 @@ def mmd_ycl(target_date, maturity):
     '''
     maturity = int(np.round(maturity))
     
-    if maturity == 0:
+    if maturity < 1:
         maturity = 1
     
     elif maturity > 30:

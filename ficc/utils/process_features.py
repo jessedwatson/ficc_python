@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 10:50:44
+ # @ Modified time: 2022-07-19 21:44:27
  # @ Description:
  '''
 
@@ -45,7 +45,6 @@ def process_features(df, keep_nan):
     df.loc[:,'days_to_settle'] = (df.settlement_date - df.trade_date).dt.days.fillna(0)
     print('Removing trades which are settled more than a month from trade date')
     df = df[df.days_to_settle < 30]
-    print('Trades with settlement date removed')
 
     df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days)
     df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days)
