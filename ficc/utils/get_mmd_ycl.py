@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2022-02-09 13:28:17
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 16:00:00
+ # @ Modified time: 2022-07-19 21:39:30
  # @ Description:
  '''
 
@@ -20,17 +20,14 @@ def get_mmd_ycl(trade, **kwargs):
         trade.calc_date = kwargs['date']
     
     target_date = trade.trade_date
-    duration = diff_in_days_two_dates(trade.calc_date, target_date)
+    duration = diff_in_days_two_dates(trade.calc_date, target_date)/NUM_OF_DAYS_IN_YEAR
     
     try:
         ficc_yl = mmd_ycl(target_date,duration)
     
     except Exception as e:
-        print(trade.rtrs_control_number, trade.calc_date, target_date, duration)
-        raise e
         if 'client' not in kwargs:
             raise Exception("Need to provide bigquery client if being used as a stand alone function")
-            sys.exit(0)
         
         bq_client = kwargs['client']
         create_mmd_data(bq_client)
