@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-11 12:47:46
+ # @ Modified time: 2022-07-19 15:44:24
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -17,8 +17,10 @@ from datetime import datetime
 
 from pandas import ExcelFile
 
-from ficc.utils.yield_curve import yield_curve_level
 from ficc.utils.mmd_ycl import mmd_ycl
+from ficc.utils.diff_in_days import diff_in_days_two_dates
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
+from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
 
 def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay) -> list:
@@ -66,11 +68,13 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
     calc_date = trade_dict['calc_date']
     #calculating the time to maturity in years from the trade_date
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
-        time_to_maturity = (calc_date - target_date).days/365.25
+        time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
         global nelson_params
         global scalar_params
-        yield_at_that_time = yield_curve_level(time_to_maturity,target_date,
-                                            globals.nelson_params, globals.scalar_params)
+        yield_at_that_time = yield_curve_level(time_to_maturity,
+                                               target_date,
+                                               globals.nelson_params, 
+                                               globals.scalar_params)
 
         if trade_dict['yield'] is not None:
             trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
@@ -79,10 +83,14 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
             return None
     
     elif globals.YIELD_CURVE_TO_USE.upper() == "MMD":
-        time_to_maturity = (calc_date - target_date).days/365.25
-        yield_at_that_time = mmd_ycl(target_date.strftime('%Y-%m-%d'), time_to_maturity)
+        time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
+        yield_at_that_time = mmd_ycl(target_date, time_to_maturity)
         if trade_dict['yield'] is not None:
-            trade_list.append( (trade_dict['yield'] - yield_at_that_time) * 100 )
+            try:
+                trade_list.append( (trade_dict['yield'] - yield_at_that_time) * 100 )
+            except Exception as e:
+                print(yield_at_that_time, target_date, trade_dict['rtrs_control_number'])
+                raise e
         else:
             print('Yield is missing, skipping trade')
             return None

@@ -1,10 +1,12 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-05-17 11:00:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-07-19 21:44:27
  # @ Description:
  '''
+
+import pandas as pd
 import numpy as np
 from ficc.utils.auxiliary_variables import COUPON_FREQUENCY_DICT
 from ficc.utils.auxiliary_functions import get_latest_trade_feature
@@ -43,7 +45,6 @@ def process_features(df, keep_nan):
     df.loc[:,'days_to_settle'] = (df.settlement_date - df.trade_date).dt.days.fillna(0)
     print('Removing trades which are settled more than a month from trade date')
     df = df[df.days_to_settle < 30]
-    print('Trades with settlement date removed')
 
     df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days)
     df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days)
@@ -57,9 +58,9 @@ def process_features(df, keep_nan):
     df.days_to_par.replace(-np.inf, np.nan, inplace=True)
     
     # Adding features of the last trade i.e the trade before the most recent trade
-    df.loc[:, 'last_seconds_ago'] = df.trade_history.apply(get_latest_trade_feature, args=["seconds_ago"])
-    df.loc[:, 'last_yield_spread'] = df.trade_history.apply(get_latest_trade_feature, args=["yield_spread"])
-    df.loc[:, 'last_size'] = df.trade_history.apply(get_latest_trade_feature, args=["par_traded"])
+    temp_df = df.trade_history.apply(get_latest_trade_feature)
+    df[['last_seconds_ago', 'last_yield_spread', 'last_size']] = pd.DataFrame(temp_df.tolist(), index=df.index)
+    del temp_df
 
     # Adding features from MSRB rule 33G
     df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type="accrual", axis=1)

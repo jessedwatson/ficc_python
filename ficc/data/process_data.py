@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-05-18 16:45:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-07-19 10:04:43
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -40,6 +40,7 @@ def process_data(query,
                  process_ratings=True, 
                  keep_nan=False, 
                  **kwargs):
+    
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
     print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trade_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay} \n min_trades_in_hist:{min_trades_in_history} \n process_ratings:{process_ratings}')

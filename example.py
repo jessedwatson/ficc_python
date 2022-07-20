@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-11 11:48:07
+ # @ Modified time: 2022-07-19 21:45:42
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -29,16 +29,14 @@ NUM_FEATURES = 5
 
 DATA_QUERY = ''' 
 SELECT
-  * except(recent_trades_by_issue,recent_trades_by_series,material_event_history,default_event_history)
+  *
 FROM
-  `eng-reactor-287421.auxiliary_views.materialized_trade_history_with_trades_by_series`
+  `eng-reactor-287421.auxiliary_views.materialized_trade_history`
 WHERE
   yield IS NOT NULL
   AND yield > 0
   AND par_traded >= 10000
   AND trade_date >= '2021-08-01'
-  --AND trade_date <= '2022-05-04'
-  --AND trade_date <= '2022-04-04'
   AND maturity_description_code = 2
   AND coupon_type in (8, 4, 10)
   AND capital_type <> 10
@@ -47,11 +45,12 @@ WHERE
   AND sec_regulation IS NULL
   AND most_recent_default_event IS NULL
   AND default_indicator IS FALSE
-  AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
+  -- AND date_diff(calc_date, current_date(),YEAR) > 25
+  -- AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
 ORDER BY
   trade_datetime DESC
-  limit 10
+  limit 1000
 ''' 
 
 bq_client = bigquery.Client()
@@ -62,7 +61,7 @@ if __name__ == "__main__":
                               SEQUENCE_LENGTH,
                               NUM_FEATURES,
                               'data.pkl',
-                              "FICC",
+                              "MMD",
                               estimate_calc_date=False,
                               remove_short_maturity=True,
                               remove_non_transaction_based=False,

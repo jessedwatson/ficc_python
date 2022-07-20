@@ -1,8 +1,8 @@
 '''
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-07-14 11:23:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-07-19 13:10:59
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -11,40 +11,11 @@ import pandas as pd
 import numpy as np
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
-
+from ficc.utils.diff_in_days import diff_in_days_two_dates
 
 def sqltodf(sql, bq_client):
     bqr = bq_client.query(sql).result()
     return bqr.to_dataframe()
-
-
-def drop_extra_columns(df):
-    df.drop(columns=[
-                 'sp_stand_alone',
-                 'sp_icr_school',
-                 'sp_icr_school',
-                 'sp_icr_school',
-                 'sp_watch_long',
-                 'sp_outlook_long',
-                 'sp_prelim_long',
-                 'MSRB_maturity_date',
-                 'MSRB_INST_ORDR_DESC',
-                 'MSRB_valid_from_date',
-                 'MSRB_valid_to_date',
-                 'upload_date',
-                 'sequence_number',
-                 'ICE_valid_from_date',
-                 'ICE_valid_TO_date',
-                 'additional_next_sink_date',
-                 'last_period_accrues_from_date',
-                 'primary_market_settlement_date',
-                 'assumed_settlement_date',
-                 'sale_date','q','d'],
-                  inplace=True)
-    
-    
-    return df
-
 
 def convert_dates(df):
     date_cols = [col for col in list(df.columns) if 'DATE' in col.upper()]
@@ -56,10 +27,10 @@ def convert_dates(df):
 '''
 This function  
 '''
-def process_ratings(df, process_ratings):
+def process_ratings(df, drop_ratings):
     # MR is for missing ratings
     df.sp_long.fillna('MR', inplace=True)
-    if process_ratings == True:
+    if drop_ratings == True:
         df = df[df.sp_long.isin(['BBB+','A-','A','A+','AA-','AA','AA+','AAA','NR','MR'])] 
     df['rating'] = df['sp_long']
     return df
@@ -68,14 +39,9 @@ def process_ratings(df, process_ratings):
 This function extracts the features of the latest trade from 
 the trade history array
 '''
-def get_latest_trade_feature(x, feature):
+def get_latest_trade_feature(x):
     recent_trade = x[0]
-    if feature == 'yield_spread':
-        return recent_trade[0]
-    elif feature == 'seconds_ago':
-        return recent_trade[-1]
-    elif feature == 'par_traded':
-        return recent_trade[1]
+    return recent_trade[-1], recent_trade[0] , recent_trade[1]
 
 '''
 This function compares two date objects whether they are in Timestamp or datetime.date. 
@@ -119,7 +85,24 @@ def calculate_a_over_e(df):
         A = (df.settlement_date - df.previous_coupon_payment_date).days
         return A/df.days_in_interest_payment
     else:
-        return df['accrued_days']/360
+        return df['accrued_days']/NUM_OF_DAYS_IN_YEAR
+
+'''
+This function converts calc date to calc date category
+these labels are used to train the calc date model
+'''
+def convert_calc_date_to_category(row):
+    if row.last_calc_date == row.next_call_date:
+        calc_date_selection = 0
+    elif row.last_calc_date == row.par_call_date:
+        calc_date_selection = 1
+    elif row.last_calc_date == row.maturity_date:
+        calc_date_selection = 2
+    elif row.last_calc_date == row.refund_date:
+        calc_date_selection = 3
+    else:
+        calc_date_selection = 4
+    return calc_date_selection
 
 
 '''Computes the dollar error from the predicted yield spreads and MSRB data. 
@@ -131,6 +114,6 @@ def calculate_dollar_error(df, predicted_ys):
     assert 'ficc_ycl' in columns_set    # represents the ficc yield curve level
     assert 'yield' in columns_set    # represents yield to worst from the MSRB data
     assert 'calc_date' in columns_set and 'settlement_date' in columns_set    # need these two features to compute the number of years from the settlement date to the calc date
-    years_to_calc_date = (df['calc_date'] - df['settlement_date']) / np.timedelta64(NUM_OF_DAYS_IN_YEAR, 'D')    # the division by `np.timedelta64(NUM_OF_DAYS_IN_YEAR, 'D')` converts the quantity to years according to the MSRB convention of NUM_OF_DAYS_IN_YEAR in a year
+    years_to_calc_date = diff_in_days_two_dates(df.calc_date,df.settlement_date) / NUM_OF_DAYS_IN_YEAR    # the division by `np.timedelta64(NUM_OF_DAYS_IN_YEAR, 'D')` converts the quantity to years according to the MSRB convention of NUM_OF_DAYS_IN_YEAR in a year
     ytw_error = ((predicted_ys + df['ficc_ycl']) / 100 - df['yield']) / 100    # the second divide by 100 is because the unit of the dividend is in percent
     return ytw_error * (10 ** df['quantity']) * years_to_calc_date    # dollar error = duration * quantity * ytw error; duration = calc_date - settlement_date [in years]
