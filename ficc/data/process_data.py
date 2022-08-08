@@ -41,6 +41,7 @@ def process_data(query,
                  min_trades_in_history=2, 
                  process_ratings=True, 
                  keep_nan=False, 
+                 add_flags=False, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -94,9 +95,9 @@ def process_data(query,
         trades_df = trades_df[kwargs['training_features']]
         trades_df.dropna(inplace=True)
 
-    # add additional flags to the data
-    trades_df = add_bookkeeping_flag(trades_df, IS_BOOKKEEPING)
-    trades_df = add_same_day_flag(trades_df, IS_SAME_DAY)
+    if add_flags:    # add additional flags to the data
+        trades_df = add_bookkeeping_flag(trades_df, IS_BOOKKEEPING)
+        trades_df = add_same_day_flag(trades_df, IS_SAME_DAY)
     
     print(f"Numbers of samples {len(trades_df)}")
     
