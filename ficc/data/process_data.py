@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 10:04:43
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-08-08 15:34:00
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -13,8 +13,6 @@ import numpy as np
 from pandarallel import pandarallel
 
 from tqdm import tqdm
-
-from utils.adding_flags import add_bookkeeping_flag, add_same_day_flag
 tqdm.pandas()
 
 from ficc.utils.process_features import process_features
@@ -26,6 +24,7 @@ from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
 from ficc.utils.auxiliary_variables import IS_BOOKKEEPING, IS_SAME_DAY
+from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag
 
 
 def process_data(query, 
