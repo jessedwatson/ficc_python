@@ -1,3 +1,11 @@
+'''
+ # @ Author: Mitas Ray
+ # @ Create Time: 2022-08-08 12:11:00
+ # @ Modified by: 
+ # @ Modified time: 
+ # @ Description: Adds flags to trades to provide additional features
+ '''
+
 import numpy as np
 import pandas as pd
 
