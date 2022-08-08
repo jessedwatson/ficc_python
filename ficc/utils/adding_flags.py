@@ -63,10 +63,11 @@ def _add_bookkeeping_flag_for_group(group_df, flag_name, orig_df=None):
     particular day. The intuition here is that this bond is moving from 
     desk to desk. All except the most recent one in this group are 
     marked as bookkeeping.'''
+    assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade just switched desks'
     if set(group_df['trade_type']) != {'D'} or len(group_df) < 2: return group_df    # dataframe has trades that are not inter-dealer or has a size less than 2
     # mark all but the most recent trade as bookkeeping
     _, all_but_most_recent_index = get_most_recent_index_and_others(group_df)
-    
+
     if orig_df is None: orig_df = group_df
     orig_df[flag_name][all_but_most_recent_index] = True
     return group_df
@@ -75,7 +76,8 @@ def _add_bookkeeping_flag_for_group(group_df, flag_name, orig_df=None):
 def add_bookkeeping_flag(df, flag_name):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
-    assert flag_name in df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade just switched desks'
+    df = df.copy()
+    if flag_name not in df.columns: df[flag_name] = False
     print(f'Adding {flag_name} flag to data')
     groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'] + SPECIAL_CONDITIONS_TO_FILTER_ON)
     groups_same_day_quantity_price_tradetype_cusip_largerthan1_onlyDD = {group_key: group_df for group_key, group_df in groups_same_day_quantity_price_tradetype_cusip if set(group_df['trade_type']) == {'D'} and len(group_df) > 1}
@@ -105,7 +107,6 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
     if the total cost of the dealer purchase trades for that day is 
     greater than or equal to the total cost of the dealer sell trades.'''
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that a trade was arranged so that a bond would not have to be held overnight'
-    print(f'Adding {flag_name} flag to data')
     groups_by_trade_type = group_df.groupby('trade_type').sum()
     if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return group_df
     dealer_sold_indices = group_df[group_df['trade_type'] == 'S'].index.values
@@ -137,6 +138,9 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
 def add_same_day_flag(df, flag_name):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
+    print(f'Adding {flag_name} flag to data')
+    df = df.copy()
+    if flag_name not in df.columns: df[flag_name] = False
     groups = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])
     groups_largerthan1 = {group_key: group_df for group_key, group_df in groups if len(group_df) > 1}
     for group_df in groups_largerthan1.values():
