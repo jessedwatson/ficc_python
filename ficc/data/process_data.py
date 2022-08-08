@@ -13,6 +13,8 @@ import numpy as np
 from pandarallel import pandarallel
 
 from tqdm import tqdm
+
+from utils.adding_flags import add_bookkeeping_flag, add_same_day_flag
 tqdm.pandas()
 
 from ficc.utils.process_features import process_features
@@ -23,6 +25,7 @@ from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
+from ficc.utils.auxiliary_variables import IS_BOOKKEEPING, IS_SAME_DAY
 
 
 def process_data(query, 
@@ -91,6 +94,10 @@ def process_data(query,
     if 'training_features' in kwargs:
         trades_df = trades_df[kwargs['training_features']]
         trades_df.dropna(inplace=True)
+
+    # add additional flags to the data
+    trades_df = add_bookkeeping_flag(trades_df, IS_BOOKKEEPING)
+    trades_df = add_same_day_flag(trades_df, IS_SAME_DAY)
     
     print(f"Numbers of samples {len(trades_df)}")
     
