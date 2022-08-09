@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 10:04:43
+ # @ Modified time: 2022-08-09 13:42:41
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -58,7 +58,7 @@ def process_data(query,
                                       min_trades_in_history,
                                       process_ratings)
 
-    if YIELD_CURVE.upper() == "FICC":
+    if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
         # Calculating yield spreads using ficc_ycl
         print("Calculating yield spread using ficc yield curve")
         trades_df['ficc_ycl'] = trades_df.parallel_apply(get_ficc_ycl,axis=1)

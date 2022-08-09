@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 13:19:45
+ # @ Modified time: 2022-08-09 13:07:26
  # @ Description:
  '''
 
@@ -56,11 +56,12 @@ def process_trade_history(query,
                           min_trades_in_history, 
                           drop_ratings):
     
-    if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
+    if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE.upper() == "FICC_NEW":
         print("Grabbing yield curve params")
         try:
-            yield_curve_params(client)
+            yield_curve_params(client, globals.YIELD_CURVE_TO_USE.upper())
         except Exception as e:
+            raise e 
             print("Failed to grab yield curve parameters")
             raise e
     

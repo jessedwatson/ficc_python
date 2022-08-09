@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 14:51:09
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-05-10 06:16:57
+ # @ Modified time: 2022-08-09 13:40:48
  # @ Description:The pad_trade_history function pads the trade historie with zeros, to make their
  #  length equal to the sequence length. The function pads the end of trade history and creates 
  #  a single sequence. The paddings are added after the most recent trades.
@@ -29,6 +29,7 @@ def pad_trade_history(x, SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history):
             print("Failed to pad trade history for")
             for i in temp:
                 print(i)
+            # raise e
                 
     #returning none for data less than the minimum required number of trades in history
     elif len(x) < min_trades_in_history:
