@@ -10,6 +10,7 @@ NUM_OF_DAYS_IN_YEAR = 360
 
 IS_BOOKKEEPING = 'is_bookkeeping'
 IS_SAME_DAY = 'is_same_day'
+IS_DUPLICATE = 'is_duplicate'
 
 COUPON_FREQUENCY_DICT = {0:"Unknown",
                          1:"Semiannually",

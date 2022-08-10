@@ -15,20 +15,22 @@ from ficc.utils.auxiliary_variables import SPECIAL_CONDITIONS
 SPECIAL_CONDITIONS_TO_FILTER_ON = [condition for condition in SPECIAL_CONDITIONS if condition != 'is_alternative_trading_system']    # this removes conditions that we do not want to group on
 
 
-def get_most_recent_index_and_others(df, with_alternative_trading_system_flag=False):
+def get_most_recent_index_and_others(df, with_alternative_trading_system_flag=False, get_earliest_index=False):
     '''If `with_alternative_trading_system_flag` is `True`, then return the most recent 
     index with the alternative trading system flag. If no trades in `df` have the 
     flag, then behave as if `with_alternative_trading_system_flag` is `False`. Note: 
-    only inter-dealer trades can have the alternative trading system flag.'''
+    only inter-dealer trades can have the alternative trading system flag. If 
+    `get_earliest_index` is `True` instead of returning the most recent index, return 
+    the earliest index (opposite of most recent).'''
     if with_alternative_trading_system_flag:    # check whether there is a most recent index with the alternative trading system flag
         assert 'is_alternative_trading_system' in df.columns
         df_with_alternative_trading_system_flag = df[df['is_alternative_trading_system']]
         indices = df_with_alternative_trading_system_flag.index.to_list()
     if not with_alternative_trading_system_flag or indices == []:    # if the alternative trading system flag was not desired or not found
         indices = df.index.to_list()
-    most_recent_index = indices[0]    # since `df` is sorted in descending order of `trade_date`, the first item is the most recent
+    trade_index = indices[0] if not get_earliest_index else indices[-1]   # since `df` is sorted in descending order of `trade_date`, the first item is the most recent and the last item is the earlest
 
-    return most_recent_index, [index for index in df.index.to_list() if index != most_recent_index]
+    return trade_index, [index for index in df.index.to_list() if index != trade_index]
 
 
 def indices_to_remove_from_beginning_or_end_to_reach_sum(lst, target_sum):
@@ -145,4 +147,35 @@ def add_same_day_flag(df, flag_name):
     groups_largerthan1_with_sp = {group_key: group_df for group_key, group_df in groups if len(group_df) > 1 and {'S', 'P'} <= set(group_df['trade_type'])}
     for group_df in groups_largerthan1_with_sp.values():
         df = _add_same_day_flag_for_group(group_df, flag_name, df)
+    return df
+
+
+def _add_duplicate_flag_for_group(group_df, flag_name, orig_df=None):
+    '''Mark a trade as duplicate if there is a previous trade on the same 
+    day with the same price, same direction, and same quantity. The idea 
+    of marking these trades is to exclude them from the trade history, as 
+    these trades are probably being sold in the same block, and so having 
+    all of these trades in the trade history would be less economically 
+    meaningful in the trade history. All except the earliest trade in this 
+    group are marked as duplicate.'''
+    assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade just switched desks'
+    if len(group_df) < 2: return group_df    # dataframe has a size less than 2
+    # mark all but the earliest trade as duplicate
+    _, all_but_earliest_index = get_most_recent_index_and_others(group_df, get_earliest_index=True)
+
+    if orig_df is None: orig_df = group_df
+    orig_df[flag_name][all_but_earliest_index] = True
+    return orig_df
+
+
+def add_duplicate_flag(df, flag_name):
+    '''Call `_add_duplicate_flag_for_group(...)` on each group as 
+    specified in the `groupby`.'''
+    print(f'Adding {flag_name} flag to data')
+    df = df.copy()
+    if flag_name not in df.columns: df[flag_name] = False
+    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'] + SPECIAL_CONDITIONS_TO_FILTER_ON)
+    groups_same_day_quantity_price_tradetype_cusip_largerthan1 = {group_key: group_df for group_key, group_df in groups_same_day_quantity_price_tradetype_cusip if len(group_df) > 1}
+    for group_df in groups_same_day_quantity_price_tradetype_cusip_largerthan1.values():
+        df = _add_duplicate_flag_for_group(group_df, flag_name, df)
     return df
