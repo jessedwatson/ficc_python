@@ -70,7 +70,7 @@ def _add_bookkeeping_flag_for_group(group_df, flag_name, orig_df=None):
 
     if orig_df is None: orig_df = group_df
     orig_df[flag_name][all_but_most_recent_index] = True
-    return group_df
+    return orig_df
 
 
 def add_bookkeeping_flag(df, flag_name):
@@ -132,7 +132,7 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
     
     if orig_df is None: orig_df = group_df
     orig_df[flag_name][indices_to_mark] = True
-    return group_df
+    return orig_df
 
 
 def add_same_day_flag(df, flag_name):
@@ -142,7 +142,7 @@ def add_same_day_flag(df, flag_name):
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
     groups = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])
-    groups_largerthan1 = {group_key: group_df for group_key, group_df in groups if len(group_df) > 1}
-    for group_df in groups_largerthan1.values():
+    groups_largerthan1_with_sp = {group_key: group_df for group_key, group_df in groups if len(group_df) > 1 and {'S', 'P'} <= set(group_df['trade_type'])}
+    for group_df in groups_largerthan1_with_sp.values():
         df = _add_same_day_flag_for_group(group_df, flag_name, df)
     return df
