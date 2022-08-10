@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 15:44:24
+ # @ Modified time: 2022-08-10 14:48:50
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -41,6 +41,8 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
     # We do not have weighted average maturity before July 27 for ficc yc
     if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,7,27):
         target_date = datetime(2021,7,27).date()
+    elif globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,8,2):
+        target_date = datetime(2021,8,2).date()
     elif trade_dict['trade_datetime'] is not None:
         target_date = trade_dict['trade_datetime'].date()
     else:
@@ -67,7 +69,7 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
 
     calc_date = trade_dict['calc_date']
     #calculating the time to maturity in years from the trade_date
-    if globals.YIELD_CURVE_TO_USE.upper() == "FICC":
+    if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE == 'FICC_NEW':
         time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
         global nelson_params
         global scalar_params
