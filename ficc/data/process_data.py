@@ -101,6 +101,8 @@ def process_data(query,
         trades_df.dropna(inplace=True)
 
     if add_flags:    # add additional flags to the data
+        if IS_DUPLICATE not in trades_df.columns:
+            trades_df = add_duplicate_flag(trades_df, IS_DUPLICATE)
         trades_df = add_bookkeeping_flag(trades_df, IS_BOOKKEEPING)
         trades_df = add_same_day_flag(trades_df, IS_SAME_DAY)
     

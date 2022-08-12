@@ -9,10 +9,8 @@
 import numpy as np
 import pandas as pd
 
-from ficc.utils.auxiliary_variables import SPECIAL_CONDITIONS
-
-
-SPECIAL_CONDITIONS_TO_FILTER_ON = [condition for condition in SPECIAL_CONDITIONS if condition != 'is_alternative_trading_system']    # this removes conditions that we do not want to group on
+# from ficc.utils.auxiliary_variables import SPECIAL_CONDITIONS
+# SPECIAL_CONDITIONS_TO_FILTER_ON = [condition for condition in SPECIAL_CONDITIONS if condition != 'is_alternative_trading_system']    # this removes conditions that we do not want to group on
 
 
 def get_most_recent_index_and_others(df, with_alternative_trading_system_flag=False, get_earliest_index=False):
@@ -66,11 +64,11 @@ def _add_bookkeeping_flag_for_group(group_df, flag_name, orig_df=None):
     desk to desk. All except the most recent one in this group are 
     marked as bookkeeping.'''
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade just switched desks'
-    if set(group_df['trade_type']) != {'D'} or len(group_df) < 2: return group_df    # dataframe has trades that are not inter-dealer or has a size less than 2
+    if orig_df is None: orig_df = group_df
+    if set(group_df['trade_type']) != {'D'} or len(group_df) < 2: return orig_df    # dataframe has trades that are not inter-dealer or has a size less than 2
     # mark all but the most recent trade as bookkeeping
     _, all_but_most_recent_index = get_most_recent_index_and_others(group_df)
 
-    if orig_df is None: orig_df = group_df
     orig_df[flag_name][all_but_most_recent_index] = True
     return orig_df
 
@@ -81,7 +79,7 @@ def add_bookkeeping_flag(df, flag_name):
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
     print(f'Adding {flag_name} flag to data')
-    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'] + SPECIAL_CONDITIONS_TO_FILTER_ON)
+    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
     groups_same_day_quantity_price_tradetype_cusip_largerthan1_onlyDD = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if set(group_df['trade_type']) == {'D'} and len(group_df) > 1]
     for group_df in groups_same_day_quantity_price_tradetype_cusip_largerthan1_onlyDD:
         df = _add_bookkeeping_flag_for_group(group_df, flag_name, df)
@@ -109,7 +107,8 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
     greater than or equal to the total cost of the dealer sell trades.'''
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that a trade was arranged so that a bond would not have to be held overnight'
     groups_by_trade_type = group_df.groupby('trade_type').sum()
-    if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return group_df
+    if orig_df is None: orig_df = group_df
+    if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return orig_df
     dealer_sold_indices = group_df[group_df['trade_type'] == 'S'].index.values
     dealer_purchase_indices = group_df[group_df['trade_type'] == 'P'].index.values
     total_dealer_sold = groups_by_trade_type.loc['S']['quantity']
@@ -131,7 +130,6 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
                     dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
                 indices_to_mark.extend(dealer_purchase_indices)
     
-    if orig_df is None: orig_df = group_df
     orig_df[flag_name][indices_to_mark] = True
     return orig_df
 
@@ -157,12 +155,12 @@ def _add_duplicate_flag_for_group(group_df, flag_name, orig_df=None):
     all of these trades in the trade history would be less economically 
     meaningful in the trade history. All except the earliest trade in this 
     group are marked as duplicate.'''
-    assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade just switched desks'
-    if len(group_df) < 2: return group_df    # dataframe has a size less than 2
+    assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade is identical to another trade that occurs during the same day'
+    if orig_df is None: orig_df = group_df
+    if len(group_df) < 2: return orig_df    # dataframe has a size less than 2
     # mark all but the earliest trade as duplicate
     _, all_but_earliest_index = get_most_recent_index_and_others(group_df, get_earliest_index=True)
 
-    if orig_df is None: orig_df = group_df
     orig_df[flag_name][all_but_earliest_index] = True
     return orig_df
 
@@ -173,7 +171,7 @@ def add_duplicate_flag(df, flag_name):
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
-    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'] + SPECIAL_CONDITIONS_TO_FILTER_ON)
+    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
     groups_same_day_quantity_price_tradetype_cusip_largerthan1 = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if len(group_df) > 1]
     for group_df in groups_same_day_quantity_price_tradetype_cusip_largerthan1:
         df = _add_duplicate_flag_for_group(group_df, flag_name, df)
