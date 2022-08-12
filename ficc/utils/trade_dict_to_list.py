@@ -29,7 +29,7 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
         print('rtrs control number is missing, skipping this trade')
         return None
 
-    # Checking if the seconds a go feature is missing
+    # Checking if the seconds ago feature is missing
     if trade_dict['seconds_ago'] is None:
         print('Seconds a go missing, skipping this trade')
         return None

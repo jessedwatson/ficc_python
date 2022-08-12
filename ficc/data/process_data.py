@@ -13,8 +13,6 @@ import numpy as np
 from pandarallel import pandarallel
 
 from tqdm import tqdm
-
-from utils.auxiliary_variables import IS_DUPLICATE
 tqdm.pandas()
 
 from ficc.utils.process_features import process_features
