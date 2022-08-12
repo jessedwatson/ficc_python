@@ -53,6 +53,7 @@ def process_trade_history(query,
                           remove_non_transaction_based,
                           remove_trade_type, 
                           trade_history_delay, 
+                          remove_duplicates, 
                           min_trades_in_history, 
                           drop_ratings):
     
@@ -78,7 +79,7 @@ def process_trade_history(query,
 
     print(f'Raw data contains {len(trade_dataframe)} samples')
     
-    #Dropping empty trades
+    # Dropping empty trades
     print("Dropping empty trades")
     trade_dataframe['empty_trade'] = trade_dataframe.recent.apply(lambda x: x[0]['rtrs_control_number'] is None)
     trade_dataframe = trade_dataframe[trade_dataframe.empty_trade == False]
@@ -109,12 +110,13 @@ def process_trade_history(query,
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                                                         remove_non_transaction_based,
                                                                                                         remove_trade_type,
-                                                                                                        trade_history_delay]))
+                                                                                                        trade_history_delay, 
+                                                                                                        remove_duplicates]))
     print('Trade history created')
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
     
-    print(f"Restricitng the trade history to the {SEQUENCE_LENGTH} most recent trades")
+    print(f"Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
 
     print("Padding history")

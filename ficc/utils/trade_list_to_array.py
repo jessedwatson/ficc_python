@@ -8,30 +8,29 @@
  # With each element in the list containing all the information for that particular trade
  '''
 
-
 import numpy as np
 from ficc.utils.trade_dict_to_list import trade_dict_to_list
 
-def trade_list_to_array(trade_history, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay):
+def trade_list_to_array(trade_history, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay, remove_duplicates):
     
     if len(trade_history) == 0:
         return np.array([])
 
     # The calc date for a trade is added as the last
-    # feautre in the trade history
+    # feature in the trade history
     # calc_date = trade_history[-1]
     # trade_history = trade_history[:-1] 
     trades_list = []
 
     for entry in trade_history:
-        trades = trade_dict_to_list(entry, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay)
+        trades = trade_dict_to_list(entry, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay, remove_duplicates)
         if trades is not None:
             trades_list.append(trades)
 
     if len(trades_list) > 0:
         try:
             return np.stack(trades_list)
-        except Exception as e:
+        except Exception:
             for i in trades_list:
                 print(i)
             raise Exception("Failed to stack the arrays")
