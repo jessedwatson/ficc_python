@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 21:45:42
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-08-15 14:00:00
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -15,15 +15,11 @@
 	#   7. A list containing the features that will be used for training. This is an optional parameter
  '''
 
-
-import ficc.utils.globals as globals
 import os
-import pickle5 as pickle
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_variables import PREDICTORS
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/eng-reactor-287421-112eb767e1b3.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "~/ficc/ficc/eng-reactor-287421-112eb767e1b3.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 5
 
@@ -36,7 +32,9 @@ WHERE
   yield IS NOT NULL
   AND yield > 0
   AND par_traded >= 10000
-  AND trade_date >= '2021-08-01'
+  -- AND trade_date >= '2021-08-01'
+  AND trade_date >= '2021-10-01'
+  AND trade_date <= '2021-12-31'
   AND maturity_description_code = 2
   AND coupon_type in (8, 4, 10)
   AND capital_type <> 10
@@ -50,7 +48,6 @@ WHERE
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
 ORDER BY
   trade_datetime DESC
-  limit 1000
 ''' 
 
 bq_client = bigquery.Client()
@@ -65,8 +62,9 @@ if __name__ == "__main__":
                               estimate_calc_date=False,
                               remove_short_maturity=True,
                               remove_non_transaction_based=False,
-                              remove_trade_type = [],
+                              remove_trade_type = [], 
+                              remove_duplicates=True, 
                               trade_history_delay = 1,
                               min_trades_in_history = 0,
                               process_ratings=False)
-    print(trade_data)
+    trade_data.to_pickle('processed_data_with_flags_2021_12_31.pkl')
