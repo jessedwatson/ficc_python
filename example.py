@@ -19,7 +19,7 @@ import os
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "~/ficc/ficc/eng-reactor-287421-112eb767e1b3.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/mitas/ficc/ficc/eng-reactor-287421-112eb767e1b3.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 5
 
