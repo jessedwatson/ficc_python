@@ -141,8 +141,8 @@ def add_same_day_flag(df, flag_name):
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
     groups = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])
-    groups_largerthan1_with_sp = [group_df for _, group_df in groups if len(group_df) > 1 and {'S', 'P'} <= set(group_df['trade_type'])]
-    for group_df in groups_largerthan1_with_sp:
+    groups_with_sp = [group_df for _, group_df in groups if {'S', 'P'} <= set(group_df['trade_type'])]
+    for group_df in groups_with_sp:
         df = _add_same_day_flag_for_group(group_df, flag_name, df)
     return df
 
