@@ -53,7 +53,7 @@ def process_trade_history(query,
                           remove_non_transaction_based,
                           remove_trade_type, 
                           trade_history_delay, 
-                          remove_duplicates, 
+                          remove_duplicates_from_trade_history, 
                           min_trades_in_history, 
                           drop_ratings):
     
@@ -101,7 +101,7 @@ def process_trade_history(query,
     if len(remove_trade_type) > 0:
         print(f"Removing trade types {remove_trade_type}")
 
-    if remove_duplicates:
+    if remove_duplicates_from_trade_history:
         print(f'Removing trades that are marked with the {IS_DUPLICATE} flag.')
         trade_dataframe = add_duplicate_flag(trade_dataframe, IS_DUPLICATE)
 
@@ -116,7 +116,7 @@ def process_trade_history(query,
                                                                                                         remove_non_transaction_based,
                                                                                                         remove_trade_type,
                                                                                                         trade_history_delay, 
-                                                                                                        remove_duplicates]))
+                                                                                                        remove_duplicates_from_trade_history]))
     print('Trade history created')
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)

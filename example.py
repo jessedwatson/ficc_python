@@ -63,7 +63,7 @@ if __name__ == "__main__":
                               remove_short_maturity=True,
                               remove_non_transaction_based=False,
                               remove_trade_type = [], 
-                              remove_duplicates=True, 
+                              remove_duplicates_from_trade_history=False, 
                               trade_history_delay = 1,
                               min_trades_in_history = 0,
                               process_ratings=False)

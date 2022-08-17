@@ -76,9 +76,10 @@ def _add_bookkeeping_flag_for_group(group_df, flag_name, orig_df=None):
 def add_bookkeeping_flag(df, flag_name):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
+    if flag_name in df.columns and df[flag_name].any(): return df
+    print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
-    print(f'Adding {flag_name} flag to data')
     groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
     groups_same_day_quantity_price_tradetype_cusip_largerthan1_onlyDD = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if set(group_df['trade_type']) == {'D'} and len(group_df) > 1]
     for group_df in groups_same_day_quantity_price_tradetype_cusip_largerthan1_onlyDD:
@@ -137,6 +138,7 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
 def add_same_day_flag(df, flag_name):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
+    if flag_name in df.columns and df[flag_name].any(): return df
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
@@ -168,6 +170,7 @@ def _add_duplicate_flag_for_group(group_df, flag_name, orig_df=None):
 def add_duplicate_flag(df, flag_name):
     '''Call `_add_duplicate_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
+    if flag_name in df.columns and df[flag_name].any(): return df
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
