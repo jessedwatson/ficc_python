@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-09 13:42:41
+ # @ Modified time: 2022-08-17 13:39:43
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -75,6 +75,9 @@ def process_data(query,
         print("Using yield spreds created from the S&P muni index")
         # Converting the yield spread to basis points
         trades_df['yield_spread'] = trades_df['yield_spread'] * 100
+    
+    elif YIELD_CURVE.upper() == 'MSRB_YTW':
+        trades_df['yield'] = trades_df['yield'] * 100 # converting it to basis points
     
     print('Yield spread calculated')
 

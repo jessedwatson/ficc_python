@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-16 09:50:50
+ # @ Modified time: 2022-08-17 13:37:18
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -10,7 +10,7 @@
 	#   2. BigQuery client. 
  	#   3. The sequence length of the trade history can take 32 as its maximum value. 
 	#   4. The number of features that the trade history contains. 
-	#   5. The yield curve to use acceptable options S&P or ficc. 
+	#   5. The yield curve to use acceptable options are S&P, FICC, FICC_NEW, MMD and MSRB_YTW(to train estimating the yield). 
 	#   6. Link to save the raw data grabbed from BigQuery. 
 	#   7. A list containing the features that will be used for training. This is an optional parameter
  '''
@@ -61,7 +61,7 @@ if __name__ == "__main__":
                               SEQUENCE_LENGTH,
                               NUM_FEATURES,
                               'data.pkl',
-                              "FICC",
+                              "MSRB_YTW",
                               estimate_calc_date=False,
                               remove_short_maturity=True,
                               remove_non_transaction_based=False,
