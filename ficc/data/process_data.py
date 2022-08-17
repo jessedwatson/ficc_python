@@ -47,7 +47,7 @@ def process_data(query,
     
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
-    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trade_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay} \n min_trades_in_hist:{min_trades_in_history} \n process_ratings:{process_ratings}')
+    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trade_type:{remove_trade_type}\n remove_duplicates_from_trade_history:{remove_duplicates_from_trade_history}\n trade_history_delay:{trade_history_delay}\n min_trades_in_hist:{min_trades_in_history}\n process_ratings:{process_ratings}\n add_flags:{add_flags}')
     
     trades_df = process_trade_history(query,
                                       client, 
