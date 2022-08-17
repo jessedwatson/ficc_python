@@ -19,7 +19,7 @@ import os
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/mitas/ficc/ficc/eng-reactor-287421-0d5be4f555d2.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/mitas/ficc/eng-reactor-287421-0d5be4f555d2.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 5
 
@@ -63,8 +63,8 @@ if __name__ == "__main__":
                               remove_short_maturity=True,
                               remove_non_transaction_based=False,
                               remove_trade_type = [], 
-                              remove_duplicates_from_trade_history=False, 
+                              remove_duplicates_from_trade_history=True, 
                               trade_history_delay = 1,
                               min_trades_in_history = 0,
                               process_ratings=False)
-    trade_data.to_pickle('processed_data_ficc_with_flags_2021_12_31.pkl')
+    trade_data.to_pickle('processed_data_ficc_with_flags_no_duplicates_in_trade_history_2021_12_31.pkl')
