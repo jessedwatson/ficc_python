@@ -8,6 +8,10 @@
 
 NUM_OF_DAYS_IN_YEAR = 360
 
+IS_BOOKKEEPING = 'is_bookkeeping'
+IS_SAME_DAY = 'is_same_day'
+IS_DUPLICATE = 'is_duplicate'
+
 COUPON_FREQUENCY_DICT = {0:"Unknown",
                          1:"Semiannually",
                          2:"Monthly",
@@ -106,7 +110,10 @@ NON_CAT_FEATURES = ['quantity',
                     'A/E']
 
 TRADE_HISTORY = ['trade_history']
+
 TARGET = ['yield_spread', 'calc_day_cat']
+
+SPECIAL_CONDITIONS = ['is_non_transaction_based_compensation', 'brokers_broker', 'is_lop_or_takedown', 'is_alternative_trading_system']    # special conditions on trades as reported in EMMA
 
 PREDICTORS = BINARY + CATEGORICAL_FEATURES + NON_CAT_FEATURES + TARGET + TRADE_HISTORY
 

@@ -10,15 +10,15 @@ import os
 import pandas as pd
 import pickle5 as pickle
 
-from ficc.utils.auxiliary_functions import sqltodf
+from ficc.utils.auxiliary_functions import sqltodf, process_ratings, convert_object_to_category, convert_calc_date_to_category
+from ficc.utils.auxiliary_variables import IS_DUPLICATE
+from ficc.utils.adding_flags import add_duplicate_flag
 from ficc.utils.pad_trade_history import pad_trade_history
 import ficc.utils.globals as globals
 from ficc.utils.ficc_calc_end_date import calc_end_date
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.create_mmd_data import create_mmd_data
-from ficc.utils.auxiliary_functions import process_ratings, convert_object_to_category, convert_calc_date_to_category
-
 
 
 def fetch_trade_data(query, client, PATH='data.pkl'):
@@ -53,6 +53,7 @@ def process_trade_history(query,
                           remove_non_transaction_based,
                           remove_trade_type, 
                           trade_history_delay, 
+                          remove_duplicates_from_trade_history, 
                           min_trades_in_history, 
                           drop_ratings):
     
@@ -79,7 +80,7 @@ def process_trade_history(query,
 
     print(f'Raw data contains {len(trade_dataframe)} samples')
     
-    #Dropping empty trades
+    # Dropping empty trades
     print("Dropping empty trades")
     trade_dataframe['empty_trade'] = trade_dataframe.recent.apply(lambda x: x[0]['rtrs_control_number'] is None)
     trade_dataframe = trade_dataframe[trade_dataframe.empty_trade == False]
@@ -100,6 +101,10 @@ def process_trade_history(query,
     if len(remove_trade_type) > 0:
         print(f"Removing trade types {remove_trade_type}")
 
+    if remove_duplicates_from_trade_history:
+        print(f'Removing trades that are marked with the {IS_DUPLICATE} flag.')
+        trade_dataframe = add_duplicate_flag(trade_dataframe, IS_DUPLICATE)
+
     print('Getting last dollar price and calc date')
     temp_df = trade_dataframe.recent.apply(lambda x:(x[0]['dollar_price'], x[0]['calc_date'], x[0]['maturity_date'], x[0]['next_call_date'], x[0]['par_call_date'], x[0]['refund_date']))
     trade_dataframe[['last_dollar_price', 'last_calc_date', 'last_maturity_date', 'last_next_call_date', 'last_par_call_date', 'last_refund_date']] = pd.DataFrame(temp_df.tolist(), index=trade_dataframe.index)    
@@ -110,12 +115,13 @@ def process_trade_history(query,
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                                                         remove_non_transaction_based,
                                                                                                         remove_trade_type,
-                                                                                                        trade_history_delay]))
+                                                                                                        trade_history_delay, 
+                                                                                                        remove_duplicates_from_trade_history]))
     print('Trade history created')
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
     
-    print(f"Restricitng the trade history to the {SEQUENCE_LENGTH} most recent trades")
+    print(f"Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
 
     print("Padding history")

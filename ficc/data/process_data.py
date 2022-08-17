@@ -23,6 +23,8 @@ from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
+from ficc.utils.auxiliary_variables import IS_BOOKKEEPING, IS_SAME_DAY, IS_DUPLICATE
+from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_duplicate_flag
 
 
 def process_data(query, 
@@ -35,16 +37,18 @@ def process_data(query,
                  remove_short_maturity=False, 
                  remove_non_transaction_based=False, 
                  remove_trade_type=[], 
+                 remove_duplicates_from_trade_history=False, 
                  trade_history_delay=1, 
                  min_trades_in_history=2, 
                  process_ratings=True, 
                  keep_nan=False, 
+                 add_flags=False, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
     print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_non_transaction_based:{remove_non_transaction_based}\n remove_trade_type:{remove_trade_type}\n trade_history_delay:{trade_history_delay} \n min_trades_in_hist:{min_trades_in_history} \n process_ratings:{process_ratings}')
-
+    
     trades_df = process_trade_history(query,
                                       client, 
                                       SEQUENCE_LENGTH,
@@ -53,8 +57,9 @@ def process_data(query,
                                       estimate_calc_date,
                                       remove_short_maturity,
                                       remove_non_transaction_based,
-                                      remove_trade_type,
-                                      trade_history_delay,
+                                      remove_trade_type, 
+                                      trade_history_delay, 
+                                      remove_duplicates_from_trade_history, 
                                       min_trades_in_history,
                                       process_ratings)
 
@@ -91,6 +96,12 @@ def process_data(query,
     if 'training_features' in kwargs:
         trades_df = trades_df[kwargs['training_features']]
         trades_df.dropna(inplace=True)
+
+    if add_flags:    # add additional flags to the data
+        if IS_DUPLICATE not in trades_df.columns:
+            trades_df = add_duplicate_flag(trades_df, IS_DUPLICATE)
+        trades_df = add_bookkeeping_flag(trades_df, IS_BOOKKEEPING)
+        trades_df = add_same_day_flag(trades_df, IS_SAME_DAY)
     
     print(f"Numbers of samples {len(trades_df)}")
     
