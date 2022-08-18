@@ -12,6 +12,7 @@
  # Taking the log of the number of seconds between the historical trade and the latest trade
  '''
 
+from ast import Is
 import numpy as np
 from datetime import datetime
 
@@ -21,7 +22,13 @@ from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, IS_DUPLICATE
 from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
 
-def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay, remove_duplicates_from_trade_history) -> list:
+def trade_dict_to_list(trade_dict: dict, 
+                       remove_short_maturity, 
+                       remove_non_transaction_based, 
+                       remove_trade_type, 
+                       trade_history_delay, 
+                       remove_duplicates_from_trade_history, 
+                       rtrs_control_number_and_is_duplicate_flag) -> list:
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
@@ -46,8 +53,9 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
     else:
         print("Trade date is missing, skipping this trade")
         return None
-    
-    if remove_duplicates_from_trade_history and trade_dict[IS_DUPLICATE]: return None
+
+    rtrs_is_duplicate = lambda trade_dict: rtrs_control_number_and_is_duplicate_flag[rtrs_control_number_and_is_duplicate_flag['rtrs_control_number'] == trade_dict['rtrs_control_number']][IS_DUPLICATE].iloc[0]
+    if remove_duplicates_from_trade_history and rtrs_is_duplicate(trade_dict): return None
 
     if remove_non_transaction_based == True and trade_dict['is_non_transaction_based_compensation'] == True:
         return None

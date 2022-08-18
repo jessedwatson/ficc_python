@@ -11,7 +11,19 @@
 import numpy as np
 from ficc.utils.trade_dict_to_list import trade_dict_to_list
 
-def trade_list_to_array(trade_history, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay, remove_duplicates_from_trade_history):
+
+def trade_list_to_array(trade_history, 
+                        remove_short_maturity, 
+                        remove_non_transaction_based, 
+                        remove_trade_type, 
+                        trade_history_delay, 
+                        remove_duplicates_from_trade_history, 
+                        rtrs_control_number_and_is_duplicate_flag):
+    '''The `remove_duplicates_from_trade_history` is a boolean variable that 
+    determines whether duplicate trades should be excluded from the trade 
+    history. If this variable is set to `True`, then we must have a dataframe 
+    in `rtrs_control_number_and_is_duplicate_flag` which contains both the 
+    `rtrs_control_number` and the corresponding `is_duplicate_flag`.'''
     
     if len(trade_history) == 0:
         return np.array([])
@@ -23,7 +35,7 @@ def trade_list_to_array(trade_history, remove_short_maturity, remove_non_transac
     trades_list = []
 
     for entry in trade_history:
-        trades = trade_dict_to_list(entry, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay, remove_duplicates_from_trade_history)
+        trades = trade_dict_to_list(entry, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay, remove_duplicates_from_trade_history, rtrs_control_number_and_is_duplicate_flag)
         if trades is not None:
             trades_list.append(trades)
 
