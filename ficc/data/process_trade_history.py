@@ -102,7 +102,7 @@ def process_trade_history(query,
         print(f"Removing trade types {remove_trade_type}")
 
     if remove_duplicates_from_trade_history:
-        print(f'Removing trades that are marked with the {IS_DUPLICATE} flag.')
+        print(f'Marking trades with the {IS_DUPLICATE} flag in order to remove them from the trade history')
         trade_dataframe = add_duplicate_flag(trade_dataframe, IS_DUPLICATE)
 
     print('Getting last dollar price and calc date')

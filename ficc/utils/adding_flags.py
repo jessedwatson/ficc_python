@@ -174,7 +174,16 @@ def add_duplicate_flag(df, flag_name):
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
-    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
+
+    # Next 3 lines ensure that correct feature is used to find the quantity. When 
+    # this function is run before `process_features(...)`, the quantity is 
+    # represented as the feature `par_traded`. After running `process_features(...)`,
+    # the quantity is represented as the feature `quantity`.
+    columns_set = set(df.columns)
+    quantity_feature = 'quantity' if 'quantity' in columns_set else 'par_traded'
+    assert 'par_traded' in columns_set, 'Neither "quantity" nor "par_traded" exist in the dataframe'
+
+    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), quantity_feature, 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
     groups_same_day_quantity_price_tradetype_cusip_largerthan1 = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if len(group_df) > 1]
     for group_df in groups_same_day_quantity_price_tradetype_cusip_largerthan1:
         df = _add_duplicate_flag_for_group(group_df, flag_name, df)
