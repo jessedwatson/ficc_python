@@ -109,7 +109,6 @@ def process_trade_history(query,
     temp_df = trade_dataframe.recent.apply(lambda x:(x[0]['dollar_price'], x[0]['calc_date'], x[0]['maturity_date'], x[0]['next_call_date'], x[0]['par_call_date'], x[0]['refund_date']))
     trade_dataframe[['last_dollar_price', 'last_calc_date', 'last_maturity_date', 'last_next_call_date', 'last_par_call_date', 'last_refund_date']] = pd.DataFrame(temp_df.tolist(), index=trade_dataframe.index)    
     trade_dataframe['last_calc_day_cat'] = trade_dataframe.apply(convert_calc_date_to_category, axis=1)
-    print('Getting last dollar price and calc date')
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
