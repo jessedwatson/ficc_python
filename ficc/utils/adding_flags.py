@@ -66,10 +66,10 @@ def _add_bookkeeping_flag_for_group(group_df, flag_name, orig_df=None):
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade just switched desks'
     if orig_df is None: orig_df = group_df
     if set(group_df['trade_type']) != {'D'} or len(group_df) < 2: return orig_df    # dataframe has trades that are not inter-dealer or has a size less than 2
+    orig_df.loc[group_df.index.to_list(), flag_name] = True    # mark all trades in the group
     # mark all but the most recent trade as bookkeeping
-    _, all_but_most_recent_index = get_most_recent_index_and_others(group_df)
-
-    orig_df[flag_name][all_but_most_recent_index] = True
+    # _, all_but_most_recent_index = get_most_recent_index_and_others(group_df)
+    # orig_df.loc[all_but_most_recent_index, flag_name] = True
     return orig_df
 
 
@@ -131,7 +131,7 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
                     dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
                 indices_to_mark.extend(dealer_purchase_indices)
     
-    orig_df[flag_name][indices_to_mark] = True
+    orig_df.loc[indices_to_mark, flag_name] = True
     return orig_df
 
 
@@ -163,7 +163,7 @@ def _add_duplicate_flag_for_group(group_df, flag_name, orig_df=None):
     # mark all but the earliest trade as duplicate
     _, all_but_earliest_index = get_most_recent_index_and_others(group_df, get_earliest_index=True)
 
-    orig_df[flag_name][all_but_earliest_index] = True
+    orig_df.loc[all_but_earliest_index, flag_name] = True    # orig_df[flag_name][all_but_earliest_index] = True
     return orig_df
 
 
