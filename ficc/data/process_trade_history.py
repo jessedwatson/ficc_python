@@ -111,11 +111,11 @@ def process_trade_history(query,
     trade_dataframe['last_calc_day_cat'] = trade_dataframe.apply(convert_calc_date_to_category, axis=1)
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
-    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
+    trade_dataframe['trade_history'] = trade_dataframe.recent.apply(trade_list_to_array, args=([remove_short_maturity,
                                                                                                         remove_non_transaction_based,
                                                                                                         remove_trade_type,
                                                                                                         trade_history_delay, 
-                                                                                                        remove_duplicates_from_trade_history]))
+                                                                                                        remove_duplicates_from_trade_history]))    # trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay,  remove_duplicates_from_trade_history]))
     print('Trade history created')
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
