@@ -160,10 +160,10 @@ def _add_replica_flag_for_group(group_df, flag_name, orig_df=None):
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade is identical to another trade that occurs during the same day'
     if orig_df is None: orig_df = group_df
     if len(group_df) < 2: return orig_df    # dataframe has a size less than 2
+    orig_df.loc[group_df.index.to_list(), flag_name] = True    # mark all trades in the group
     # mark all but the earliest trade as a replica
-    _, all_but_earliest_index = get_most_recent_index_and_others(group_df, get_earliest_index=True)
-
-    orig_df.loc[all_but_earliest_index, flag_name] = True    # orig_df[flag_name][all_but_earliest_index] = True
+    # _, all_but_earliest_index = get_most_recent_index_and_others(group_df, get_earliest_index=True)
+    # orig_df.loc[all_but_earliest_index, flag_name] = True    # orig_df[flag_name][all_but_earliest_index] = True
     return orig_df
 
 
