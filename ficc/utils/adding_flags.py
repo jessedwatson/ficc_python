@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-08-08 12:11:00
- # @ Modified by: 
- # @ Modified time: 
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2022-08-19 16:26:00
  # @ Description: Adds flags to trades to provide additional features
  '''
 
@@ -13,18 +13,18 @@ import pandas as pd
 # SPECIAL_CONDITIONS_TO_FILTER_ON = [condition for condition in SPECIAL_CONDITIONS if condition != 'is_alternative_trading_system']    # this removes conditions that we do not want to group on
 
 
-def get_most_recent_index_and_others(df, with_alternative_trading_system_flag=False, get_earliest_index=False):
-    '''If `with_alternative_trading_system_flag` is `True`, then return the most recent 
+def get_most_recent_index_and_others(df, with_alt_trading_system_flag=False, get_earliest_index=False):
+    '''If `with_alt_trading_system_flag` is `True`, then return the most recent 
     index with the alternative trading system flag. If no trades in `df` have the 
-    flag, then behave as if `with_alternative_trading_system_flag` is `False`. Note: 
+    flag, then behave as if `with_alt_trading_system_flag` is `False`. Note: 
     only inter-dealer trades can have the alternative trading system flag. If 
     `get_earliest_index` is `True` instead of returning the most recent index, return 
     the earliest index (opposite of most recent).'''
-    if with_alternative_trading_system_flag:    # check whether there is a most recent index with the alternative trading system flag
+    if with_alt_trading_system_flag:    # check whether there is a most recent index with the alternative trading system flag
         assert 'is_alternative_trading_system' in df.columns
-        df_with_alternative_trading_system_flag = df[df['is_alternative_trading_system']]
-        indices = df_with_alternative_trading_system_flag.index.to_list()
-    if not with_alternative_trading_system_flag or indices == []:    # if the alternative trading system flag was not desired or not found
+        df_with_alt_trading_system_flag = df[df['is_alternative_trading_system']]
+        indices = df_with_alt_trading_system_flag.index.to_list()
+    if not with_alt_trading_system_flag or indices == []:    # if the alternative trading system flag was not desired or not found
         indices = df.index.to_list()
     trade_index = indices[0] if not get_earliest_index else indices[-1]   # since `df` is sorted in descending order of `trade_date`, the first item is the most recent and the last item is the earlest
 
@@ -45,53 +45,22 @@ def indices_to_remove_from_beginning_or_end_to_reach_sum(lst, target_sum):
         indices.append(index)
         if lst_total == target_sum:
             return indices
-    
     # backward pass
     lst_total = sum(lst)
     indices = []
-    for index in range(len(lst) - 1, -1, -1): 
-        item = lst[index]
+    for index, item in reversed(list(enumerate(lst))):    # traverse a list in reverse order while preserving the indices: https://stackoverflow.com/questions/529424/traverse-a-list-in-reverse-order-in-python
         lst_total -= item
         indices.append(index)
         if lst_total == target_sum:
             return indices
-
-
-def _add_bookkeeping_flag_for_group(group_df, flag_name, orig_df=None):
-    '''Mark an inter-dealer trade as bookkeeping if there are multiple 
-    inter-dealer trades of the same quantity at the same price for a 
-    particular day. The intuition here is that this bond is moving from 
-    desk to desk. All except the most recent one in this group are 
-    marked as bookkeeping.'''
-    assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade just switched desks'
-    if orig_df is None: orig_df = group_df
-    if set(group_df['trade_type']) != {'D'} or len(group_df) < 2: return orig_df    # dataframe has trades that are not inter-dealer or has a size less than 2
-    orig_df.loc[group_df.index.to_list(), flag_name] = True    # mark all trades in the group
-    # mark all but the most recent trade as bookkeeping
-    # _, all_but_most_recent_index = get_most_recent_index_and_others(group_df)
-    # orig_df.loc[all_but_most_recent_index, flag_name] = True
-    return orig_df
-
-
-def add_bookkeeping_flag(df, flag_name):
-    '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
-    specified in the `groupby`.'''
-    if flag_name in df.columns and df[flag_name].any(): return df
-    print(f'Adding {flag_name} flag to data')
-    df = df.copy()
-    if flag_name not in df.columns: df[flag_name] = False
-    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'quantity', 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
-    groups_same_day_quantity_price_tradetype_cusip_largerthan1_onlyDD = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if set(group_df['trade_type']) == {'D'} and len(group_df) > 1]
-    for group_df in groups_same_day_quantity_price_tradetype_cusip_largerthan1_onlyDD:
-        df = _add_bookkeeping_flag_for_group(group_df, flag_name, df)
-    return df
+    return None    # no such sublist found
 
 
 def add_bookkeeping_flag(df, flag_name):
     '''Re-use implementation of `add_replica_flag(...)` for this 
     function.'''
     if flag_name in df.columns and df[flag_name].any(): return df
-    print(f'Adding {flag_name} flag to data')
+    # print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
 
@@ -101,25 +70,22 @@ def add_bookkeeping_flag(df, flag_name):
 
 
 def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
-    '''This flag denotes a trade where the dealer had the purchase 
-    and sell lined up beforehand. Our logic for identifying trades 
-    that occur on the same day are as follows:
-    1. A group of dealer sell trades are considered same day if the 
-    total cost of the dealer purchase trades for that day is equal to 
-    or greater than the total cost of the dealer sell trades. In this 
-    case, a group of dealer purchases trades are considered same day 
-    if there is a continuous (continuous defined as a dealer purchase 
-    trade not skipped over chronologically) sequence of dealer purchase 
-    trades that equal the total cost of the dealer sell trades. We 
-    assume this sequence of dealer purchase trades includes either the 
-    first dealer purchase trade of the day and/or the last dealer 
-    purchase trade of the day. We may expand this criteria to not have 
-    to include either the first and/or last dealer purchase trade.
-    2. An inter-dealer trade is considered *same day* if the quantity is 
-    equal to the total cost of the dealer sell trades for that day and 
-    if the total cost of the dealer purchase trades for that day is 
-    greater than or equal to the total cost of the dealer sell trades.'''
-    assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that a trade was arranged so that a bond would not have to be held overnight'
+    '''This flag denotes a trade where the dealer had the purchase and sell lined up 
+    beforehand. We mark a trade as same day when:
+    1. A group of dealer sell trades are considered same day if the total cost of the 
+    dealer purchase trades for that day is equal to or greater than the total cost of the 
+    dealer sell trades. In this case, a group of dealer purchases trades are considered 
+    same day if there is a continuous (continuous defined as a dealer purchase trade not 
+    skipped over chronologically) sequence of dealer purchase trades that equal the total 
+    cost of the dealer sell trades. We assume this sequence of dealer purchase trades 
+    includes either the first dealer purchase trade of the day and/or the last dealer 
+    purchase trade of the day. We may expand this criteria to not have to include either 
+    the first and/or last dealer purchase trade.
+    2. An inter-dealer trade is considered *same day* if the quantity is equal to the total 
+    cost of the dealer sell trades for that day and if the total cost of the dealer purchase 
+    trades for that day is greater than or equal to the total cost of the dealer sell trades.'''
+
+    assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe'
     groups_by_trade_type = group_df.groupby('trade_type').sum()
     if orig_df is None: orig_df = group_df
     if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return orig_df
@@ -156,8 +122,8 @@ def add_same_day_flag(df, flag_name):
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
     groups = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])
-    groups_with_sp = [group_df for _, group_df in groups if {'S', 'P'} <= set(group_df['trade_type'])]
-    for group_df in groups_with_sp:
+    groups_sp = [group_df for _, group_df in groups if {'S', 'P'} <= set(group_df['trade_type'])]
+    for group_df in groups_sp:
         df = _add_same_day_flag_for_group(group_df, flag_name, df)
     return df
 
@@ -197,7 +163,7 @@ def add_replica_flag(df, flag_name):
     assert 'par_traded' in columns_set, 'Neither "quantity" nor "par_traded" exist in the dataframe'
 
     groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), quantity_feature, 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
-    groups_same_day_quantity_price_tradetype_cusip_largerthan1 = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if len(group_df) > 1]
-    for group_df in groups_same_day_quantity_price_tradetype_cusip_largerthan1:
+    groups_same_day_quantity_price_tradetype_cusip = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if len(group_df) > 1]    # remove singleton groups
+    for group_df in groups_same_day_quantity_price_tradetype_cusip:
         df = _add_replica_flag_for_group(group_df, flag_name, df)
     return df
