@@ -96,7 +96,7 @@ def add_bookkeeping_flag(df, flag_name):
     if flag_name not in df.columns: df[flag_name] = False
 
     df_with_bookkeeping_flag = add_replica_flag(df[df['trade_type'] == 'D'], flag_name)
-    df.loc[df_with_bookkeeping_flag.index.to_list(), flag_name] = True
+    df.loc[df_with_bookkeeping_flag[df_with_bookkeeping_flag[flag_name]].index.to_list(), flag_name] = True    # mark all trades in `df` that were marked in `df_with_bookkeeping_flag` 
     return df
 
 
