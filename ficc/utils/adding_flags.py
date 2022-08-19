@@ -87,6 +87,12 @@ def add_bookkeeping_flag(df, flag_name):
     return df
 
 
+def add_bookkeeping_flag(df, flag_name):
+    '''Re-use implementation of `add_replica_flag(...)` for this 
+    function.'''
+    return add_replica_flag(df[df['trade_type'] == 'D'], flag_name)
+
+
 def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
     '''This flag denotes a trade where the dealer had the purchase 
     and sell lined up beforehand. Our logic for identifying trades 
