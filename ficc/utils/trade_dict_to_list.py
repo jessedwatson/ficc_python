@@ -54,7 +54,7 @@ def trade_dict_to_list(trade_dict: dict,
         print("Trade date is missing, skipping this trade")
         return None
 
-    rtrs_is_duplicate = lambda trade_dict: rtrs_control_number_and_is_duplicate_flag[rtrs_control_number_and_is_duplicate_flag['rtrs_control_number'] == trade_dict['rtrs_control_number']][IS_DUPLICATE].iloc[0]
+    rtrs_is_duplicate = lambda trade_dict: rtrs_control_number_and_is_duplicate_flag.get(trade_dict['rtrs_control_number'], False)    # if rtrs_control_number not found in dict, then assume that it is not a duplicate trade
     if remove_duplicates_from_trade_history and rtrs_is_duplicate(trade_dict): return None
 
     if remove_non_transaction_based == True and trade_dict['is_non_transaction_based_compensation'] == True:

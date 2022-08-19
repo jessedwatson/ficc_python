@@ -116,7 +116,7 @@ def process_trade_history(query,
                                                                                                 remove_trade_type,
                                                                                                 trade_history_delay, 
                                                                                                 remove_duplicates_from_trade_history, 
-                                                                                                trade_dataframe[['rtrs_control_number', IS_DUPLICATE]] if IS_DUPLICATE in trade_dataframe.columns else None]))    # trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay,  remove_duplicates_from_trade_history]))
+                                                                                                dict(zip(trade_dataframe['rtrs_control_number'], trade_dataframe[IS_DUPLICATE])) if IS_DUPLICATE in trade_dataframe.columns else None]))    # trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay,  remove_duplicates_from_trade_history]))
     print('Trade history created')
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
