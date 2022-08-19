@@ -149,26 +149,26 @@ def add_same_day_flag(df, flag_name):
     return df
 
 
-def _add_duplicate_flag_for_group(group_df, flag_name, orig_df=None):
-    '''Mark a trade as duplicate if there is a previous trade on the same 
+def _add_replica_flag_for_group(group_df, flag_name, orig_df=None):
+    '''Mark a trade as a replica if there is a previous trade on the same 
     day with the same price, same direction, and same quantity. The idea 
     of marking these trades is to exclude them from the trade history, as 
     these trades are probably being sold in the same block, and so having 
     all of these trades in the trade history would be less economically 
     meaningful in the trade history. All except the earliest trade in this 
-    group are marked as duplicate.'''
+    group are marked as a replica.'''
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade is identical to another trade that occurs during the same day'
     if orig_df is None: orig_df = group_df
     if len(group_df) < 2: return orig_df    # dataframe has a size less than 2
-    # mark all but the earliest trade as duplicate
+    # mark all but the earliest trade as a replica
     _, all_but_earliest_index = get_most_recent_index_and_others(group_df, get_earliest_index=True)
 
     orig_df.loc[all_but_earliest_index, flag_name] = True    # orig_df[flag_name][all_but_earliest_index] = True
     return orig_df
 
 
-def add_duplicate_flag(df, flag_name):
-    '''Call `_add_duplicate_flag_for_group(...)` on each group as 
+def add_replica_flag(df, flag_name):
+    '''Call `_add_replica_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
     if flag_name in df.columns and df[flag_name].any(): return df
     print(f'Adding {flag_name} flag to data')
@@ -186,5 +186,5 @@ def add_duplicate_flag(df, flag_name):
     groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), quantity_feature, 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
     groups_same_day_quantity_price_tradetype_cusip_largerthan1 = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if len(group_df) > 1]
     for group_df in groups_same_day_quantity_price_tradetype_cusip_largerthan1:
-        df = _add_duplicate_flag_for_group(group_df, flag_name, df)
+        df = _add_replica_flag_for_group(group_df, flag_name, df)
     return df

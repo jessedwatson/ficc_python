@@ -63,9 +63,9 @@ if __name__ == "__main__":
                               remove_short_maturity=True,
                               remove_non_transaction_based=False,
                               remove_trade_type = [], 
-                              remove_duplicates_from_trade_history=True, 
+                              remove_replicas_from_trade_history=True, 
                               trade_history_delay = 1,
                               min_trades_in_history = 0,
                               process_ratings=False, 
                               add_flags=True)
-    trade_data.to_pickle('processed_data_ficc_with_flags_no_duplicates_in_trade_history_2021_12_31.pkl')
+    trade_data.to_pickle('processed_data_ficc_with_flags_no_replicas_in_trade_history_2021_12_31.pkl')

@@ -11,8 +11,8 @@ import pandas as pd
 import pickle5 as pickle
 
 from ficc.utils.auxiliary_functions import sqltodf, process_ratings, convert_object_to_category, convert_calc_date_to_category
-from ficc.utils.auxiliary_variables import IS_DUPLICATE
-from ficc.utils.adding_flags import add_duplicate_flag
+from ficc.utils.auxiliary_variables import IS_REPLICA
+from ficc.utils.adding_flags import add_replica_flag
 from ficc.utils.pad_trade_history import pad_trade_history
 import ficc.utils.globals as globals
 from ficc.utils.ficc_calc_end_date import calc_end_date
@@ -53,7 +53,7 @@ def process_trade_history(query,
                           remove_non_transaction_based,
                           remove_trade_type, 
                           trade_history_delay, 
-                          remove_duplicates_from_trade_history, 
+                          remove_replicas_from_trade_history, 
                           min_trades_in_history, 
                           drop_ratings):
     
@@ -101,9 +101,9 @@ def process_trade_history(query,
     if len(remove_trade_type) > 0:
         print(f"Removing trade types {remove_trade_type}")
 
-    if remove_duplicates_from_trade_history:
-        print(f'Marking trades with the {IS_DUPLICATE} flag in order to remove them from the trade history')
-        trade_dataframe = add_duplicate_flag(trade_dataframe, IS_DUPLICATE)
+    if remove_replicas_from_trade_history:
+        print(f'Marking trades with the {IS_REPLICA} flag in order to remove them from the trade history')
+        trade_dataframe = add_replica_flag(trade_dataframe, IS_REPLICA)
 
     print('Getting last dollar price and calc date')
     temp_df = trade_dataframe.recent.apply(lambda x:(x[0]['dollar_price'], x[0]['calc_date'], x[0]['maturity_date'], x[0]['next_call_date'], x[0]['par_call_date'], x[0]['refund_date']))
@@ -115,8 +115,8 @@ def process_trade_history(query,
                                                                                                 remove_non_transaction_based,
                                                                                                 remove_trade_type,
                                                                                                 trade_history_delay, 
-                                                                                                remove_duplicates_from_trade_history, 
-                                                                                                dict(zip(trade_dataframe['rtrs_control_number'], trade_dataframe[IS_DUPLICATE])) if IS_DUPLICATE in trade_dataframe.columns else None]))    # trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay,  remove_duplicates_from_trade_history]))
+                                                                                                remove_replicas_from_trade_history, 
+                                                                                                dict(zip(trade_dataframe['rtrs_control_number'], trade_dataframe[IS_REPLICA])) if IS_REPLICA in trade_dataframe.columns else None]))    # trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay,  remove_replicas_from_trade_history]))
     print('Trade history created')
 
     trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)

@@ -18,7 +18,7 @@ from datetime import datetime
 
 from ficc.utils.mmd_ycl import mmd_ycl
 from ficc.utils.diff_in_days import diff_in_days_two_dates
-from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, IS_DUPLICATE
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, IS_REPLICA
 from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
 
@@ -27,8 +27,8 @@ def trade_dict_to_list(trade_dict: dict,
                        remove_non_transaction_based, 
                        remove_trade_type, 
                        trade_history_delay, 
-                       remove_duplicates_from_trade_history, 
-                       rtrs_control_number_and_is_duplicate_flag) -> list:
+                       remove_replicas_from_trade_history, 
+                       rtrs_control_number_and_is_replica_flag) -> list:
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
@@ -54,8 +54,8 @@ def trade_dict_to_list(trade_dict: dict,
         print("Trade date is missing, skipping this trade")
         return None
 
-    rtrs_is_duplicate = lambda trade_dict: rtrs_control_number_and_is_duplicate_flag.get(trade_dict['rtrs_control_number'], False)    # if rtrs_control_number not found in dict, then assume that it is not a duplicate trade
-    if remove_duplicates_from_trade_history and rtrs_is_duplicate(trade_dict): return None
+    rtrs_is_replica = lambda trade_dict: rtrs_control_number_and_is_replica_flag.get(trade_dict['rtrs_control_number'], False)    # if rtrs_control_number not found in dict, then assume that it is not a replica trade
+    if remove_replicas_from_trade_history and rtrs_is_replica(trade_dict): return None
 
     if remove_non_transaction_based == True and trade_dict['is_non_transaction_based_compensation'] == True:
         return None
