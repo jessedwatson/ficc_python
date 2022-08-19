@@ -90,7 +90,14 @@ def add_bookkeeping_flag(df, flag_name):
 def add_bookkeeping_flag(df, flag_name):
     '''Re-use implementation of `add_replica_flag(...)` for this 
     function.'''
-    return add_replica_flag(df[df['trade_type'] == 'D'], flag_name)
+    if flag_name in df.columns and df[flag_name].any(): return df
+    print(f'Adding {flag_name} flag to data')
+    df = df.copy()
+    if flag_name not in df.columns: df[flag_name] = False
+
+    df_with_bookkeeping_flag = add_replica_flag(df[df['trade_type'] == 'D'], flag_name)
+    df.loc[df_with_bookkeeping_flag.index.to_list(), flag_name] = True
+    return df
 
 
 def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
