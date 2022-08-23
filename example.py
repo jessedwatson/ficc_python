@@ -15,13 +15,9 @@
 	#   7. A list containing the features that will be used for training. This is an optional parameter
  '''
 
-
-import ficc.utils.globals as globals
 import os
-import pickle5 as pickle
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_variables import PREDICTORS
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 SEQUENCE_LENGTH = 5
