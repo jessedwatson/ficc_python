@@ -181,25 +181,12 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR):
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
 
-    # # add datetime date column to the dataframe
-    # TRADE_DATETIME_DATE = 'trade_datetime_date'
-    # assert TRADE_DATETIME_DATE not in df.columns
-    # df[TRADE_DATETIME_DATE] = df['trade_datetime'].dt.date
-
     # # for each NTBC customer trade, mark the closest inter-dealer trade on that day with the same quantity, price, and cusip
-    features_to_match = ['cusip', 'trade_datetime', 'quantity', 'dollar_price']    # ['cusip', TRADE_DATETIME_DATE, 'quantity', 'dollar_price']
+    features_to_match = ['cusip', 'trade_datetime', 'quantity', 'dollar_price']
     condition_based_on_features_to_match = ' & '.join([f'(df[{feature}] == ntbc_trade[{feature}])' for feature in features_to_match])
     for _, ntbc_trade in df[df['is_non_transaction_based_compensation'] & (df['trade_type'] in {'S', 'P'})].iterrows():    # need the `ntbc_trade` variable name when evaluating `condition_based_on_features_to_match`
         ntbc_precursor_candidates = df[eval(condition_based_on_features_to_match)]
         if len(ntbc_precursor_candidates) != 1: print(f'{len(ntbc_precursor_candidates)} candidates found for rtrs control number: {ntbc_trade["rtrs_control_number"]}')
         df.loc[ntbc_precursor_candidates.index.to_list(), flag_name] = True
-    #     ntbc_precursor_idx = None
-    #     ntbc_precursor_time_delta_seconds = np.inf
-    #     ntbc_trade_datetime = ntbc_trade['trade_datetime']
-    #     for ntbc_precursor_candidate_idx, ntbc_precursor_candidate in ntbc_precursor_candidates.iterrows():
-    #         ntbc_precursor_candidate_time_delta_seconds = abs((ntbc_trade_datetime - ntbc_precursor_candidate['trade_datetime']) / pd.Timedelta(minutes=1))
-    #         if ntbc_precursor_candidate_time_delta_seconds <= ntbc_precursor_time_delta_seconds: ntbc_precursor_idx = ntbc_precursor_candidate_idx
-    #         ntbc_precursor_time_delta_seconds = min(ntbc_precursor_time_delta_seconds, ntbc_precursor_candidate_time_delta_seconds)
-    #     if ntbc_precursor_idx != None: df.loc[ntbc_precursor_idx, flag_name] = True
 
-    return df    # df.drop(columns=[TRADE_DATETIME_DATE])
+    return df
