@@ -9,6 +9,8 @@
 import numpy as np
 import pandas as pd
 
+from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR
+
 # from ficc.utils.auxiliary_variables import SPECIAL_CONDITIONS
 # SPECIAL_CONDITIONS_TO_FILTER_ON = [condition for condition in SPECIAL_CONDITIONS if condition != 'is_alternative_trading_system']    # this removes conditions that we do not want to group on
 
@@ -167,3 +169,37 @@ def add_replica_flag(df, flag_name):
     for group_df in groups_same_day_quantity_price_tradetype_cusip:
         df = _add_replica_flag_for_group(group_df, flag_name, df)
     return df
+
+
+def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR):
+    '''This flag denotes an inter-dealer trade that is the closest inter-dealer 
+    trade to a non-transaction-based-compensation customer trade with the same 
+    price and quantity. The idea for marking it is that this inter-dealer trade 
+    may not be a genuine (i.e., window-dressing).'''
+    if flag_name in df.columns and df[flag_name].any(): return df
+    print(f'Adding {flag_name} flag to data')
+    df = df.copy()
+    if flag_name not in df.columns: df[flag_name] = False
+
+    # # add datetime date column to the dataframe
+    # TRADE_DATETIME_DATE = 'trade_datetime_date'
+    # assert TRADE_DATETIME_DATE not in df.columns
+    # df[TRADE_DATETIME_DATE] = df['trade_datetime'].dt.date
+
+    # # for each NTBC customer trade, mark the closest inter-dealer trade on that day with the same quantity, price, and cusip
+    features_to_match = ['cusip', 'trade_datetime', 'quantity', 'dollar_price']    # ['cusip', TRADE_DATETIME_DATE, 'quantity', 'dollar_price']
+    condition_based_on_features_to_match = ' & '.join([f'(df[{feature}] == ntbc_trade[{feature}])' for feature in features_to_match])
+    for _, ntbc_trade in df[df['is_non_transaction_based_compensation'] & (df['trade_type'] in {'S', 'P'})].iterrows():    # need the `ntbc_trade` variable name when evaluating `condition_based_on_features_to_match`
+        ntbc_precursor_candidates = df[eval(condition_based_on_features_to_match)]
+        if len(ntbc_precursor_candidates) != 1: print(f'{len(ntbc_precursor_candidates)} candidates found for rtrs control number: {ntbc_trade["rtrs_control_number"]}')
+        df.loc[ntbc_precursor_candidates.index.to_list(), flag_name] = True
+    #     ntbc_precursor_idx = None
+    #     ntbc_precursor_time_delta_seconds = np.inf
+    #     ntbc_trade_datetime = ntbc_trade['trade_datetime']
+    #     for ntbc_precursor_candidate_idx, ntbc_precursor_candidate in ntbc_precursor_candidates.iterrows():
+    #         ntbc_precursor_candidate_time_delta_seconds = abs((ntbc_trade_datetime - ntbc_precursor_candidate['trade_datetime']) / pd.Timedelta(minutes=1))
+    #         if ntbc_precursor_candidate_time_delta_seconds <= ntbc_precursor_time_delta_seconds: ntbc_precursor_idx = ntbc_precursor_candidate_idx
+    #         ntbc_precursor_time_delta_seconds = min(ntbc_precursor_time_delta_seconds, ntbc_precursor_candidate_time_delta_seconds)
+    #     if ntbc_precursor_idx != None: df.loc[ntbc_precursor_idx, flag_name] = True
+
+    return df    # df.drop(columns=[TRADE_DATETIME_DATE])
