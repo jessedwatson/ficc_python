@@ -188,12 +188,12 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR):
     condition_based_on_features_to_match = ' & '.join([f'(df["{feature}"] == ntbc_trade["{feature}"])' for feature in features_to_match])
     for _, ntbc_trade in df[df['is_non_transaction_based_compensation'] & ((df['trade_type'] == 'S') | (df['trade_type'] == 'P'))].iterrows():    # need the `ntbc_trade` variable name when evaluating `condition_based_on_features_to_match`
         ntbc_precursor_candidates = df[eval(condition_based_on_features_to_match)]
+        ntbc_precursor_candidates = ntbc_precursor_candidates[ntbc_precursor_candidates['trade_type'] == 'D']
         num_ntbc_precursor_candidates = len(ntbc_precursor_candidates)
         if num_ntbc_precursor_candidates != 1: 
             # print(f'{len(ntbc_precursor_candidates)} candidates found for rtrs control number: {ntbc_trade["rtrs_control_number"]}')
             if num_ntbc_precursor_candidates not in multiple_candidates: multiple_candidates[num_ntbc_precursor_candidates] = []
             multiple_candidates[num_ntbc_precursor_candidates].append(ntbc_trade['rtrs_control_number'])
-        ntbc_precursor_candidates = ntbc_precursor_candidates[ntbc_precursor_candidates['trade_type'] == 'D']
         df.loc[ntbc_precursor_candidates.index.to_list(), flag_name] = True
 
     return df, multiple_candidates
