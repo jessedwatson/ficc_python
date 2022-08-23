@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-08-17 14:18:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-08-23 09:06:07
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -12,23 +12,18 @@
  # Taking the log of the number of seconds between the historical trade and the latest trade
  '''
 
-from ast import Is
 import numpy as np
 from datetime import datetime
 
+from pandas import ExcelFile
+
 from ficc.utils.mmd_ycl import mmd_ycl
 from ficc.utils.diff_in_days import diff_in_days_two_dates
-from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, IS_REPLICA
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
 
-def trade_dict_to_list(trade_dict: dict, 
-                       remove_short_maturity, 
-                       remove_non_transaction_based, 
-                       remove_trade_type, 
-                       trade_history_delay, 
-                       remove_replicas_from_trade_history, 
-                       rtrs_control_number_and_is_replica_flag) -> list:
+def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay) -> list:
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
@@ -36,7 +31,7 @@ def trade_dict_to_list(trade_dict: dict,
         print('rtrs control number is missing, skipping this trade')
         return None
 
-    # Checking if the seconds ago feature is missing
+    # Checking if the seconds a go feature is missing
     if trade_dict['seconds_ago'] is None:
         print('Seconds a go missing, skipping this trade')
         return None
@@ -53,10 +48,7 @@ def trade_dict_to_list(trade_dict: dict,
     else:
         print("Trade date is missing, skipping this trade")
         return None
-
-    rtrs_is_replica = lambda trade_dict: rtrs_control_number_and_is_replica_flag.get(trade_dict['rtrs_control_number'], False)    # if rtrs_control_number not found in dict, then assume that it is not a replica trade
-    if remove_replicas_from_trade_history and rtrs_is_replica(trade_dict): return None
-
+    
     if remove_non_transaction_based == True and trade_dict['is_non_transaction_based_compensation'] == True:
         return None
 
@@ -84,7 +76,8 @@ def trade_dict_to_list(trade_dict: dict,
         yield_at_that_time = yield_curve_level(time_to_maturity,
                                                target_date,
                                                globals.nelson_params, 
-                                               globals.scalar_params)
+                                               globals.scalar_params,
+                                               globals.shape_parameter)
 
         if trade_dict['yield'] is not None:
             trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
@@ -111,6 +104,9 @@ def trade_dict_to_list(trade_dict: dict,
         else:
             print('Yield is missing, skipping this trade')
             return None
+    
+    elif globals.YIELD_CURVE_TO_USE.upper() == "MSRB_YTW":
+        trade_list.append(trade_dict['yield'] * 100)
         
     for key in ['par_traded','trade_type','seconds_ago']:
         if trade_dict[key] is None:
