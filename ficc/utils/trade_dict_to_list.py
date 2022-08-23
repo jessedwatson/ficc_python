@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-17 13:55:40
+ # @ Modified time: 2022-08-23 09:06:07
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -76,7 +76,8 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, remove_non_trans
         yield_at_that_time = yield_curve_level(time_to_maturity,
                                                target_date,
                                                globals.nelson_params, 
-                                               globals.scalar_params)
+                                               globals.scalar_params,
+                                               globals.shape_parameter)
 
         if trade_dict['yield'] is not None:
             trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
