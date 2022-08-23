@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-15 14:05:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-02-03 15:48:40
+ # @ Modified time: 2022-08-22 16:01:36
  # @ Description: The file contains variables which are used across 
                   the data processing module
  '''
@@ -22,3 +22,6 @@ def init():
 
     global mmd_ycl
     mmd_ycl = None
+
+    global shape_parameter
+    shape_parameter = None
