@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-16 09:46:12
+ # @ Modified time: 2022-08-23 09:27:41
  # @ Description:
  '''
 
@@ -106,8 +106,8 @@ def process_trade_history(query,
         trade_dataframe = add_replica_flag(trade_dataframe, IS_REPLICA)
 
     print('Getting last dollar price and calc date')
-    temp_df = trade_dataframe.recent.apply(lambda x:(x[0]['dollar_price'], x[0]['calc_date'], x[0]['maturity_date'], x[0]['next_call_date'], x[0]['par_call_date'], x[0]['refund_date']))
-    trade_dataframe[['last_dollar_price', 'last_calc_date', 'last_maturity_date', 'last_next_call_date', 'last_par_call_date', 'last_refund_date']] = pd.DataFrame(temp_df.tolist(), index=trade_dataframe.index)    
+    temp_df = trade_dataframe.recent.apply(lambda x:(x[0]['dollar_price'], x[0]['calc_date'], x[0]['maturity_date'], x[0]['next_call_date'], x[0]['par_call_date'], x[0]['refund_date'], x[0]['trade_datetime']))
+    trade_dataframe[['last_dollar_price', 'last_calc_date', 'last_maturity_date', 'last_next_call_date', 'last_par_call_date', 'last_refund_date','last_trade_datetime']] = pd.DataFrame(temp_df.tolist(), index=trade_dataframe.index)    
     trade_dataframe['last_calc_day_cat'] = trade_dataframe.apply(convert_calc_date_to_category, axis=1)
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')

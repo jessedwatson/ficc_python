@@ -2,14 +2,16 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-11 12:48:11
+ # @ Modified time: 2022-08-23 09:52:02
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
  # instead of grabbing them from memory store
  '''
 
+from ftplib import ftpcp
 import numpy as np 
+from pandas.tseries.offsets import BDay
 
 PROJECT_ID = "eng-reactor-287421"
 
@@ -41,7 +43,7 @@ def laguerre_transformation(t, L):
     return (L*(1-np.exp(-t/L))/t) -np.exp(-t/L)
 
 
-def load_model_parameters(target_date, nelson_params, scalar_params):
+def load_model_parameters(target_date, nelson_params, scalar_params, shape_parameter):
     '''
     This function grabs the nelson siegel and standard scalar coefficient from the dataframes 
     '''
@@ -52,8 +54,13 @@ def load_model_parameters(target_date, nelson_params, scalar_params):
     # target_date = cloz_dict[min(cloz_dict.keys())].date().strftime('%Y-%m-%d')
     nelson_coeff = nelson_params[target_date].values()
     scalar_coeff = scalar_params[target_date].values()
-
-    return nelson_coeff, scalar_coeff
+    
+    try:
+        shape_param = shape_parameter[target_date]['L']
+    except Exception as e:
+        shape_param = shape_parameter[target_date - BDay(1)]['L']
+    
+    return nelson_coeff, scalar_coeff, shape_param
 
 
 ###Functions used for prediction  Function to 
@@ -97,7 +104,7 @@ def predict_ytw(t:np.array, const:float , exponential:float , laguerre:float , e
     return const + exponential*X1 + laguerre*X2
 
 
-def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_params):
+def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_params, shape_paramter):
     '''
     This is the main function takes as input a json containing two arguments: the maturity we want the yield-to-worst for and the target 
     ate from which we want the yield curve used in the ytw calculations to be from. There are several conditional statements to deal with
@@ -112,12 +119,14 @@ def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_par
     #If a target_date is provided but it is in an invalid format, then the correct values from the model and scaler parameters cannot be
     #retrieved, and an error is also returned.
     try:
-        nelson_siegel_daily_coef, scaler_daily_parameters = load_model_parameters(target_date, nelson_params, scalar_params)
+        nelson_siegel_daily_coef, scaler_daily_parameters, shape_param = load_model_parameters(target_date, nelson_params, scalar_params, shape_paramter)
     except Exception as e:
         raise e 
     
     const, exponential, laguerre = nelson_siegel_daily_coef
     exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters
+    global L
+    L = shape_param
     
     #If the function gets this far, the values are correct. A prediction is made and returned appropriately.
     prediction = predict_ytw(t, const, exponential, laguerre, exponential_mean, exponential_std, laguerre_mean, laguerre_std)
