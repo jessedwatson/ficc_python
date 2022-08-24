@@ -58,7 +58,7 @@ def indices_to_remove_from_beginning_or_end_to_reach_sum(lst, target_sum):
     return None    # no such sublist found
 
 
-def add_bookkeeping_flag(df, flag_name):
+def add_bookkeeping_flag(df, flag_name=IS_BOOKKEEPING):
     '''Re-use implementation of `add_replica_flag(...)` for this 
     function.'''
     if flag_name in df.columns and df[flag_name].any(): return df
@@ -116,7 +116,7 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
     return orig_df
 
 
-def add_same_day_flag(df, flag_name):
+def add_same_day_flag(df, flag_name=IS_SAME_DAY):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
     if flag_name in df.columns and df[flag_name].any(): return df
@@ -148,7 +148,7 @@ def _add_replica_flag_for_group(group_df, flag_name, orig_df=None):
     return orig_df
 
 
-def add_replica_flag(df, flag_name):
+def add_replica_flag(df, flag_name=IS_REPLICA):
     '''Call `_add_replica_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
     if flag_name in df.columns and df[flag_name].any(): return df
