@@ -171,20 +171,21 @@ def add_replica_flag(df, flag_name):
     return df
 
 
-def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR):
+def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, return_candidates_dict=False):
     '''This flag denotes an inter-dealer trade that is the closest inter-dealer 
     trade to a non-transaction-based-compensation customer trade with the same 
     price and quantity. The idea for marking it is that this inter-dealer trade 
     may not be a genuine (i.e., window-dressing). Note that we have a one minute 
     buffer between two trade_datetime's since we see examples in the data (e.g., 
     cusip 549696RS3, trade_datetime 2022-04-01) having the corresponding 
-    inter-dealer trade occurring 4 seconds before the custoemr bought trade.'''
+    inter-dealer trade occurring 4 seconds before the custoemr bought trade. 
+    The `return_candidates_dict` argument is used for debugging only.'''
     if flag_name in df.columns and df[flag_name].any(): return df
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
 
-    multiple_candidates = dict()
+    if return_candidates_dict: multiple_candidates = dict()    # initialize the dictionary
 
     # # for each NTBC customer trade, mark the closest inter-dealer trade on that day with the same quantity, price, and cusip
     features_to_match = ['cusip', 'quantity', 'dollar_price']
@@ -192,11 +193,11 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR):
     for _, ntbc_trade in df[df['is_non_transaction_based_compensation'] & ((df['trade_type'] == 'S') | (df['trade_type'] == 'P'))].iterrows():    # need the `ntbc_trade` variable name when evaluating `condition_based_on_features_to_match`
         ntbc_precursor_candidates = df[eval(condition_based_on_features_to_match)]
         ntbc_precursor_candidates = ntbc_precursor_candidates[(ntbc_precursor_candidates['trade_type'] == 'D') & (abs((ntbc_trade['trade_datetime'] - ntbc_precursor_candidates['trade_datetime']) / pd.Timedelta(minutes=1)) <= 1)]    # candidates must be inter-dealer trades within 1 minute
-        num_ntbc_precursor_candidates = len(ntbc_precursor_candidates)
-        if num_ntbc_precursor_candidates != 1: 
+        if return_candidates_dict and len(ntbc_precursor_candidates) != 1: 
             # print(f'{len(ntbc_precursor_candidates)} candidates found for rtrs control number: {ntbc_trade["rtrs_control_number"]}')
+            num_ntbc_precursor_candidates = len(ntbc_precursor_candidates)
             if num_ntbc_precursor_candidates not in multiple_candidates: multiple_candidates[num_ntbc_precursor_candidates] = []
             multiple_candidates[num_ntbc_precursor_candidates].append(ntbc_trade['rtrs_control_number'])
         df.loc[ntbc_precursor_candidates.index.to_list(), flag_name] = True
 
-    return df, multiple_candidates
+    return (df, multiple_candidates) if return_candidates_dict else df
