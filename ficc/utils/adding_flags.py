@@ -191,6 +191,9 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, return_candidates_dict
     df[TRADE_DATETIME_DATE] = df['trade_datetime'].dt.date
 
     if return_candidates_dict: multiple_candidates = dict()    # initialize the dictionary
+    def store_trade(trade, num_candidates):
+        if num_candidates not in multiple_candidates: multiple_candidates[num_candidates] = []
+        multiple_candidates[num_candidates].append((trade['cusip'], trade['rtrs_control_number'], trade['trade_datetime']))
     
     dd = df[df['trade_type'] == 'D']    # any NTBC precursor candidate must be an inter-dealer trade
     # for each NTBC customer trade, the inter-dealer trade must be on that day with the same quantity, price, and cusip
@@ -201,13 +204,8 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, return_candidates_dict
         group_header = tuple([ntbc_trade[feature] for feature in features_to_match])    # group header must be immutable, hence the tuple
         if group_header in ntbc_precursor_candidates_group_headers:    # group header must exist in the `ntbc_precursor_candidates_groups` for there to be trades to mark
             ntbc_precursor_candidates = ntbc_precursor_candidates_groups.get_group(group_header)
-            if return_candidates_dict and len(ntbc_precursor_candidates) != 1: 
-                num_ntbc_precursor_candidates = len(ntbc_precursor_candidates)
-                if num_ntbc_precursor_candidates not in multiple_candidates: multiple_candidates[num_ntbc_precursor_candidates] = []
-                multiple_candidates[num_ntbc_precursor_candidates].append(ntbc_trade['rtrs_control_number'])
+            if return_candidates_dict: store_trade(ntbc_trade, len(ntbc_precursor_candidates))
             df.loc[ntbc_precursor_candidates.index.to_list(), flag_name] = True
-        elif return_candidates_dict:    # logs the situation in `multiple_candidates` when no candidates are found
-            if 0 not in multiple_candidates: multiple_candidates[0] = []
-            multiple_candidates[0].append(ntbc_trade['rtrs_control_number'])
+        elif return_candidates_dict: store_trade(ntbc_trade, 0)   # logs the situation in `multiple_candidates` when no candidates are found
     df = df.drop(columns=[TRADE_DATETIME_DATE])
     return (df, multiple_candidates) if return_candidates_dict else df
