@@ -205,4 +205,5 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, return_candidates_dict
             multiple_candidates[num_ntbc_precursor_candidates].append(ntbc_trade['rtrs_control_number'])
         df.loc[ntbc_precursor_candidates.index.to_list(), flag_name] = True
 
+    df = df.drop(columns=[TRADE_DATETIME_DATE])
     return (df, multiple_candidates) if return_candidates_dict else df
