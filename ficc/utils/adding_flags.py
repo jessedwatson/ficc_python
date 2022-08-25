@@ -195,7 +195,7 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, return_candidates_dict
     dd = df[df['trade_type'] == 'D']    # any NTBC precursor candidate must be an inter-dealer trade
     # for each NTBC customer trade, the inter-dealer trade must be on that day with the same quantity, price, and cusip
     features_to_match = ['cusip', 'quantity', 'dollar_price', TRADE_DATETIME_DATE]
-    ntbc_precursor_candidates_groups = dd.group_by(features_to_match)
+    ntbc_precursor_candidates_groups = dd.groupby(features_to_match)
     for _, ntbc_trade in df[df['is_non_transaction_based_compensation'] & ((df['trade_type'] == 'S') | (df['trade_type'] == 'P'))].iterrows():    # need the `ntbc_trade` variable name when evaluating `condition_based_on_features_to_match`
         ntbc_precursor_candidates = ntbc_precursor_candidates_groups.get_group(tuple([ntbc_trade[feature] for feature in features_to_match]))    # group header must be immutable, hence the tuple
         if return_candidates_dict and len(ntbc_precursor_candidates) != 1: 
