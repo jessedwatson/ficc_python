@@ -200,7 +200,7 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, return_candidates_dict
     for _, ntbc_trade in df[df['is_non_transaction_based_compensation'] & ((df['trade_type'] == 'S') | (df['trade_type'] == 'P'))].iterrows():    # need the `ntbc_trade` variable name when evaluating `condition_based_on_features_to_match`
         group_header = tuple([ntbc_trade[feature] for feature in features_to_match])    # group header must be immutable, hence the tuple
         if group_header in ntbc_precursor_candidates_group_headers:    # group header must exist in the `ntbc_precursor_candidates_groups` for there to be trades to mark
-            ntbc_precursor_candidates = ntbc_precursor_candidates_groups.get_group()
+            ntbc_precursor_candidates = ntbc_precursor_candidates_groups.get_group(group_header)
             if return_candidates_dict and len(ntbc_precursor_candidates) != 1: 
                 num_ntbc_precursor_candidates = len(ntbc_precursor_candidates)
                 if num_ntbc_precursor_candidates not in multiple_candidates: multiple_candidates[num_ntbc_precursor_candidates] = []
