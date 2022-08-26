@@ -41,7 +41,7 @@ def process_data(query,
                  min_trades_in_history=2, 
                  process_ratings=True, 
                  keep_nan=False, 
-                 add_flags=False, 
+                 add_flags=True, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
