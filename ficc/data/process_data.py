@@ -23,8 +23,7 @@ from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
-from ficc.utils.auxiliary_variables import IS_BOOKKEEPING, IS_SAME_DAY, IS_REPLICA
-from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_replica_flag
+from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_ntbc_precursor_flag    # add_replica_flag
 
 
 def process_data(query, 
@@ -37,12 +36,12 @@ def process_data(query,
                  remove_short_maturity=False, 
                  remove_non_transaction_based=False, 
                  remove_trade_type=[], 
-                 remove_replicas_from_trade_history=False, 
+                 remove_replicas_from_trade_history=False,    # this should always be False since our experiments concluded that setting this to True does not improve accuracy
                  trade_history_delay=1, 
                  min_trades_in_history=2, 
                  process_ratings=True, 
                  keep_nan=False, 
-                 add_flags=False, 
+                 add_flags=True, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -101,10 +100,11 @@ def process_data(query,
         trades_df.dropna(inplace=True)
 
     if add_flags:    # add additional flags to the data
-        if IS_REPLICA not in trades_df.columns:
-            trades_df = add_replica_flag(trades_df, IS_REPLICA)
-        trades_df = add_bookkeeping_flag(trades_df, IS_BOOKKEEPING)
-        trades_df = add_same_day_flag(trades_df, IS_SAME_DAY)
+        # if IS_REPLICA not in trades_df.columns:
+        #     trades_df = add_replica_flag(trades_df, IS_REPLICA)    # the IS_REPLICA flag was used to remove replica trades from the trade history. See comment above in function signature
+        trades_df = add_bookkeeping_flag(trades_df)
+        trades_df = add_same_day_flag(trades_df)
+        trades_df = add_ntbc_precursor_flag(trades_df)
     
     print(f"Numbers of samples {len(trades_df)}")
     

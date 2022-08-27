@@ -86,7 +86,8 @@ BINARY = ['callable',
           'make_whole_call',
           'has_unexpired_lines_of_credit',
           'escrow_exists',
-          ]
+          IS_SAME_DAY, 
+          NTBC_PRECURSOR]
 
 CATEGORICAL_FEATURES = ['rating',
                         'incorporated_state_code',
