@@ -11,6 +11,7 @@ NUM_OF_DAYS_IN_YEAR = 360
 IS_BOOKKEEPING = 'is_bookkeeping'
 IS_SAME_DAY = 'is_same_day'
 IS_REPLICA = 'is_replica'
+NTBC_PRECURSOR = 'ntbc_precursor'
 
 COUPON_FREQUENCY_DICT = {0:"Unknown",
                          1:"Semiannually",
@@ -85,7 +86,10 @@ BINARY = ['callable',
           'make_whole_call',
           'has_unexpired_lines_of_credit',
           'escrow_exists',
-          ]
+          IS_SAME_DAY, 
+          NTBC_PRECURSOR, 
+          IS_BOOKKEEPING, 
+          IS_REPLICA]
 
 CATEGORICAL_FEATURES = ['rating',
                         'incorporated_state_code',

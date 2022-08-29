@@ -9,6 +9,8 @@
 import numpy as np
 import pandas as pd
 
+from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR
+
 # from ficc.utils.auxiliary_variables import SPECIAL_CONDITIONS
 # SPECIAL_CONDITIONS_TO_FILTER_ON = [condition for condition in SPECIAL_CONDITIONS if condition != 'is_alternative_trading_system']    # this removes conditions that we do not want to group on
 
@@ -56,7 +58,7 @@ def indices_to_remove_from_beginning_or_end_to_reach_sum(lst, target_sum):
     return None    # no such sublist found
 
 
-def add_bookkeeping_flag(df, flag_name):
+def add_bookkeeping_flag(df, flag_name=IS_BOOKKEEPING):
     '''Re-use implementation of `add_replica_flag(...)` for this 
     function.'''
     if flag_name in df.columns and df[flag_name].any(): return df
@@ -114,7 +116,7 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
     return orig_df
 
 
-def add_same_day_flag(df, flag_name):
+def add_same_day_flag(df, flag_name=IS_SAME_DAY):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
     if flag_name in df.columns and df[flag_name].any(): return df
@@ -146,7 +148,7 @@ def _add_replica_flag_for_group(group_df, flag_name, orig_df=None):
     return orig_df
 
 
-def add_replica_flag(df, flag_name):
+def add_replica_flag(df, flag_name=IS_REPLICA):
     '''Call `_add_replica_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
     if flag_name in df.columns and df[flag_name].any(): return df
@@ -167,3 +169,43 @@ def add_replica_flag(df, flag_name):
     for group_df in groups_same_day_quantity_price_tradetype_cusip:
         df = _add_replica_flag_for_group(group_df, flag_name, df)
     return df
+
+
+def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, return_candidates_dict=False):
+    '''This flag denotes an inter-dealer trade that is occurs on the same day as 
+    a non-transaction-based-compensation customer trade with the same price and 
+    quantity. The idea for marking it is that this inter-dealer trade may not be 
+    genuine (i.e., window-dressing). Note that we have a buffer of occurring on 
+    the same day since we see examples in the data (e.g., cusip 549696RS3, 
+    trade_datetime 2022-04-01) having the corresponding inter-dealer trade occurring 
+    4 seconds before, instead of the exact same time, as the customer bought trade. 
+    The `return_candidates_dict` argument is used for debugging only.'''
+    if flag_name in df.columns and df[flag_name].any(): return df
+    print(f'Adding {flag_name} flag to data')
+    df = df.copy()
+    if flag_name not in df.columns: df[flag_name] = False
+
+    # add datetime date column to the dataframe
+    TRADE_DATETIME_DATE = 'trade_datetime_date'
+    assert TRADE_DATETIME_DATE not in df.columns
+    df[TRADE_DATETIME_DATE] = df['trade_datetime'].dt.date
+
+    if return_candidates_dict: multiple_candidates = dict()    # initialize the dictionary
+    def store_trade(trade, num_candidates):
+        if num_candidates not in multiple_candidates: multiple_candidates[num_candidates] = []
+        multiple_candidates[num_candidates].append((trade['cusip'], trade['rtrs_control_number'], trade['trade_datetime']))
+    
+    dd = df[df['trade_type'] == 'D']    # any NTBC precursor candidate must be an inter-dealer trade
+    # for each NTBC customer trade, the inter-dealer trade must be on that day with the same quantity, price, and cusip
+    features_to_match = ['cusip', 'quantity', 'dollar_price', TRADE_DATETIME_DATE]
+    ntbc_precursor_candidates_groups = dd.groupby(features_to_match)
+    ntbc_precursor_candidates_group_headers = ntbc_precursor_candidates_groups.groups.keys()
+    for _, ntbc_trade in df[df['is_non_transaction_based_compensation'] & ((df['trade_type'] == 'S') | (df['trade_type'] == 'P'))].iterrows():    # need the `ntbc_trade` variable name when evaluating `condition_based_on_features_to_match`
+        group_header = tuple([ntbc_trade[feature] for feature in features_to_match])    # group header must be immutable, hence the tuple
+        if group_header in ntbc_precursor_candidates_group_headers:    # group header must exist in the `ntbc_precursor_candidates_groups` for there to be trades to mark
+            ntbc_precursor_candidates = ntbc_precursor_candidates_groups.get_group(group_header)
+            if return_candidates_dict: store_trade(ntbc_trade, len(ntbc_precursor_candidates))
+            df.loc[ntbc_precursor_candidates.index.to_list(), flag_name] = True
+        elif return_candidates_dict: store_trade(ntbc_trade, 0)   # logs the situation in `multiple_candidates` when no candidates are found
+    df = df.drop(columns=[TRADE_DATETIME_DATE])
+    return (df, multiple_candidates) if return_candidates_dict else df
