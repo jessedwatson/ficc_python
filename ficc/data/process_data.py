@@ -23,7 +23,7 @@ from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
-from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_ntbc_precursor_flag    # add_replica_flag
+from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_ntbc_precursor_flag, add_replica_flag
 
 
 def process_data(query, 
@@ -100,8 +100,7 @@ def process_data(query,
         trades_df.dropna(inplace=True)
 
     if add_flags:    # add additional flags to the data
-        # if IS_REPLICA not in trades_df.columns:
-        #     trades_df = add_replica_flag(trades_df, IS_REPLICA)    # the IS_REPLICA flag was used to remove replica trades from the trade history. See comment above in function signature
+        trades_df = add_replica_flag(trades_df)    # the IS_REPLICA flag was originally designed to remove replica trades from the trade history. We keep it in the data, but do not use it to remove trades in the trade history
         trades_df = add_bookkeeping_flag(trades_df)
         trades_df = add_same_day_flag(trades_df)
         trades_df = add_ntbc_precursor_flag(trades_df)

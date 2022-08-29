@@ -87,7 +87,9 @@ BINARY = ['callable',
           'has_unexpired_lines_of_credit',
           'escrow_exists',
           IS_SAME_DAY, 
-          NTBC_PRECURSOR]
+          NTBC_PRECURSOR, 
+          IS_BOOKKEEPING, 
+          IS_REPLICA]
 
 CATEGORICAL_FEATURES = ['rating',
                         'incorporated_state_code',
