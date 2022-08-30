@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-23 10:02:31
+ # @ Modified time: 2022-08-30 09:38:05
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -132,4 +132,6 @@ if __name__ == "__main__":
                               trade_history_delay = 1,
                               min_trades_in_history = 0,
                               process_ratings=False)
+
+
     print(trade_data)
