@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-23 09:27:41
+ # @ Modified time: 2022-08-30 09:53:35
  # @ Description:
  '''
 
@@ -111,7 +111,7 @@ def process_trade_history(query,
     trade_dataframe['last_calc_day_cat'] = trade_dataframe.apply(convert_calc_date_to_category, axis=1)
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
-    trade_dataframe['trade_history'] = trade_dataframe.recent.apply(trade_list_to_array, args=([remove_short_maturity,
+    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                                                 remove_non_transaction_based,
                                                                                                 remove_trade_type,
                                                                                                 trade_history_delay, 
@@ -126,7 +126,7 @@ def process_trade_history(query,
 
     print("Padding history")
     print(f"Minimum number of trades required in the history {min_trades_in_history}")
-    trade_dataframe.trade_history = trade_dataframe.trade_history.apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history])
+    trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history])
     print("Padding completed")
      
     trade_dataframe.dropna(subset=['trade_history', 'yield_spread'], inplace=True)
