@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-23 09:06:07
+ # @ Modified time: 2022-08-23 10:22:24
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -123,13 +123,6 @@ def trade_dict_to_list(trade_dict: dict,
     
     trade_list.append(np.float32(np.log10(trade_dict['par_traded'])))        
     trade_list += trade_type_mapping[trade_dict['trade_type']]
-
-    # For some trades the seconds ago feature is negative.
-    # This is because the publish time is after the trade datetime.
-    # We have verified that this is an anomaly on MSRBs end.
-    if trade_dict['seconds_ago'] < 0:
-        trade_list.append(0)
-    else:
-        trade_list.append(np.log10(1+trade_dict['seconds_ago']))
+    trade_list.append(np.log10(1+trade_dict['seconds_ago']))
 
     return np.stack(trade_list)
