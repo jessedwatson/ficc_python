@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-08-08 12:11:00
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-08-19 16:26:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-08-30 16:00:43
  # @ Description: Adds flags to trades to provide additional features
  '''
 
@@ -88,33 +88,41 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
     trades for that day is greater than or equal to the total cost of the dealer sell trades.'''
 
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe'
-    groups_by_trade_type = group_df.groupby('trade_type').sum()
-    if orig_df is None: orig_df = group_df
-    if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return orig_df
-    dealer_sold_indices = group_df[group_df['trade_type'] == 'S'].index.values
-    dealer_purchase_indices = group_df[group_df['trade_type'] == 'P'].index.values
-    total_dealer_sold = groups_by_trade_type.loc['S']['quantity']
-    total_dealer_purchased = groups_by_trade_type.loc['P']['quantity']
+    trade_set = set(group_df.trade_type)
+    if {'S','P'} <= trade_set:    
+        groups_by_trade_type = group_df.groupby('trade_type').sum()
+        if orig_df is None: 
+            orig_df = group_df
+        if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: 
+            return orig_df
+        dealer_sold_indices = group_df[group_df['trade_type'] == 'S'].index.values
+        dealer_purchase_indices = group_df[group_df['trade_type'] == 'P'].index.values
+        total_dealer_sold = groups_by_trade_type.loc['S']['quantity']
+        total_dealer_purchased = groups_by_trade_type.loc['P']['quantity']
 
-    indices_to_mark = []
-    if total_dealer_sold <= total_dealer_purchased:
-        indices_to_mark.extend(dealer_sold_indices)
-        for index, quantity in group_df[group_df['trade_type'] == 'D']['quantity'].iteritems():
-            if quantity == total_dealer_sold:
-                indices_to_mark.append(index)
-        
-        if total_dealer_sold == total_dealer_purchased:
-            indices_to_mark.extend(dealer_purchase_indices)
-        else:
-            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df[group_df['trade_type'] == 'P']['quantity'].values, total_dealer_sold)
-            if indices_to_remove_from_dealer_purchase_indices is not None:
-                for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
-                    dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
+        indices_to_mark = []
+        if total_dealer_sold <= total_dealer_purchased:
+            indices_to_mark.extend(dealer_sold_indices)
+            for index, quantity in group_df[group_df['trade_type'] == 'D']['quantity'].iteritems():
+                if quantity == total_dealer_sold:
+                    indices_to_mark.append(index)
+            
+            if total_dealer_sold == total_dealer_purchased:
                 indices_to_mark.extend(dealer_purchase_indices)
+            else:
+                indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df[group_df['trade_type'] == 'P']['quantity'].values, total_dealer_sold)
+                if indices_to_remove_from_dealer_purchase_indices is not None:
+                    for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
+                        dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
+                    indices_to_mark.extend(dealer_purchase_indices)
     
-    orig_df.loc[indices_to_mark, flag_name] = True
-    return orig_df
+        orig_df.loc[indices_to_mark, flag_name] = True
+        return orig_df
 
+def filer_trade_type(df):
+    trade_set = set(df.trade_type)
+    if {'S','P'} <= trade_set:
+        return df
 
 def add_same_day_flag(df, flag_name=IS_SAME_DAY):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
@@ -123,10 +131,13 @@ def add_same_day_flag(df, flag_name=IS_SAME_DAY):
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
-    groups = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])
-    groups_sp = [group_df for _, group_df in groups if {'S', 'P'} <= set(group_df['trade_type'])]
-    for group_df in groups_sp:
-        df = _add_same_day_flag_for_group(group_df, flag_name, df)
+    # groups = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'], observed=True).apply(filer_trade_type)
+    # groups_sp = [group_df for _, group_df in groups if {'S', 'P'} <= set(group_df['trade_type'])]
+    # for group_df in groups_sp:
+    # Try not to follow one parallel apply with another, otherwise you will run out of memory
+    df = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'], observed=True).apply(lambda x: _add_same_day_flag_for_group(x, flag_name,df))
+    # df = groups.parallel_apply(_add_same_day_flag_for_group, args=[flag_name,df], axis=1)
+    # df = _add_same_day_flag_for_group(group_df, flag_name, df)
     return df
 
 
@@ -151,7 +162,8 @@ def _add_replica_flag_for_group(group_df, flag_name, orig_df=None):
 def add_replica_flag(df, flag_name=IS_REPLICA):
     '''Call `_add_replica_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
-    if flag_name in df.columns and df[flag_name].any(): return df
+    if flag_name in df.columns and df[flag_name].any():
+        return df
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
     if flag_name not in df.columns: df[flag_name] = False
