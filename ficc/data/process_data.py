@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-30 09:51:42
+ # @ Modified time: 2022-09-01 10:19:27
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -41,7 +41,7 @@ def process_data(query,
                  min_trades_in_history=2, 
                  process_ratings=True, 
                  keep_nan=False, 
-                 add_flags=True, 
+                 add_flags=False, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
