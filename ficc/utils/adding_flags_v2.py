@@ -90,8 +90,7 @@ def _add_same_day_flag_for_group_v2(group_df, flag_name, orig_df=None):
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe'
     groups_by_trade_type = group_df.groupby('trade_type', observed=True)['par_traded'].sum()
     if orig_df is None: orig_df = group_df
-    # already filtered to have 'S' and 'P' in the trade_type for the group
-    # if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return orig_df
+    if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return orig_df
     dealer_sold_indices = group_df[group_df['trade_type'] == 'S'].index.values
     dealer_purchase_indices = group_df[group_df['trade_type'] == 'P'].index.values
     total_dealer_sold = groups_by_trade_type.loc['S']
@@ -127,7 +126,7 @@ def add_same_day_flag_v2(df, flag_name=IS_SAME_DAY):
     if flag_name not in df.columns: df[flag_name] = False
     groups_by_day = df.groupby(pd.Grouper(key='trade_datetime', freq='1D'), observed=True)
     for _, group_df_day in groups_by_day:
-        groups_by_day_cusip = group_df_day.groupby('cusip', observed=True).filter(lambda group_df: 'S' in group_df['trade_type'] and 'P' in group_df['trade_type'])
+        groups_by_day_cusip = group_df_day.groupby('cusip', observed=True)    # .filter(lambda group_df: 'S' in group_df['trade_type'] and 'P' in group_df['trade_type'])
         for _, group_df in groups_by_day_cusip:
             df = _add_same_day_flag_for_group_v2(group_df, flag_name, df)
     return df
@@ -175,7 +174,7 @@ def add_replica_flag_v2(df, flag_name=IS_REPLICA):
 
 
 def add_ntbc_precursor_flag_v2(df, flag_name=NTBC_PRECURSOR, return_candidates_dict=False):
-    '''This flag denotes an inter-dealer trade that is occurs on the same day as 
+    '''This flag denotes an inter-dealer trade that occurs on the same day as 
     a non-transaction-based-compensation customer trade with the same price and 
     quantity. The idea for marking it is that this inter-dealer trade may not be 
     genuine (i.e., window-dressing). Note that we have a buffer of occurring on 
@@ -212,3 +211,49 @@ def add_ntbc_precursor_flag_v2(df, flag_name=NTBC_PRECURSOR, return_candidates_d
         elif return_candidates_dict: store_trade(ntbc_trade, 0)   # logs the situation in `multiple_candidates` when no candidates are found
     df = df.drop(columns=[TRADE_DATETIME_DATE])
     return (df, multiple_candidates) if return_candidates_dict else df
+
+
+def _add_ntbc_precursor_flag_for_group_v2(group_df, flag_name, orig_df=None):
+    '''Each group has the same trade date, price, and quantity.'''
+    assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe in order to mark that this trade is identical to another trade that occurs during the same day'
+    if orig_df is None: orig_df = group_df
+    if len(group_df[(group_df['is_non_transaction_based_compensation']) & ((group_df['trade_type'] == 'S') | (group_df['trade_type'] == 'P'))]) > 0:
+        orig_df.loc[group_df[group_df['trade_type']].index.to_list(), flag_name] = True    # mark all DD trades in the group
+    return orig_df
+
+
+def add_all_flags(df):
+    '''Procedure that adds all of the flags above. Done in one procedure to reduce 
+    overhead of groupby and df copy to create overall speedup.'''
+    df = df.copy()
+    flags = [IS_SAME_DAY, IS_BOOKKEEPING, IS_REPLICA, NTBC_PRECURSOR]
+    columns_set = set(df.columns)
+    for flag in flags:
+        if flag not in columns_set: df[flag] = False
+    df['par_traded'] = df['par_traded'].astype(np.float32)    # `par_traded` type is Category so need to change it order to sum up
+    groups_by_day = df.groupby(pd.Grouper(key='trade_datetime', freq='1D'), observed=True)
+    for _, group_df_day in groups_by_day:
+        groups_by_day_cusip = group_df_day.groupby('cusip', observed=True)    # .filter(lambda group_df: 'S' in group_df['trade_type'] and 'P' in group_df['trade_type'])
+        for _, group_df in groups_by_day_cusip:
+            df = _add_same_day_flag_for_group_v2(group_df, IS_SAME_DAY, df)
+    return df
+
+
+def add_all_flags_v2(df):
+    '''Procedure that adds all of the flags above. Done in one procedure to reduce 
+    overhead of groupby and df copy to create overall speedup.'''
+    df = df.copy()
+    flags = [IS_SAME_DAY, IS_BOOKKEEPING, IS_REPLICA, NTBC_PRECURSOR]
+    columns_set = set(df.columns)
+    for flag in flags:
+        if flag not in columns_set: df[flag] = False
+    df['par_traded'] = df['par_traded'].astype(np.float32)    # `par_traded` type is Category so need to change it order to sum up
+    groups_by_day_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'], observed=True)
+    for _, group_df_day_cusip in groups_by_day_cusip:
+        df = _add_same_day_flag_for_group_v2(group_df_day_cusip, IS_SAME_DAY, df)
+        for _, group_price_quantity in groups_by_day_cusip.groupby(['dollar_price', 'quantity']):
+            df = _add_ntbc_precursor_flag_for_group_v2(group_price_quantity, NTBC_PRECURSOR, df)
+            for group_header, group_df_day_cusip_price_tradetype_quantity in group_price_quantity.groupby('trade_type'):
+                df = _add_replica_flag_for_group_v2(group_df_day_cusip_price_tradetype_quantity, IS_REPLICA, df)
+                if group_header == 'D': df = _add_replica_flag_for_group_v2(group_df_day_cusip_price_tradetype_quantity, IS_BOOKKEEPING, df)    # index 0 corresponds to trade_type
+    return df
