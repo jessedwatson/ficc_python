@@ -83,30 +83,30 @@ def _add_same_day_flag_for_group(group_df, flag_name, orig_df=None):
     includes either the first dealer purchase trade of the day and/or the last dealer 
     purchase trade of the day. We may expand this criteria to not have to include either 
     the first and/or last dealer purchase trade.
-    2. An inter-dealer trade is considered *same day* if the quantity is equal to the total 
+    2. An inter-dealer trade is considered *same day* if the par_traded is equal to the total 
     cost of the dealer sell trades for that day and if the total cost of the dealer purchase 
     trades for that day is greater than or equal to the total cost of the dealer sell trades.'''
 
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe'
-    groups_by_trade_type = group_df.groupby('trade_type').sum()
+    groups_by_trade_type = group_df.groupby('trade_type')['par_traded'].sum()
     if orig_df is None: orig_df = group_df
     if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return orig_df
     dealer_sold_indices = group_df[group_df['trade_type'] == 'S'].index.values
     dealer_purchase_indices = group_df[group_df['trade_type'] == 'P'].index.values
-    total_dealer_sold = groups_by_trade_type.loc['S']['quantity']
-    total_dealer_purchased = groups_by_trade_type.loc['P']['quantity']
+    total_dealer_sold = groups_by_trade_type.loc['S']
+    total_dealer_purchased = groups_by_trade_type.loc['P']
 
     indices_to_mark = []
     if total_dealer_sold <= total_dealer_purchased:
         indices_to_mark.extend(dealer_sold_indices)
-        for index, quantity in group_df[group_df['trade_type'] == 'D']['quantity'].iteritems():
-            if quantity == total_dealer_sold:
+        for index, par_traded in group_df[group_df['trade_type'] == 'D']['par_traded'].iteritems():
+            if par_traded == total_dealer_sold:
                 indices_to_mark.append(index)
         
         if total_dealer_sold == total_dealer_purchased:
             indices_to_mark.extend(dealer_purchase_indices)
         else:
-            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df[group_df['trade_type'] == 'P']['quantity'].values, total_dealer_sold)
+            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df[group_df['trade_type'] == 'P']['par_traded'].values, total_dealer_sold)
             if indices_to_remove_from_dealer_purchase_indices is not None:
                 for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
                     dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
@@ -122,6 +122,7 @@ def add_same_day_flag(df, flag_name=IS_SAME_DAY):
     if flag_name in df.columns and df[flag_name].any(): return df
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
+    df['par_traded'] = df['par_traded'].astype(np.float32)    # `par_traded` type is Category so need to change it order to sum up
     if flag_name not in df.columns: df[flag_name] = False
     groups = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])
     groups_sp = [group_df for _, group_df in groups if {'S', 'P'} <= set(group_df['trade_type'])]

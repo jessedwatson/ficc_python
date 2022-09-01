@@ -83,30 +83,31 @@ def _add_same_day_flag_for_group_v2(group_df, flag_name, orig_df=None):
     includes either the first dealer purchase trade of the day and/or the last dealer 
     purchase trade of the day. We may expand this criteria to not have to include either 
     the first and/or last dealer purchase trade.
-    2. An inter-dealer trade is considered *same day* if the quantity is equal to the total 
+    2. An inter-dealer trade is considered *same day* if the par_traded is equal to the total 
     cost of the dealer sell trades for that day and if the total cost of the dealer purchase 
     trades for that day is greater than or equal to the total cost of the dealer sell trades.'''
 
     assert flag_name in group_df.columns, '`{flag_name}` must be a column in the dataframe'
-    groups_by_trade_type = group_df.groupby('trade_type').sum()
+    groups_by_trade_type = group_df.groupby('trade_type', observed=True)['par_traded'].sum()
     if orig_df is None: orig_df = group_df
-    if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return orig_df
+    # already filtered to have 'S' and 'P' in the trade_type for the group
+    # if 'S' not in groups_by_trade_type.index or 'P' not in groups_by_trade_type.index: return orig_df
     dealer_sold_indices = group_df[group_df['trade_type'] == 'S'].index.values
     dealer_purchase_indices = group_df[group_df['trade_type'] == 'P'].index.values
-    total_dealer_sold = groups_by_trade_type.loc['S']['quantity']
-    total_dealer_purchased = groups_by_trade_type.loc['P']['quantity']
+    total_dealer_sold = groups_by_trade_type.loc['S']
+    total_dealer_purchased = groups_by_trade_type.loc['P']
 
     indices_to_mark = []
     if total_dealer_sold <= total_dealer_purchased:
         indices_to_mark.extend(dealer_sold_indices)
-        for index, quantity in group_df[group_df['trade_type'] == 'D']['quantity'].iteritems():
-            if quantity == total_dealer_sold:
+        for index, par_traded in group_df[group_df['trade_type'] == 'D']['par_traded'].iteritems():
+            if par_traded == total_dealer_sold:
                 indices_to_mark.append(index)
         
         if total_dealer_sold == total_dealer_purchased:
             indices_to_mark.extend(dealer_purchase_indices)
         else:
-            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df[group_df['trade_type'] == 'P']['quantity'].values, total_dealer_sold)
+            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df[group_df['trade_type'] == 'P']['par_traded'].values, total_dealer_sold)
             if indices_to_remove_from_dealer_purchase_indices is not None:
                 for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
                     dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
@@ -122,11 +123,13 @@ def add_same_day_flag_v2(df, flag_name=IS_SAME_DAY):
     if flag_name in df.columns and df[flag_name].any(): return df
     print(f'Adding {flag_name} flag to data')
     df = df.copy()
+    df['par_traded'] = df['par_traded'].astype(np.float32)    # `par_traded` type is Category so need to change it order to sum up
     if flag_name not in df.columns: df[flag_name] = False
-    groups = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])
-    groups_sp = [group_df for _, group_df in groups if {'S', 'P'} <= set(group_df['trade_type'])]
-    for group_df in groups_sp:
-        df = _add_same_day_flag_for_group_v2(group_df, flag_name, df)
+    groups_by_day = df.groupby(pd.Grouper(key='trade_datetime', freq='1D'), observed=True)
+    for _, group_df_day in groups_by_day:
+        groups_by_day_cusip = group_df_day.groupby('cusip', observed=True).filter(lambda group_df: 'S' in group_df['trade_type'] and 'P' in group_df['trade_type'])
+        for _, group_df in groups_by_day_cusip:
+            df = _add_same_day_flag_for_group_v2(group_df, flag_name, df)
     return df
 
 
@@ -164,7 +167,7 @@ def add_replica_flag_v2(df, flag_name=IS_REPLICA):
     quantity_feature = 'quantity' if 'quantity' in columns_set else 'par_traded'
     assert 'par_traded' in columns_set, 'Neither "quantity" nor "par_traded" exist in the dataframe'
 
-    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), quantity_feature, 'dollar_price', 'trade_type', 'cusip'])    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
+    groups_same_day_quantity_price_tradetype_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), quantity_feature, 'dollar_price', 'trade_type', 'cusip'], observed=True)    # considered adding SPECIAL_CONDITIONS_TO_FILTER_ON in the groupby but it makes the condition too restrictive
     groups_same_day_quantity_price_tradetype_cusip = [group_df for _, group_df in groups_same_day_quantity_price_tradetype_cusip if len(group_df) > 1]    # remove singleton groups
     for group_df in groups_same_day_quantity_price_tradetype_cusip:
         df = _add_replica_flag_for_group_v2(group_df, flag_name, df)
@@ -198,7 +201,7 @@ def add_ntbc_precursor_flag_v2(df, flag_name=NTBC_PRECURSOR, return_candidates_d
     dd = df[df['trade_type'] == 'D']    # any NTBC precursor candidate must be an inter-dealer trade
     # for each NTBC customer trade, the inter-dealer trade must be on that day with the same quantity, price, and cusip
     features_to_match = ['cusip', 'quantity', 'dollar_price', TRADE_DATETIME_DATE]
-    ntbc_precursor_candidates_groups = dd.groupby(features_to_match)
+    ntbc_precursor_candidates_groups = dd.groupby(features_to_match, observed=True)
     ntbc_precursor_candidates_group_headers = ntbc_precursor_candidates_groups.groups.keys()
     for _, ntbc_trade in df[df['is_non_transaction_based_compensation'] & ((df['trade_type'] == 'S') | (df['trade_type'] == 'P'))].iterrows():    # need the `ntbc_trade` variable name when evaluating `condition_based_on_features_to_match`
         group_header = tuple([ntbc_trade[feature] for feature in features_to_match])    # group header must be immutable, hence the tuple
