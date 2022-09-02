@@ -189,22 +189,12 @@ def add_same_day_flag_v3(df, flag_name=IS_SAME_DAY):
 def add_same_day_flag_v4(df, flag_name=IS_SAME_DAY):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
-    # print('right after function call')
     df = df.astype({'par_traded': np.float32})    # `par_traded` type is Category so need to change it order to sum up
 
-    # df = df[['trade_datetime', 'cusip', 'par_traded', 'trade_type']].copy()
     df[flag_name] = False
     group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)    # the .copy() allows for a new dataframe to be created with only the two columns as opposed to a lazy subset operation where the entire dataframe remains intact
-
-    # print('right after group by apply procedure')
-    # print(type(group_by_apply_object))
-    # print(group_by_apply_object.index)
-    # print(group_by_apply_object)
-    # print(group_by_apply_object.values.sum())
-    # assert False
     indices_to_mark = group_by_apply_object.values.sum()
     df.loc[indices_to_mark, flag_name] = True
-    # df[flag_name] = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)
     return df
 
 
