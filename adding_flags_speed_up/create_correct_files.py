@@ -21,9 +21,9 @@ FLAGS = [IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, IS_REPLICA]
 
 def load_file_and_create_datasets(filename=FILENAME):
     three_months_data = read_processed_file_pickle(filename)
-    one_day_data = three_months_data[three_months_data['trade_datetime'] <= datetime(2021, 10, 1)]
+    one_day_data = three_months_data[three_months_data['trade_datetime'] <= datetime(2021, 10, 2)]
     one_week_data = three_months_data[three_months_data['trade_datetime'] <= datetime(2021, 10, 8)]
-    one_month_data = three_months_data[three_months_data['trade_datetime'] <= datetime(2021, 10, 31)]
+    one_month_data = three_months_data[three_months_data['trade_datetime'] <= datetime(2021, 11, 1)]
     return one_day_data, one_week_data, one_month_data, three_months_data
 
 
@@ -111,15 +111,14 @@ def test_same_day_flag(data, save_filename=None, compare_filename=None):
         data.to_csv(f'./files/{save_filename}.csv')
     if compare_filename != None:
         truth = pd.read_pickle(f'./files/{compare_filename}_truth.pkl')
-        for flag in FLAGS:
-            assert data[flag].equals(truth[flag]), f'{flag} values are not equal'
-        print(f'All flags match')
+        assert data[IS_SAME_DAY].equals(truth[IS_SAME_DAY]), f'{IS_SAME_DAY} values are not equal'
+        print(f'{IS_SAME_DAY} flag matches')
     return data, elapsed_time
 
 
 def create_ground_truth_datasets():
     one_day_data, one_week_data, one_month_data, three_months_data = load_file_and_create_datasets()
-    _, elapsed_time_one_day = add_flags(one_day_data, 'one_week')
+    _, elapsed_time_one_day = add_flags(one_day_data, 'one_day')
     _, elapsed_time_one_week = add_flags(one_week_data, 'one_week')
     _, elapsed_time_one_month = add_flags(one_month_data, 'one_month')
     _, elapsed_time_three_months = add_flags(three_months_data, 'three_months')
@@ -131,15 +130,22 @@ def test_one_week():
     _, one_week_data, _, _ = load_file_and_create_datasets()
     # add_flags_v4(one_week_data, save_filename='one_week', compare_filename='one_week')
     # add_flags_v3(one_week_data, save_filename='one_week', compare_filename='one_week')
-    test_same_day_flag(one_week_data)
+    test_same_day_flag(one_week_data, compare_filename='one_week')
+
+
+def test_one_day():
+    one_day_data, _, _, _ = load_file_and_create_datasets()
+    test_same_day_flag(one_day_data, save_filename='one_day', compare_filename='one_day')
 
 
 if __name__ == '__main__':
     # create_ground_truth_datasets()
-    test_one_week()
+    # test_one_week()
+    test_one_day()
 
 
 # ##### Results #####
 # Adding `observed=True` flag to the groupby commands does not cause a speed up; leaving for now, since Charles suggested it and noticed speed ups with it in his code for other situations
 # First grouping by day and then by CUSIP did not help in speeding up the is_same_day flag procedure. Trying this idea now with all the flags at once (to reduce grouping overhead)
 # Grouping by day and then by other features in a unified procedure caused a significant slowdown. Seems like multiple group by's slow thing down tremendously. `add_all_flags_v2` is very slow (3x slower than original)
+# Using this line before calling the `is_same_day` procedure does not create any speedup: df = df[['trade_datetime', 'cusip', 'par_traded', 'trade_type']].copy()

@@ -6,6 +6,7 @@
  # @ Description: Adds flags to trades to provide additional features
  '''
 
+import time
 import numpy as np
 import pandas as pd
 
@@ -138,47 +139,69 @@ def _add_same_day_flag_for_group_v4(group_df):
     cost of the dealer sell trades for that day and if the total cost of the dealer purchase 
     trades for that day is greater than or equal to the total cost of the dealer sell trades.'''
 
-    print('right after helper function call')
-    print(group_df['trade_type'])
-    if 'S' not in group_df['trade_type'].values or 'P' not in group_df['trade_type'].values: return False
-    flag_values = np.array([False for _ in range(len(group_df))])
-    print('right after flag_values init')
+    # print('right after helper function call')
+    # print(group_df['trade_type'])
+    group_df_by_trade_type = group_df.groupby('trade_type', observed=True)
+    # print('group_df_by_trade_type', group_df_by_trade_type)
+    # if 'S' not in group_df['trade_type'].values or 'P' not in group_df['trade_type'].values: return []    # return False
+    if 'S' not in group_df_by_trade_type.groups.keys() or 'P' not in group_df_by_trade_type.groups.keys(): return []
+    # flag_values = np.array([False for _ in range(len(group_df))])
+    # print('right after flag_values init')
 
-    dd_index_locations_and_par_traded = []
-    dealer_sold_index_locations, dealer_purchase_index_locations = [], []
-    total_dealer_sold, total_dealer_purchased = 0, 0
-    for loc, row in enumerate(group_df.itertuples(index=False)):
-        trade_type, par_traded = row.__getattribute__('trade_type'), row.__getattribute__('par_traded')
-        if trade_type == 'D': dd_index_locations_and_par_traded.append((loc, par_traded))
-        elif trade_type == 'S':
-            dealer_sold_index_locations.append(loc)
-            total_dealer_sold += par_traded
-        else:
-            dealer_purchase_index_locations.append(loc)
-            total_dealer_purchased += par_traded
+    # # dd_index_locations_and_par_traded = []
+    # # dealer_sold_index_locations, dealer_purchase_index_locations = [], []
+    # dd_indices_and_par_traded = []
+    # dealer_sold_indices, dealer_purchase_indices = [], []
+    # total_dealer_sold, total_dealer_purchased = 0, 0
+    # # for loc, row in enumerate(group_df.itertuples(index=False)):
+    # group_df_dd = group_df[group_df['trade_type'] == 'D']
+    # for idx, row in group_df.iterrows():
+    #     # trade_type, par_traded = row.__getattribute__('trade_type'), row.__getattribute__('par_traded')
+    #     trade_type, par_traded = row['trade_type'], row['par_traded']
+    #     if trade_type == 'D': dd_indices_and_par_traded.append((idx, par_traded))
+    #     elif trade_type == 'S':
+    #         dealer_sold_indices.append(idx)
+    #         total_dealer_sold += par_traded
+    #     else:
+    #         dealer_purchase_indices.append(idx)
+    #         total_dealer_purchased += par_traded
 
-    # indices_to_mark = []
-    index_locations_to_mark = []
-    print('right before conditional logic')
+    dealer_sold_indices, dealer_purchase_indices = group_df_by_trade_type.get_group('S').index, group_df_by_trade_type.get_group('P').index
+
+    group_df_by_trade_type_sums = group_df_by_trade_type['par_traded'].sum()
+    total_dealer_sold, total_dealer_purchased = group_df_by_trade_type_sums['S'], group_df_by_trade_type_sums['P']
+
+    indices_to_mark = []
+    # index_locations_to_mark = []
+    # print('right before conditional logic')
     if total_dealer_sold <= total_dealer_purchased:
-        # indices_to_mark.extend(dealer_sold_indices)
-        index_locations_to_mark.extend(dealer_sold_index_locations)
-        for index_location, par_traded in dd_index_locations_and_par_traded:
-            if par_traded == total_dealer_sold: index_locations_to_mark.append(index_location)
+        indices_to_mark.extend(dealer_sold_indices)
+        # index_locations_to_mark.extend(dealer_sold_index_locations)
+        # for index_location, par_traded in dd_index_locations_and_par_traded:
+        # print('group D', group_df_by_trade_type.get_group('D'))
+        # print('group D par_traded', group_df_by_trade_type.get_group('D')['par_traded'])
+        dd_indices_to_mark = group_df[(group_df['trade_type'] == 'D') & (group_df['par_traded'] == total_dealer_sold)].index
+        # for idx, par_traded in group_df_by_trade_type.get_group('D')['par_traded'].iterrows():
+        #     # if par_traded == total_dealer_sold: index_locations_to_mark.append(index_location)
+        #     if par_traded == total_dealer_sold: indices_to_mark.append(idx)
+        indices_to_mark.extend(dd_indices_to_mark)
         
         if total_dealer_sold == total_dealer_purchased:
-            index_locations_to_mark.extend(dealer_purchase_index_locations)
+            # index_locations_to_mark.extend(dealer_purchase_index_locations)
+            indices_to_mark.extend(dealer_purchase_indices)
         else:
-            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df[group_df['trade_type'] == 'P']['par_traded'].values, total_dealer_sold)
+            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold)
             if indices_to_remove_from_dealer_purchase_indices is not None:
                 for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
-                    dealer_purchase_index_locations = np.delete(dealer_purchase_index_locations, index_to_remove, axis=0)
-                index_locations_to_mark.extend(dealer_purchase_index_locations)
+                    # dealer_purchase_index_locations = np.delete(dealer_purchase_index_locations, index_to_remove, axis=0)
+                    dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
+                # index_locations_to_mark.extend(dealer_purchase_index_locations)
+                indices_to_mark.extend(dealer_purchase_indices)
     
-    print('right before assignment')
-    flag_values[index_locations_to_mark] = True
-    print('right before return')
-    return flag_values
+    # print('right before assignment')
+    # flag_values[index_locations_to_mark] = True
+    # print('right before return')
+    return indices_to_mark    # flag_values
 
 
 def add_same_day_flag_v2(df, flag_name=IS_SAME_DAY):
@@ -206,14 +229,22 @@ def add_same_day_flag_v3(df, flag_name=IS_SAME_DAY):
 def add_same_day_flag_v4(df, flag_name=IS_SAME_DAY):
     '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
     specified in the `groupby`.'''
-    print('right after function call')
+    # print('right after function call')
     df = df.astype({'par_traded': np.float32})    # `par_traded` type is Category so need to change it order to sum up
-    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)
-    print('right after group by apply procedure')
-    print(type(group_by_apply_object))
-    print(group_by_apply_object.index)
-    assert False
-    df[flag_name] = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)
+
+    # df = df[['trade_datetime', 'cusip', 'par_traded', 'trade_type']].copy()
+    df[flag_name] = False
+    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)    # the .copy() allows for a new dataframe to be created with only the two columns as opposed to a lazy subset operation where the entire dataframe remains intact
+
+    # print('right after group by apply procedure')
+    # print(type(group_by_apply_object))
+    # print(group_by_apply_object.index)
+    # print(group_by_apply_object)
+    # print(group_by_apply_object.values.sum())
+    # assert False
+    indices_to_mark = group_by_apply_object.values.sum()
+    df.loc[indices_to_mark, flag_name] = True
+    # df[flag_name] = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)
     return df
 
 
