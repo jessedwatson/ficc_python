@@ -139,69 +139,29 @@ def _add_same_day_flag_for_group_v4(group_df):
     cost of the dealer sell trades for that day and if the total cost of the dealer purchase 
     trades for that day is greater than or equal to the total cost of the dealer sell trades.'''
 
-    # print('right after helper function call')
-    # print(group_df['trade_type'])
     group_df_by_trade_type = group_df.groupby('trade_type', observed=True)
-    # print('group_df_by_trade_type', group_df_by_trade_type)
-    # if 'S' not in group_df['trade_type'].values or 'P' not in group_df['trade_type'].values: return []    # return False
     if 'S' not in group_df_by_trade_type.groups.keys() or 'P' not in group_df_by_trade_type.groups.keys(): return []
-    # flag_values = np.array([False for _ in range(len(group_df))])
-    # print('right after flag_values init')
-
-    # # dd_index_locations_and_par_traded = []
-    # # dealer_sold_index_locations, dealer_purchase_index_locations = [], []
-    # dd_indices_and_par_traded = []
-    # dealer_sold_indices, dealer_purchase_indices = [], []
-    # total_dealer_sold, total_dealer_purchased = 0, 0
-    # # for loc, row in enumerate(group_df.itertuples(index=False)):
-    # group_df_dd = group_df[group_df['trade_type'] == 'D']
-    # for idx, row in group_df.iterrows():
-    #     # trade_type, par_traded = row.__getattribute__('trade_type'), row.__getattribute__('par_traded')
-    #     trade_type, par_traded = row['trade_type'], row['par_traded']
-    #     if trade_type == 'D': dd_indices_and_par_traded.append((idx, par_traded))
-    #     elif trade_type == 'S':
-    #         dealer_sold_indices.append(idx)
-    #         total_dealer_sold += par_traded
-    #     else:
-    #         dealer_purchase_indices.append(idx)
-    #         total_dealer_purchased += par_traded
 
     dealer_sold_indices, dealer_purchase_indices = group_df_by_trade_type.get_group('S').index, group_df_by_trade_type.get_group('P').index
-
     group_df_by_trade_type_sums = group_df_by_trade_type['par_traded'].sum()
     total_dealer_sold, total_dealer_purchased = group_df_by_trade_type_sums['S'], group_df_by_trade_type_sums['P']
 
     indices_to_mark = []
-    # index_locations_to_mark = []
-    # print('right before conditional logic')
     if total_dealer_sold <= total_dealer_purchased:
         indices_to_mark.extend(dealer_sold_indices)
-        # index_locations_to_mark.extend(dealer_sold_index_locations)
-        # for index_location, par_traded in dd_index_locations_and_par_traded:
-        # print('group D', group_df_by_trade_type.get_group('D'))
-        # print('group D par_traded', group_df_by_trade_type.get_group('D')['par_traded'])
         dd_indices_to_mark = group_df[(group_df['trade_type'] == 'D') & (group_df['par_traded'] == total_dealer_sold)].index
-        # for idx, par_traded in group_df_by_trade_type.get_group('D')['par_traded'].iterrows():
-        #     # if par_traded == total_dealer_sold: index_locations_to_mark.append(index_location)
-        #     if par_traded == total_dealer_sold: indices_to_mark.append(idx)
         indices_to_mark.extend(dd_indices_to_mark)
         
         if total_dealer_sold == total_dealer_purchased:
-            # index_locations_to_mark.extend(dealer_purchase_index_locations)
             indices_to_mark.extend(dealer_purchase_indices)
         else:
             indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold)
             if indices_to_remove_from_dealer_purchase_indices is not None:
                 for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
-                    # dealer_purchase_index_locations = np.delete(dealer_purchase_index_locations, index_to_remove, axis=0)
                     dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
-                # index_locations_to_mark.extend(dealer_purchase_index_locations)
                 indices_to_mark.extend(dealer_purchase_indices)
-    
-    # print('right before assignment')
-    # flag_values[index_locations_to_mark] = True
-    # print('right before return')
-    return indices_to_mark    # flag_values
+
+    return indices_to_mark
 
 
 def add_same_day_flag_v2(df, flag_name=IS_SAME_DAY):
