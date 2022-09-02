@@ -7,7 +7,8 @@ import pandas as pd
 
 from ficc.utils.auxiliary_variables import IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, IS_REPLICA
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_ntbc_precursor_flag, add_replica_flag
-from ficc.utils.adding_flags_v2 import add_all_flags_v2, add_bookkeeping_flag_v2, add_same_day_flag_v2, add_ntbc_precursor_flag_v2, add_replica_flag_v2
+
+from adding_flags_v2 import add_all_flags, add_all_flags_v2, add_all_flags_v3, add_bookkeeping_flag_v2, add_same_day_flag_v2, add_ntbc_precursor_flag_v2, add_replica_flag_v2, add_same_day_flag_v4
 
 import sys
 sys.path.insert(0, '/Users/mitas/ficc/ficc/ml_models/sequence_predictors/')
@@ -20,9 +21,10 @@ FLAGS = [IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, IS_REPLICA]
 
 def load_file_and_create_datasets(filename=FILENAME):
     three_months_data = read_processed_file_pickle(filename)
+    one_day_data = three_months_data[three_months_data['trade_datetime'] <= datetime(2021, 10, 1)]
     one_week_data = three_months_data[three_months_data['trade_datetime'] <= datetime(2021, 10, 8)]
     one_month_data = three_months_data[three_months_data['trade_datetime'] <= datetime(2021, 10, 31)]
-    return one_week_data, one_month_data, three_months_data
+    return one_day_data, one_week_data, one_month_data, three_months_data
 
 
 def add_flags(data, save_filename=None):
@@ -35,13 +37,13 @@ def add_flags(data, save_filename=None):
     elapsed_time = end_time - start_time
     print(f'Elapsed time: {elapsed_time} seconds')
     if save_filename != None:
-        data.to_pickle(f'./files/{save_filename}.pkl')
-        data.to_csv(f'./files/{save_filename}.csv')
+        data.to_pickle(f'./files/{save_filename}_truth.pkl')
+        data.to_csv(f'./files/{save_filename}_truth.csv')
     return data, elapsed_time
 
 
 def add_flags_v2(data, save_filename=None, compare_filename=None):
-    if compare_filename != None: assert os.path.exists(f'./files/{compare_filename}.pkl'), 'No file to compare against'
+    if compare_filename != None: assert os.path.exists(f'./files/{compare_filename}_truth.pkl'), 'No file to compare against'
     start_time = time.time()
     data = add_same_day_flag_v2(data)
     data = add_ntbc_precursor_flag_v2(data)
@@ -54,7 +56,7 @@ def add_flags_v2(data, save_filename=None, compare_filename=None):
         data.to_pickle(f'./files/{save_filename}.pkl')
         data.to_csv(f'./files/{save_filename}.csv')
     if compare_filename != None:
-        truth = pd.read_pickle(f'./files/{compare_filename}.pkl')
+        truth = pd.read_pickle(f'./files/{compare_filename}_truth.pkl')
         for flag in FLAGS:
             assert data[flag].equals(truth[flag]), f'{flag} values are not equal'
         print(f'All flags match')
@@ -62,9 +64,9 @@ def add_flags_v2(data, save_filename=None, compare_filename=None):
 
 
 def add_flags_v3(data, save_filename=None, compare_filename=None):
-    if compare_filename != None: assert os.path.exists(f'./files/{compare_filename}.pkl'), 'No file to compare against'
+    if compare_filename != None: assert os.path.exists(f'./files/{compare_filename}_truth.pkl'), 'No file to compare against'
     start_time = time.time()
-    data = add_all_flags_v2
+    data = add_all_flags_v2(data)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f'Elapsed time: {elapsed_time} seconds')
@@ -72,7 +74,43 @@ def add_flags_v3(data, save_filename=None, compare_filename=None):
         data.to_pickle(f'./files/{save_filename}.pkl')
         data.to_csv(f'./files/{save_filename}.csv')
     if compare_filename != None:
-        truth = pd.read_pickle(f'./files/{compare_filename}.pkl')
+        truth = pd.read_pickle(f'./files/{compare_filename}_truth.pkl')
+        for flag in FLAGS:
+            assert data[flag].equals(truth[flag]), f'{flag} values are not equal'
+        print(f'All flags match')
+    return data, elapsed_time
+
+
+def add_flags_v4(data, save_filename=None, compare_filename=None):
+    if compare_filename != None: assert os.path.exists(f'./files/{compare_filename}_truth.pkl'), 'No file to compare against'
+    start_time = time.time()
+    data = add_all_flags_v3(data)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f'Elapsed time: {elapsed_time} seconds')
+    if save_filename != None:
+        data.to_pickle(f'./files/{save_filename}.pkl')
+        data.to_csv(f'./files/{save_filename}.csv')
+    if compare_filename != None:
+        truth = pd.read_pickle(f'./files/{compare_filename}_truth.pkl')
+        for flag in FLAGS:
+            assert data[flag].equals(truth[flag]), f'{flag} values are not equal'
+        print(f'All flags match')
+    return data, elapsed_time
+
+
+def test_same_day_flag(data, save_filename=None, compare_filename=None):
+    if compare_filename != None: assert os.path.exists(f'./files/{compare_filename}_truth.pkl'), 'No file to compare against'
+    start_time = time.time()
+    data = add_same_day_flag_v4(data)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f'Elapsed time: {elapsed_time} seconds')
+    if save_filename != None:
+        data.to_pickle(f'./files/{save_filename}.pkl')
+        data.to_csv(f'./files/{save_filename}.csv')
+    if compare_filename != None:
+        truth = pd.read_pickle(f'./files/{compare_filename}_truth.pkl')
         for flag in FLAGS:
             assert data[flag].equals(truth[flag]), f'{flag} values are not equal'
         print(f'All flags match')
@@ -80,29 +118,28 @@ def add_flags_v3(data, save_filename=None, compare_filename=None):
 
 
 def create_ground_truth_datasets():
-    one_week_data, one_month_data, three_months_data = load_file_and_create_datasets()
+    one_day_data, one_week_data, one_month_data, three_months_data = load_file_and_create_datasets()
+    _, elapsed_time_one_day = add_flags(one_day_data, 'one_week')
     _, elapsed_time_one_week = add_flags(one_week_data, 'one_week')
     _, elapsed_time_one_month = add_flags(one_month_data, 'one_month')
     _, elapsed_time_three_months = add_flags(three_months_data, 'three_months')
     with open('times.txt', 'w') as f:
-        f.write(f'One week: {elapsed_time_one_week}\nOne month: {elapsed_time_one_month}\nThree months: {elapsed_time_three_months}')
+        f.write(f'One day: {elapsed_time_one_day}\nOne week: {elapsed_time_one_week}\nOne month: {elapsed_time_one_month}\nThree months: {elapsed_time_three_months}\n')
 
 
 def test_one_week():
-    one_week_data, _, _ = load_file_and_create_datasets()
-    # add_flags_v2(one_week_data, save_filename='one_week', compare_filename='one_week')
-    add_flags_v3(one_week_data, save_filename='one_week', compare_filename='one_week')
+    _, one_week_data, _, _ = load_file_and_create_datasets()
+    # add_flags_v4(one_week_data, save_filename='one_week', compare_filename='one_week')
+    # add_flags_v3(one_week_data, save_filename='one_week', compare_filename='one_week')
+    test_same_day_flag(one_week_data)
 
 
 if __name__ == '__main__':
-    # one_week_data, one_month_data, three_months_data = load_file_and_create_datasets()
-    create_ground_truth_datasets()
+    # create_ground_truth_datasets()
     test_one_week()
-    # for column in one_week_data.columns:
-    #     print(column, one_week_data[column].dtype)
-    # _, elapsed_time_one_week = add_flags(one_week_data, 'one_week')
 
 
 # ##### Results #####
 # Adding `observed=True` flag to the groupby commands does not cause a speed up; leaving for now, since Charles suggested it and noticed speed ups with it in his code for other situations
 # First grouping by day and then by CUSIP did not help in speeding up the is_same_day flag procedure. Trying this idea now with all the flags at once (to reduce grouping overhead)
+# Grouping by day and then by other features in a unified procedure caused a significant slowdown. Seems like multiple group by's slow thing down tremendously. `add_all_flags_v2` is very slow (3x slower than original)
