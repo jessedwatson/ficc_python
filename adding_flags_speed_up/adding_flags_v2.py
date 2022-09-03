@@ -195,7 +195,7 @@ def add_same_day_flag_v4(df, flag_name=IS_SAME_DAY):
     df = df.astype({'par_traded': np.float32})    # `par_traded` type is Category so need to change it order to sum up
 
     df[flag_name] = False
-    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'])[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)    # the .copy() allows for a new dataframe to be created with only the two columns as opposed to a lazy subset operation where the entire dataframe remains intact
+    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'], observed=True)[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)
     indices_to_mark = group_by_apply_object.values.sum()
     df.loc[indices_to_mark, flag_name] = True
     return df
@@ -298,6 +298,20 @@ def _add_ntbc_precursor_flag_for_group_v2(group_df, flag_name, orig_df=None):
     return orig_df
 
 
+def _add_ntbc_precursor_flag_for_group_v4(group_df):
+    is_dd_trade = group_df['trade_type'] == 'D'
+    if (not group_df['is_non_transaction_based_compensation'].any()) or (not is_dd_trade.any()): return []
+    return group_df[is_dd_trade].index.to_list()
+
+
+def add_ntbc_precursor_flag_v4(df, flag_name=NTBC_PRECURSOR):
+    df[flag_name] = False
+    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True)[['is_non_transaction_based_compensation', 'trade_type']].apply(_add_ntbc_precursor_flag_for_group_v4)
+    indices_to_mark = group_by_apply_object.values.sum()
+    df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
 def add_ntbc_precursor_flag_v3(df, flag_name=NTBC_PRECURSOR):
     '''This flag denotes an inter-dealer trade that occurs on the same day as 
     a non-transaction-based-compensation customer trade with the same price and 
@@ -359,6 +373,7 @@ def add_all_flags_v2(df):
                 df = _add_replica_flag_for_group_v2(group_df_day_cusip_price_tradetype_quantity, IS_REPLICA, df)
                 if group_header == 'D': df = _add_replica_flag_for_group_v2(group_df_day_cusip_price_tradetype_quantity, IS_BOOKKEEPING, df)    # index 0 corresponds to trade_type
     return df
+
 
 def add_all_flags_v3(df):
     '''Procedure that adds all of the flags above. Done in one procedure to reduce 
