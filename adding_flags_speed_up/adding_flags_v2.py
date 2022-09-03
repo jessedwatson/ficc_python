@@ -31,7 +31,7 @@ def subarray_sum(lst, target_sum, indices):
             current_sum += lst[end]
         end += 1
     return None
-        
+
 
 def indices_to_remove_from_beginning_or_end_to_reach_sum(lst, target_sum):
     '''The goal is to find a continuous stream of items in `lst` where at least one of the 
@@ -156,13 +156,13 @@ def _add_same_day_flag_for_group_v4(group_df):
         if total_dealer_sold == total_dealer_purchased:
             indices_to_mark.extend(dealer_purchase_indices)
         else:
-            indices_to_mark_from_dealer_purchase_indices = subarray_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold, dealer_purchase_indices)
-            if indices_to_mark_from_dealer_purchase_indices is not None: indices_to_mark.extend(indices_to_mark_from_dealer_purchase_indices)
-            # indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold)
-            # if indices_to_remove_from_dealer_purchase_indices is not None:
-            #     for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
-            #         dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
-            #     indices_to_mark.extend(dealer_purchase_indices)
+            # indices_to_mark_from_dealer_purchase_indices = subarray_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold, dealer_purchase_indices)
+            # if indices_to_mark_from_dealer_purchase_indices is not None: indices_to_mark.extend(indices_to_mark_from_dealer_purchase_indices)
+            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold)
+            if indices_to_remove_from_dealer_purchase_indices is not None:
+                for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
+                    dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
+                indices_to_mark.extend(dealer_purchase_indices)
 
     return indices_to_mark
 
