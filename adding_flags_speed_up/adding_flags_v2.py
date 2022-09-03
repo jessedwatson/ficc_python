@@ -6,7 +6,6 @@
  # @ Description: Adds flags to trades to provide additional features
  '''
 
-import time
 import numpy as np
 import pandas as pd
 
@@ -14,23 +13,25 @@ from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_D
 from ficc.utils.adding_flags import add_same_day_flag, add_ntbc_precursor_flag, add_replica_flag, add_bookkeeping_flag
 
 
-def get_most_recent_index_and_others(df, with_alt_trading_system_flag=False, get_earliest_index=False):
-    '''If `with_alt_trading_system_flag` is `True`, then return the most recent 
-    index with the alternative trading system flag. If no trades in `df` have the 
-    flag, then behave as if `with_alt_trading_system_flag` is `False`. Note: 
-    only inter-dealer trades can have the alternative trading system flag. If 
-    `get_earliest_index` is `True` instead of returning the most recent index, return 
-    the earliest index (opposite of most recent).'''
-    if with_alt_trading_system_flag:    # check whether there is a most recent index with the alternative trading system flag
-        assert 'is_alternative_trading_system' in df.columns
-        df_with_alt_trading_system_flag = df[df['is_alternative_trading_system']]
-        indices = df_with_alt_trading_system_flag.index.to_list()
-    if not with_alt_trading_system_flag or indices == []:    # if the alternative trading system flag was not desired or not found
-        indices = df.index.to_list()
-    trade_index = indices[0] if not get_earliest_index else indices[-1]   # since `df` is sorted in descending order of `trade_date`, the first item is the most recent and the last item is the earlest
-
-    return trade_index, [index for index in df.index.to_list() if index != trade_index]
-
+def subarray_sum(lst, target_sum, indices):
+    '''The goal is to find a sublist in `lst`, such that the sum of the sublist equals 
+    `target_sum`. If such a sublist cannot be formed, then return `None`. Otherwise 
+    return the indices that should be removed from `lst` so that summing the remaining 
+    items equals `target_sum`. The sublist in `indices` is returned.'''
+    len_lst = len(lst)
+    current_sum = lst[0]
+    start, end = 0, 1
+    while end <= len_lst:
+        while current_sum > target_sum and start < end - 1:    # remove items from beginning of current sublist if the current sum is larger than the target
+            current_sum -= lst[start]
+            start += 1
+        if current_sum == target_sum:
+            return indices[start:end]
+        if end < len_lst:
+            current_sum += lst[end]
+        end += 1
+    return None
+        
 
 def indices_to_remove_from_beginning_or_end_to_reach_sum(lst, target_sum):
     '''The goal is to find a continuous stream of items in `lst` where at least one of the 
@@ -155,11 +156,13 @@ def _add_same_day_flag_for_group_v4(group_df):
         if total_dealer_sold == total_dealer_purchased:
             indices_to_mark.extend(dealer_purchase_indices)
         else:
-            indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold)
-            if indices_to_remove_from_dealer_purchase_indices is not None:
-                for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
-                    dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
-                indices_to_mark.extend(dealer_purchase_indices)
+            indices_to_mark_from_dealer_purchase_indices = subarray_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold, dealer_purchase_indices)
+            if indices_to_mark_from_dealer_purchase_indices is not None: indices_to_mark.extend(indices_to_mark_from_dealer_purchase_indices)
+            # indices_to_remove_from_dealer_purchase_indices = indices_to_remove_from_beginning_or_end_to_reach_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold)
+            # if indices_to_remove_from_dealer_purchase_indices is not None:
+            #     for index_to_remove in sorted(indices_to_remove_from_dealer_purchase_indices, reverse=True):    # need to sort in reverse order to make sure future indices are still valid after removing current index; e.g., cannot remove elements at index 0 and 1 of a two element list in that order (index 1 does not exist after removing index 0)
+            #         dealer_purchase_indices = np.delete(dealer_purchase_indices, index_to_remove, axis=0)
+            #     indices_to_mark.extend(dealer_purchase_indices)
 
     return indices_to_mark
 
@@ -210,9 +213,6 @@ def _add_replica_flag_for_group_v2(group_df, flag_name, orig_df=None):
     if orig_df is None: orig_df = group_df
     if len(group_df) < 2: return orig_df    # dataframe has a size less than 2
     orig_df.loc[group_df.index.to_list(), flag_name] = True    # mark all trades in the group
-    # mark all but the earliest trade as a replica
-    # _, all_but_earliest_index = get_most_recent_index_and_others(group_df, get_earliest_index=True)
-    # orig_df.loc[all_but_earliest_index, flag_name] = True    # orig_df[flag_name][all_but_earliest_index] = True
     return orig_df
 
 
