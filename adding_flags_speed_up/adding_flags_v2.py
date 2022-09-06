@@ -249,6 +249,30 @@ def add_replica_flag_v3(df, flag_name=IS_REPLICA):
     return df
 
 
+def _add_replica_flag_for_group_v4(group_df):
+    return group_df.index.to_list() if len(group_df) >= 2 else []
+
+
+def add_replica_flag_v4(df, flag_name=IS_REPLICA):
+    df[flag_name] = False
+    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True).apply(_add_replica_flag_for_group_v4)
+    indices_to_mark = group_by_apply_object.sum()
+    df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
+# def _add_bookkeeping_flag_for_group_v4(group_df):
+#     return group_df.index.to_list() if len(group_df) >= 2 else []
+
+
+def add_bookkeeping_flag_v4(df, flag_name=IS_BOOKKEEPING):
+    df[flag_name] = False
+    group_by_apply_object = df[df['trade_type'] == 'D'].groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True).apply(_add_replica_flag_for_group_v4)
+    indices_to_mark = group_by_apply_object.sum()
+    df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
 def add_ntbc_precursor_flag_v2(df, flag_name=NTBC_PRECURSOR, return_candidates_dict=False):
     '''This flag denotes an inter-dealer trade that occurs on the same day as 
     a non-transaction-based-compensation customer trade with the same price and 

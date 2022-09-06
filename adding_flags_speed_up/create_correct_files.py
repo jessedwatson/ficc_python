@@ -8,7 +8,7 @@ import pandas as pd
 from ficc.utils.auxiliary_variables import IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, IS_REPLICA
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_ntbc_precursor_flag, add_replica_flag
 
-from adding_flags_v2 import add_all_flags, add_ntbc_precursor_flag_v4, add_all_flags_v2, add_all_flags_v3, add_bookkeeping_flag_v2, add_same_day_flag_v2, add_ntbc_precursor_flag_v2, add_replica_flag_v2, add_same_day_flag_v4
+from adding_flags_v2 import add_all_flags, add_ntbc_precursor_flag_v4, add_all_flags_v2, add_all_flags_v3, add_bookkeeping_flag_v2, add_same_day_flag_v2, add_ntbc_precursor_flag_v2, add_replica_flag_v2, add_same_day_flag_v4, add_replica_flag_v4, add_bookkeeping_flag_v4
 
 import sys
 sys.path.insert(0, '/Users/mitas/ficc/ficc/ml_models/sequence_predictors/')
@@ -99,10 +99,12 @@ def add_flags_v4(data, save_filename=None, compare_filename=None):
     return data, elapsed_time
 
 
-def test_same_day_flag(data, save_filename=None, compare_filename=None):
+def _test_flag(flag_name, data, save_filename, compare_filename):
+    assert flag_name in FLAGS, f'{flag_name} is not in FLAGS'
     if compare_filename != None: assert os.path.exists(f'./files/{compare_filename}_truth.pkl'), 'No file to compare against'
     start_time = time.time()
-    data = add_same_day_flag_v4(data)
+    add_flag_function = (add_bookkeeping_flag_v4, add_same_day_flag_v4, add_ntbc_precursor_flag_v4, add_replica_flag_v4)[FLAGS.index(flag_name)]
+    data = add_flag_function(data)
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f'Elapsed time: {elapsed_time} seconds')
@@ -111,26 +113,15 @@ def test_same_day_flag(data, save_filename=None, compare_filename=None):
         data.to_csv(f'./files/{save_filename}.csv')
     if compare_filename != None:
         truth = pd.read_pickle(f'./files/{compare_filename}_truth.pkl')
-        assert data[IS_SAME_DAY].equals(truth[IS_SAME_DAY]), f'{IS_SAME_DAY} values are not equal'
-        print(f'{IS_SAME_DAY} flag matches')
+        assert data[flag_name].equals(truth[flag_name]), f'{flag_name} values are not equal'
+        print(f'{flag_name} flag matches')
     return data, elapsed_time
 
 
-def test_ntbc_precursor_flag(data, save_filename=None, compare_filename=None):
-    if compare_filename != None: assert os.path.exists(f'./files/{compare_filename}_truth.pkl'), 'No file to compare against'
-    start_time = time.time()
-    data = add_ntbc_precursor_flag_v4(data)
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f'Elapsed time: {elapsed_time} seconds')
-    if save_filename != None:
-        data.to_pickle(f'./files/{save_filename}.pkl')
-        data.to_csv(f'./files/{save_filename}.csv')
-    if compare_filename != None:
-        truth = pd.read_pickle(f'./files/{compare_filename}_truth.pkl')
-        assert data[NTBC_PRECURSOR].equals(truth[NTBC_PRECURSOR]), f'{NTBC_PRECURSOR} values are not equal'
-        print(f'{NTBC_PRECURSOR} flag matches')
-    return data, elapsed_time
+test_same_day_flag = lambda data, save_filename=None, compare_filename=None: _test_flag(IS_SAME_DAY, data, save_filename, compare_filename)
+test_ntbc_precursor_flag = lambda data, save_filename=None, compare_filename=None: _test_flag(NTBC_PRECURSOR, data, save_filename, compare_filename)
+test_replica_flag = lambda data, save_filename=None, compare_filename=None: _test_flag(IS_REPLICA, data, save_filename, compare_filename)
+test_bookkeeping_flag = lambda data, save_filename=None, compare_filename=None: _test_flag(IS_BOOKKEEPING, data, save_filename, compare_filename)
 
 
 def create_ground_truth_datasets():
@@ -143,24 +134,27 @@ def create_ground_truth_datasets():
         f.write(f'One day: {elapsed_time_one_day}\nOne week: {elapsed_time_one_week}\nOne month: {elapsed_time_one_month}\nThree months: {elapsed_time_three_months}\n')
 
 
-def test_one_week():
-    _, one_week_data, _, _ = load_file_and_create_datasets()
-    # add_flags_v4(one_week_data, save_filename='one_week', compare_filename='one_week')
-    # add_flags_v3(one_week_data, save_filename='one_week', compare_filename='one_week')
-    test_same_day_flag(one_week_data, compare_filename='one_week')
-    test_ntbc_precursor_flag(one_week_data, compare_filename='one_week')
+def _test_on_data_subset(time_length):
+    valid_time_lengths = ['one_day', 'one_week', 'one_month', 'three_months']
+    assert time_length in valid_time_lengths, f'Time length of {time_length} is not a valid time length'
+    argument_number = valid_time_lengths.index(time_length)
+    data = load_file_and_create_datasets()[argument_number]
+    for test_flag_function in (test_same_day_flag, test_ntbc_precursor_flag, test_replica_flag, test_bookkeeping_flag):
+        test_flag_function(data, compare_filename=time_length)
 
 
-def test_one_day():
-    one_day_data, _, _, _ = load_file_and_create_datasets()
-    # test_same_day_flag(one_day_data, compare_filename='one_day')
-    test_ntbc_precursor_flag(one_day_data, save_filename='one_day', compare_filename='one_day')
+test_one_day = lambda: _test_on_data_subset('one_day')
+test_one_week = lambda: _test_on_data_subset('one_week')
+test_one_month = lambda: _test_on_data_subset('one_month')
+test_three_months = lambda: _test_on_data_subset('three_months')
 
 
 if __name__ == '__main__':
     # create_ground_truth_datasets()
     # test_one_day()
-    test_one_week()
+    # test_one_week()
+    # test_one_month()
+    test_three_months()
 
 
 # ##### Results #####
