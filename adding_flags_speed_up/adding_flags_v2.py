@@ -196,6 +196,18 @@ def add_same_day_flag_v4(df, flag_name=IS_SAME_DAY):
 
     df[flag_name] = False
     group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'], observed=True)[['par_traded', 'trade_type']].apply(_add_same_day_flag_for_group_v4)
+    indices_to_mark = group_by_apply_object.sum()
+    df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
+def add_same_day_flag_v5(df, flag_name=IS_SAME_DAY):
+    '''Call `_add_bookkeeping_flag_for_group(...)` on each group as 
+    specified in the `groupby`.'''
+    df = df.astype({'par_traded': np.float32})    # `par_traded` type is Category so need to change it order to sum up
+
+    df[flag_name] = False
+    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'], observed=True)[['par_traded', 'trade_type']].parallel_apply(_add_same_day_flag_for_group_v4)
     indices_to_mark = group_by_apply_object.values.sum()
     df.loc[indices_to_mark, flag_name] = True
     return df
@@ -261,6 +273,14 @@ def add_replica_flag_v4(df, flag_name=IS_REPLICA):
     return df
 
 
+def add_replica_flag_v5(df, flag_name=IS_REPLICA):
+    df[flag_name] = False
+    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True).parallel_apply(_add_replica_flag_for_group_v4)
+    indices_to_mark = group_by_apply_object.sum()
+    df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
 # def _add_bookkeeping_flag_for_group_v4(group_df):
 #     return group_df.index.to_list() if len(group_df) >= 2 else []
 
@@ -268,6 +288,14 @@ def add_replica_flag_v4(df, flag_name=IS_REPLICA):
 def add_bookkeeping_flag_v4(df, flag_name=IS_BOOKKEEPING):
     df[flag_name] = False
     group_by_apply_object = df[df['trade_type'] == 'D'].groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True).apply(_add_replica_flag_for_group_v4)
+    indices_to_mark = group_by_apply_object.sum()
+    df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
+def add_bookkeeping_flag_v5(df, flag_name=IS_BOOKKEEPING):
+    df[flag_name] = False
+    group_by_apply_object = df[df['trade_type'] == 'D'].groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True).parallel_apply(_add_replica_flag_for_group_v4)
     indices_to_mark = group_by_apply_object.sum()
     df.loc[indices_to_mark, flag_name] = True
     return df
@@ -324,13 +352,21 @@ def _add_ntbc_precursor_flag_for_group_v2(group_df, flag_name, orig_df=None):
 
 def _add_ntbc_precursor_flag_for_group_v4(group_df):
     is_dd_trade = group_df['trade_type'] == 'D'
-    if (not group_df['is_non_transaction_based_compensation'].any()) or (not is_dd_trade.any()): return []
+    if (not group_df['is_non_transaction_based_compensation'].any()) or (not is_dd_trade.any()) or (len(group_df) < 2): return []
     return group_df[is_dd_trade].index.to_list()
 
 
 def add_ntbc_precursor_flag_v4(df, flag_name=NTBC_PRECURSOR):
     df[flag_name] = False
     group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True)[['is_non_transaction_based_compensation', 'trade_type']].apply(_add_ntbc_precursor_flag_for_group_v4)
+    indices_to_mark = group_by_apply_object.sum()
+    df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
+def add_ntbc_precursor_flag_v5(df, flag_name=NTBC_PRECURSOR):
+    df[flag_name] = False
+    group_by_apply_object = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True)[['is_non_transaction_based_compensation', 'trade_type']].parallel_apply(_add_ntbc_precursor_flag_for_group_v4)
     indices_to_mark = group_by_apply_object.values.sum()
     df.loc[indices_to_mark, flag_name] = True
     return df
@@ -411,4 +447,26 @@ def add_all_flags_v3(df):
     df = add_ntbc_precursor_flag_v3(df)
     df = add_replica_flag_v3(df)
     df = add_bookkeeping_flag_v3(df)
+    return df
+
+
+def add_all_flags_v4(df):
+    '''Procedure that adds all of the flags above. Done in one procedure to reduce 
+    overhead of groupby and df copy to create overall speedup.'''
+    df = df.copy()
+    df = add_same_day_flag_v4(df)
+    df = add_ntbc_precursor_flag_v4(df)
+    df = add_replica_flag_v4(df)
+    df = add_bookkeeping_flag_v4(df)
+    return df
+
+
+def add_all_flags_v5(df):
+    '''Procedure that adds all of the flags above. Done in one procedure to reduce 
+    overhead of groupby and df copy to create overall speedup.'''
+    df = df.copy()
+    df = add_same_day_flag_v5(df)
+    df = add_ntbc_precursor_flag_v5(df)
+    df = add_replica_flag_v5(df)
+    df = add_bookkeeping_flag_v5(df)
     return df

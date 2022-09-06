@@ -8,7 +8,7 @@ import pandas as pd
 from ficc.utils.auxiliary_variables import IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, IS_REPLICA
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_ntbc_precursor_flag, add_replica_flag
 
-from adding_flags_v2 import add_all_flags, add_ntbc_precursor_flag_v4, add_all_flags_v2, add_all_flags_v3, add_bookkeeping_flag_v2, add_same_day_flag_v2, add_ntbc_precursor_flag_v2, add_replica_flag_v2, add_same_day_flag_v4, add_replica_flag_v4, add_bookkeeping_flag_v4
+from adding_flags_v2 import add_all_flags, add_ntbc_precursor_flag_v4, add_all_flags_v2, add_all_flags_v3, add_bookkeeping_flag_v2, add_same_day_flag_v2, add_ntbc_precursor_flag_v2, add_replica_flag_v2, add_same_day_flag_v4, add_replica_flag_v4, add_bookkeeping_flag_v4, add_bookkeeping_flag_v5, add_same_day_flag_v5, add_ntbc_precursor_flag_v5, add_replica_flag_v5
 
 import sys
 sys.path.insert(0, '/Users/mitas/ficc/ficc/ml_models/sequence_predictors/')
@@ -152,9 +152,9 @@ test_three_months = lambda: _test_on_data_subset('three_months')
 if __name__ == '__main__':
     # create_ground_truth_datasets()
     # test_one_day()
-    # test_one_week()
+    test_one_week()
     # test_one_month()
-    test_three_months()
+    # test_three_months()
 
 
 # ##### Results #####
