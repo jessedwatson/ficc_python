@@ -70,7 +70,8 @@ def _add_same_day_flag_for_group(group_df):
 
 def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
     '''Call `_add_same_day_flag_for_group(...)` on each group as 
-    specified in the `groupby`.'''
+    specified in the `groupby`. Similar code structure to other 
+    `add_*_flag(...)` functions.'''
     df = df.astype({'par_traded': np.float32})    # `par_traded` type is Category so need to change it order to sum up
 
     df[flag_name] = False
@@ -93,7 +94,8 @@ def _add_replica_flag_for_group(group_df):
 
 def add_replica_flag(df, flag_name=IS_REPLICA, use_parallel_apply=True):
     '''Call `_add_replica_flag_for_group(...)` on each group as 
-    specified in the `groupby`.'''
+    specified in the `groupby`. Similar code structure to other 
+    `add_*_flag(...)` functions.'''
     df[flag_name] = False
     group_by_day_cusip_quantity_price_tradetype = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)
     day_cusip_quantity_price_tradetype_to_indices_to_mark = group_by_day_cusip_quantity_price_tradetype.parallel_apply(_add_replica_flag_for_group) if use_parallel_apply else group_by_day_cusip_quantity_price_tradetype.apply(_add_replica_flag_for_group)
@@ -104,7 +106,8 @@ def add_replica_flag(df, flag_name=IS_REPLICA, use_parallel_apply=True):
 
 def add_bookkeeping_flag(df, flag_name=IS_BOOKKEEPING, use_parallel_apply=True):
     '''Select only the inter-dealer trades and then call `_add_replica_flag_for_group(...)` 
-    on each group as specified in the `groupby`.'''
+    on each group as specified in the `groupby`. Similar code structure to other 
+    `add_*_flag(...)` functions.'''
     df[flag_name] = False
     dd_group_by_day_cusip_quantity_price = df[df['trade_type'] == 'D'].groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True)    # select only inter-dealer trades before performing .groupby since only inter-dealer trades can be bookkeeping
     day_cusip_quantity_price_to_indices_to_mark = dd_group_by_day_cusip_quantity_price.parallel_apply(_add_replica_flag_for_group) if use_parallel_apply else dd_group_by_day_cusip_quantity_price.apply(_add_replica_flag_for_group)
@@ -128,7 +131,8 @@ def _add_ntbc_precursor_flag_for_group(group_df):
 
 def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, use_parallel_apply=True):
     '''Call `_add_ntbc_precursor_flag_for_group(...)` on each group as 
-    specified in the `groupby`.'''
+    specified in the `groupby`. Similar code structure to other 
+    `add_*_flag(...)` functions.'''
     df[flag_name] = False
     group_by_day_cusip_quantity_price = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True)[['is_non_transaction_based_compensation', 'trade_type']]    # only need the 'is_non_transaction_based_compensation' and 'trade_type' columns in the helper function
     day_cusip_quantity_price_to_indices_to_mark = group_by_day_cusip_quantity_price.parallel_apply(_add_ntbc_precursor_flag_for_group) if use_parallel_apply else group_by_day_cusip_quantity_price.apply(_add_ntbc_precursor_flag_for_group)
