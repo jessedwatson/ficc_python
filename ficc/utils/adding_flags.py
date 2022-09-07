@@ -36,15 +36,15 @@ def subarray_sum(lst, target_sum, indices):
 def _add_same_day_flag_for_group(group_df):
     '''This flag denotes a trade where the dealer had the purchase and sell lined up 
     beforehand. We mark a trade as same day when:
-    1. A group of dealer sell trades are considered same day if the total cost of the 
-    dealer purchase trades for that day is equal to or greater than the total cost of the 
+    1. A group of dealer sell trades are considered same day if the total par_traded of the 
+    dealer purchase trades for that day is equal to or greater than the total par_traded of the 
     dealer sell trades. In this case, a group of dealer purchases trades are considered 
     same day if there is a continuous (continuous defined as a dealer purchase trade not 
     skipped over chronologically) sequence of dealer purchase trades that equal the total 
-    cost of the dealer sell trades.
+    par_traded of the dealer sell trades.
     2. An inter-dealer trade is considered *same day* if the par_traded is equal to the total 
-    cost of the dealer sell trades for that day and if the total cost of the dealer purchase 
-    trades for that day is greater than or equal to the total cost of the dealer sell trades.'''
+    par_traded of the dealer sell trades for that day and if the total par_traded of the dealer purchase 
+    trades for that day is greater than or equal to the total par_traded of the dealer sell trades.'''
 
     group_df_by_trade_type = group_df.groupby('trade_type', observed=True)
     if 'S' not in group_df_by_trade_type.groups.keys() or 'P' not in group_df_by_trade_type.groups.keys(): return []
