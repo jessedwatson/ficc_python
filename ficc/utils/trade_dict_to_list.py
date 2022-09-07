@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-23 10:22:24
+ # @ Modified time: 2022-09-07 16:19:36
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -14,8 +14,7 @@
 
 import numpy as np
 from datetime import datetime
-
-from pandas import ExcelFile
+import pandas as pd
 
 from ficc.utils.mmd_ycl import mmd_ycl
 from ficc.utils.diff_in_days import diff_in_days_two_dates
@@ -29,19 +28,18 @@ def trade_dict_to_list(trade_dict: dict,
                        remove_trade_type, 
                        trade_history_delay, 
                        remove_replicas_from_trade_history, 
-                       rtrs_control_number_and_is_replica_flag) -> list:
+                       rtrs_control_number_and_is_replica_flag,
+                       send_last_values) -> list:
+
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
-    if trade_dict['rtrs_control_number'] is None:
-        print('rtrs control number is missing, skipping this trade')
-        return None
 
-    # Checking if the seconds a go feature is missing
-    if trade_dict['seconds_ago'] is None:
+    # Checking if the rtrs_control_numner or seconds a go feature is missing
+    if trade_dict['rtrs_control_number'] is None or trade_dict['seconds_ago'] is None:
         print('Seconds a go missing, skipping this trade')
         return None
-    elif trade_dict['seconds_ago'] < (trade_history_delay * 60):
+    if trade_dict['seconds_ago'] < (trade_history_delay * 60):
         return None
 
     # We do not have weighted average maturity before July 27 for ficc yc
@@ -55,7 +53,8 @@ def trade_dict_to_list(trade_dict: dict,
         print("Trade date is missing, skipping this trade")
         return None
 
-    if remove_replicas_from_trade_history and rtrs_control_number_and_is_replica_flag.get(trade_dict['rtrs_control_number'], False): return None
+    if remove_replicas_from_trade_history and rtrs_control_number_and_is_replica_flag.get(trade_dict['rtrs_control_number'], False): 
+        return None
     
     if remove_non_transaction_based == True and trade_dict['is_non_transaction_based_compensation'] == True:
         return None
@@ -74,6 +73,9 @@ def trade_dict_to_list(trade_dict: dict,
     
     if len(remove_trade_type) > 0 and trade_dict['trade_type'] in remove_trade_type:
         return None
+
+    if send_last_values == True:
+        return trade_dict['dollar_price'], trade_dict['calc_date'], trade_dict['maturity_date'], trade_dict['next_call_date'], trade_dict['par_call_date'], trade_dict['refund_date'], trade_dict['trade_datetime'], trade_dict['calc_day_cat']
 
     calc_date = trade_dict['calc_date']
     #calculating the time to maturity in years from the trade_date
