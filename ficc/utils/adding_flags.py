@@ -123,7 +123,7 @@ def add_replica_count_flag(df, flag_name=REPLICA_COUNT):
     '''This numerical flag denotes the number of trades with the same trade_date, 
     cusip, quantity, dollar_price, and trade_type that occur before the trade.'''
     group_by_day_cusip_quantity_price_tradetype = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)[['cusip']]
-    df[flag_name] = group_by_day_cusip_quantity_price_tradetype.cumcount()
+    df[flag_name] = group_by_day_cusip_quantity_price_tradetype.cumcount(ascending=False)
     return df
 
 
