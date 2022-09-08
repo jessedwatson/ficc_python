@@ -83,38 +83,30 @@ def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
     return df
 
 
-def _add_replica_flag_for_group(group_df):
+def add_replica_flag(df, flag_name=IS_REPLICA):
     '''Mark a trade as a replica if there is a trade on the same 
     day with the same price, same direction, and same quantity. The idea 
     of marking these trades is to exclude them from the trade history, as 
     these trades are probably being sold in the same block, and so having 
     all of these trades in the trade history would be less economically 
     meaningful.'''
-    return group_df.index.to_list() if len(group_df) >= 2 else []
-
-
-def add_replica_flag(df, flag_name=IS_REPLICA, use_parallel_apply=True):
-    '''Call `_add_replica_flag_for_group(...)` on each group as 
-    specified in the `groupby`. Similar code structure to other 
-    `add_*_flag(...)` functions.'''
-    df[flag_name] = False
-    group_by_day_cusip_quantity_price_tradetype = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)[['cusip']]
-    apply_func = pd.DataFrame.parallel_apply if use_parallel_apply else pd.DataFrame.apply    # choose between .apply(...) and .parallel_apply(...)
-    day_cusip_quantity_price_tradetype_to_indices_to_mark = apply_func(group_by_day_cusip_quantity_price_tradetype, _add_replica_flag_for_group)
-    indices_to_mark = day_cusip_quantity_price_tradetype_to_indices_to_mark.sum()
-    df.loc[indices_to_mark, flag_name] = True
+    group_by_day_cusip_quantity_price_tradetype = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)
+    df[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')
+    df[flag_name] = df[flag_name] > 1
     return df
 
 
-def add_bookkeeping_flag(df, flag_name=IS_BOOKKEEPING, use_parallel_apply=True):
-    '''Select only the inter-dealer trades and then call `_add_replica_flag_for_group(...)` 
-    on each group as specified in the `groupby`. Similar code structure to other 
-    `add_*_flag(...)` functions.'''
+def add_bookkeeping_flag(df, flag_name=IS_BOOKKEEPING):
+    '''Mark an inter-dealer trade as bookkeeping if there are multiple 
+    inter-dealer trades of the same quantity at the same price for a 
+    particular day.'''
+    df_dd = df[df['trade_type'] == 'D']
+    group_by_day_cusip_quantity_price_tradetype = df_dd.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price'], observed=True)
+    df_dd[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')
+    indices = np.where(df_dd[flag_name] > 1)
+    indices_to_mark = df_dd.index[indices]
+
     df[flag_name] = False
-    dd_group_by_day_cusip_quantity_price = df[df['trade_type'] == 'D'].groupby(['trade_date', 'cusip', 'quantity', 'dollar_price'], observed=True)[['cusip']]    # select only inter-dealer trades before performing .groupby since only inter-dealer trades can be bookkeeping
-    apply_func = pd.DataFrame.parallel_apply if use_parallel_apply else pd.DataFrame.apply    # choose between .apply(...) and .parallel_apply(...)
-    day_cusip_quantity_price_to_indices_to_mark = apply_func(dd_group_by_day_cusip_quantity_price, _add_replica_flag_for_group)
-    indices_to_mark = day_cusip_quantity_price_to_indices_to_mark.sum()
     df.loc[indices_to_mark, flag_name] = True
     return df
 
