@@ -90,7 +90,8 @@ BINARY = ['callable',
           IS_SAME_DAY, 
           NTBC_PRECURSOR, 
           IS_BOOKKEEPING, 
-          IS_REPLICA]
+          # IS_REPLICA
+         ]
 
 CATEGORICAL_FEATURES = ['rating',
                         'incorporated_state_code',
@@ -112,7 +113,8 @@ NON_CAT_FEATURES = ['quantity',
                     'max_amount_outstanding',
                     'accrued_days',
                     'days_in_interest_payment',
-                    'A/E']
+                    'A/E', 
+                    REPLICA_COUNT]
 
 TRADE_HISTORY = ['trade_history']
 
