@@ -91,7 +91,7 @@ def add_replica_flag(df, flag_name=IS_REPLICA):
     all of these trades in the trade history would be less economically 
     meaningful.'''
     group_by_day_cusip_quantity_price_tradetype = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)
-    df[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')
+    df[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')    # chose `.transfor('size')` instead of `.transform(len)` since it is faster https://stackoverflow.com/questions/23017625/dataframe-add-column-with-the-size-of-a-group
     df[flag_name] = df[flag_name] > 1
     return df
 
@@ -102,8 +102,8 @@ def add_bookkeeping_flag(df, flag_name=IS_BOOKKEEPING):
     particular day.'''
     df_dd = df[df['trade_type'] == 'D']
     group_by_day_cusip_quantity_price_tradetype = df_dd.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price'], observed=True)
-    df_dd[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')
-    indices = np.where(df_dd[flag_name] > 1)
+    df_dd[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')    # chose `.transfor('size')` instead of `.transform(len)` since it is faster https://stackoverflow.com/questions/23017625/dataframe-add-column-with-the-size-of-a-group
+    indices = np.where(df_dd[flag_name] > 1)    # chose `np.where` since it is the fastest way to perform this subprocedure: https://stackoverflow.com/questions/52173161/getting-a-list-of-indices-where-pandas-boolean-series-is-true
     indices_to_mark = df_dd.index[indices]
 
     df[flag_name] = False
