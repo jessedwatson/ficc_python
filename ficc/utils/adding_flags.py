@@ -9,7 +9,7 @@
 import numpy as np
 import pandas as pd
 
-from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR
+from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, REPLICA_COUNT
 
 
 def subarray_sum(lst, target_sum, indices):
@@ -75,7 +75,7 @@ def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
     df = df.astype({'par_traded': np.float64})    # `par_traded` type is Category so need to change it order to sum up; chose float64 to prevent potential rounding errors
 
     df[flag_name] = False
-    group_by_day_cusip = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip'], observed=True)[['par_traded', 'trade_type']]    # only need the 'par_traded' and 'trade_type' columns in the helper function
+    group_by_day_cusip = df.groupby(['trade_date', 'cusip'], observed=True)[['par_traded', 'trade_type']]    # only need the 'par_traded' and 'trade_type' columns in the helper function
     apply_func = pd.DataFrame.parallel_apply if use_parallel_apply else pd.DataFrame.apply    # choose between .apply(...) and .parallel_apply(...)
     day_cusip_to_indices_to_mark = apply_func(group_by_day_cusip, _add_same_day_flag_for_group)
     indices_to_mark = day_cusip_to_indices_to_mark.sum()
@@ -98,7 +98,7 @@ def add_replica_flag(df, flag_name=IS_REPLICA, use_parallel_apply=True):
     specified in the `groupby`. Similar code structure to other 
     `add_*_flag(...)` functions.'''
     df[flag_name] = False
-    group_by_day_cusip_quantity_price_tradetype = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)
+    group_by_day_cusip_quantity_price_tradetype = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)[['cusip']]
     apply_func = pd.DataFrame.parallel_apply if use_parallel_apply else pd.DataFrame.apply    # choose between .apply(...) and .parallel_apply(...)
     day_cusip_quantity_price_tradetype_to_indices_to_mark = apply_func(group_by_day_cusip_quantity_price_tradetype, _add_replica_flag_for_group)
     indices_to_mark = day_cusip_quantity_price_tradetype_to_indices_to_mark.sum()
@@ -111,11 +111,19 @@ def add_bookkeeping_flag(df, flag_name=IS_BOOKKEEPING, use_parallel_apply=True):
     on each group as specified in the `groupby`. Similar code structure to other 
     `add_*_flag(...)` functions.'''
     df[flag_name] = False
-    dd_group_by_day_cusip_quantity_price = df[df['trade_type'] == 'D'].groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True)    # select only inter-dealer trades before performing .groupby since only inter-dealer trades can be bookkeeping
+    dd_group_by_day_cusip_quantity_price = df[df['trade_type'] == 'D'].groupby(['trade_date', 'cusip', 'quantity', 'dollar_price'], observed=True)[['cusip']]    # select only inter-dealer trades before performing .groupby since only inter-dealer trades can be bookkeeping
     apply_func = pd.DataFrame.parallel_apply if use_parallel_apply else pd.DataFrame.apply    # choose between .apply(...) and .parallel_apply(...)
     day_cusip_quantity_price_to_indices_to_mark = apply_func(dd_group_by_day_cusip_quantity_price, _add_replica_flag_for_group)
     indices_to_mark = day_cusip_quantity_price_to_indices_to_mark.sum()
     df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
+def add_replica_count_flag(df, flag_name=REPLICA_COUNT):
+    '''This numerical flag denotes the number of trades with the same trade_date, 
+    cusip, quantity, dollar_price, and trade_type that occur before the trade.'''
+    group_by_day_cusip_quantity_price_tradetype = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)[['cusip']]
+    df[flag_name] = group_by_day_cusip_quantity_price_tradetype.cumcount()
     return df
 
 
@@ -137,7 +145,7 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, use_parallel_apply=Tru
     specified in the `groupby`. Similar code structure to other 
     `add_*_flag(...)` functions.'''
     df[flag_name] = False
-    group_by_day_cusip_quantity_price = df.groupby([pd.Grouper(key='trade_datetime', freq='1D'), 'cusip', 'quantity', 'dollar_price'], observed=True)[['is_non_transaction_based_compensation', 'trade_type']]    # only need the 'is_non_transaction_based_compensation' and 'trade_type' columns in the helper function
+    group_by_day_cusip_quantity_price = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price'], observed=True)[['is_non_transaction_based_compensation', 'trade_type']]    # only need the 'is_non_transaction_based_compensation' and 'trade_type' columns in the helper function
     apply_func = pd.DataFrame.parallel_apply if use_parallel_apply else pd.DataFrame.apply    # choose between .apply(...) and .parallel_apply(...)
     day_cusip_quantity_price_to_indices_to_mark = apply_func(group_by_day_cusip_quantity_price, _add_ntbc_precursor_flag_for_group)
     indices_to_mark = day_cusip_quantity_price_to_indices_to_mark.sum()
