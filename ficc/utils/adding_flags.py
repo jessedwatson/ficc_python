@@ -33,6 +33,11 @@ def subarray_sum(lst, target_sum, indices):
     return []
 
 
+def _select_apply_function(use_parallel_apply):
+    '''Choose between .apply(...) and .parallel_apply(...) for the groupby.'''
+    return pd.core.groupby.GroupBy.parallel_apply if use_parallel_apply else pd.core.groupby.GroupBy.apply
+
+
 def _add_same_day_flag_for_group(group_df):
     '''This flag denotes a trade where the dealer had the purchase and sell lined up 
     beforehand. We mark a trade as same day when:
@@ -76,8 +81,7 @@ def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
 
     df[flag_name] = False
     group_by_day_cusip = df.groupby(['trade_date', 'cusip'], observed=True)[['par_traded', 'trade_type']]    # only need the 'par_traded' and 'trade_type' columns in the helper function
-    apply_func = pd.DataFrame.parallel_apply if use_parallel_apply else pd.DataFrame.apply    # choose between .apply(...) and .parallel_apply(...)
-    day_cusip_to_indices_to_mark = apply_func(group_by_day_cusip, _add_same_day_flag_for_group)
+    day_cusip_to_indices_to_mark = _select_apply_function(use_parallel_apply)(group_by_day_cusip, _add_same_day_flag_for_group)
     indices_to_mark = day_cusip_to_indices_to_mark.sum()
     df.loc[indices_to_mark, flag_name] = True
     return df
@@ -91,7 +95,7 @@ def add_replica_flag(df, flag_name=IS_REPLICA):
     all of these trades in the trade history would be less economically 
     meaningful.'''
     group_by_day_cusip_quantity_price_tradetype = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)
-    df[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')    # chose `.transfor('size')` instead of `.transform(len)` since it is faster https://stackoverflow.com/questions/23017625/dataframe-add-column-with-the-size-of-a-group
+    df[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')    # chose `.transform('size')` instead of `.transform(len)` since it is faster https://stackoverflow.com/questions/23017625/dataframe-add-column-with-the-size-of-a-group
     df[flag_name] = df[flag_name] > 1
     return df
 
@@ -102,7 +106,7 @@ def add_bookkeeping_flag(df, flag_name=IS_BOOKKEEPING):
     particular day.'''
     df_dd = df[df['trade_type'] == 'D']
     group_by_day_cusip_quantity_price_tradetype = df_dd.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price'], observed=True)
-    df_dd[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')    # chose `.transfor('size')` instead of `.transform(len)` since it is faster https://stackoverflow.com/questions/23017625/dataframe-add-column-with-the-size-of-a-group
+    df_dd[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')    # chose `.transform('size')` instead of `.transform(len)` since it is faster https://stackoverflow.com/questions/23017625/dataframe-add-column-with-the-size-of-a-group
     indices = np.where(df_dd[flag_name] > 1)    # chose `np.where` since it is the fastest way to perform this subprocedure: https://stackoverflow.com/questions/52173161/getting-a-list-of-indices-where-pandas-boolean-series-is-true
     indices_to_mark = df_dd.index[indices]
 
@@ -138,8 +142,7 @@ def add_ntbc_precursor_flag(df, flag_name=NTBC_PRECURSOR, use_parallel_apply=Tru
     `add_*_flag(...)` functions.'''
     df[flag_name] = False
     group_by_day_cusip_quantity_price = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price'], observed=True)[['is_non_transaction_based_compensation', 'trade_type']]    # only need the 'is_non_transaction_based_compensation' and 'trade_type' columns in the helper function
-    apply_func = pd.DataFrame.parallel_apply if use_parallel_apply else pd.DataFrame.apply    # choose between .apply(...) and .parallel_apply(...)
-    day_cusip_quantity_price_to_indices_to_mark = apply_func(group_by_day_cusip_quantity_price, _add_ntbc_precursor_flag_for_group)
+    day_cusip_quantity_price_to_indices_to_mark = _select_apply_function(use_parallel_apply)(group_by_day_cusip_quantity_price, _add_ntbc_precursor_flag_for_group)
     indices_to_mark = day_cusip_quantity_price_to_indices_to_mark.sum()
     df.loc[indices_to_mark, flag_name] = True
     return df
