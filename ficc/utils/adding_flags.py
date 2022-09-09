@@ -33,44 +33,44 @@ def subarray_sum(lst, target_sum, indices):
     return []
 
 
+def subarray_sum_equaling_zero(lst, indices):
+    '''Given an unsorted array of integers `lst`, find a subarray that adds to 0. 
+    If there is more than one subarray return the longest one.
+    Reference: https://www.geeksforgeeks.org/find-subarray-with-given-sum-in-array-of-integers/ '''
+    d = dict()
+    current_sum = 0
+    left_idx_of_longest_subarray, right_idx_of_longest_subarray = None, None
+
+    for idx in range(len(lst)):
+        current_sum += lst[idx]
+        if current_sum == 0:
+            left_idx_of_longest_subarray, right_idx_of_longest_subarray = 0, idx
+        if current_sum in d:
+            potential_left_idx = d[current_sum] + 1
+            potential_right_idx = idx
+            if right_idx_of_longest_subarray - left_idx_of_longest_subarray < potential_right_idx - potential_left_idx:
+                left_idx_of_longest_subarray, right_idx_of_longest_subarray = potential_left_idx, potential_right_idx
+        if current_sum not in d: d[current_sum] = idx    # do not put the index into the map if it already exists, in order to have the largest list
+
+    return indices[left_idx_of_longest_subarray : right_idx_of_longest_subarray + 1] if left_idx_of_longest_subarray is not None else []
+
+
 def _select_apply_function(use_parallel_apply):
     '''Choose between .apply(...) and .parallel_apply(...) for the groupby.'''
     return pd.core.groupby.GroupBy.parallel_apply if use_parallel_apply else pd.core.groupby.GroupBy.apply
 
 
 def _add_same_day_flag_for_group(group_df):
-    '''This flag denotes a trade where the dealer had the purchase and sell lined up 
-    beforehand. We mark a trade as same day when:
-    1. A group of dealer sell trades are considered same day if the total par_traded of the 
-    dealer purchase trades for that day is equal to or greater than the total par_traded of the 
-    dealer sell trades. In this case, a group of dealer purchases trades are considered 
-    same day if there is a continuous (continuous defined as a dealer purchase trade not 
-    skipped over chronologically) sequence of dealer purchase trades that equal the total 
-    par_traded of the dealer sell trades.
-    2. An inter-dealer trade is considered *same day* if the par_traded is equal to the total 
-    par_traded of the dealer sell trades for that day and if the total par_traded of the dealer purchase 
-    trades for that day is greater than or equal to the total par_traded of the dealer sell trades.'''
-
-    group_df_by_trade_type = group_df.groupby('trade_type', observed=True)
-    if not ({'S', 'P'} <= set(group_df_by_trade_type.groups.keys())): return []
-
-    dealer_sold_indices, dealer_purchase_indices = group_df_by_trade_type.get_group('S').index, group_df_by_trade_type.get_group('P').index
-    group_df_by_trade_type_sums = group_df_by_trade_type['par_traded'].sum()
-    total_dealer_sold, total_dealer_purchased = group_df_by_trade_type_sums['S'], group_df_by_trade_type_sums['P']
-
-    indices_to_mark = []
-    if total_dealer_sold <= total_dealer_purchased:
-        indices_to_mark.extend(dealer_sold_indices)
-        dd_indices_to_mark = group_df[(group_df['trade_type'] == 'D') & (group_df['par_traded'] == total_dealer_sold)].index
-        indices_to_mark.extend(dd_indices_to_mark)
-        
-        if total_dealer_sold == total_dealer_purchased:
-            indices_to_mark.extend(dealer_purchase_indices)
-        else:
-            indices_to_mark_from_dealer_purchase_indices = subarray_sum(group_df_by_trade_type.get_group('P')['par_traded'].values, total_dealer_sold, dealer_purchase_indices)
-            indices_to_mark.extend(indices_to_mark_from_dealer_purchase_indices)
-
-    return indices_to_mark
+    '''This flag denotes a non-DD trade where the dealer had the purchase and sell lined up 
+    beforehand. We mark a trade as same day when the trade is part of a contiguous set of trades 
+    such that dealer purchases add up to dealer sold. 
+    Algorithmically, we set all the sell trades to have their par_traded values negated, and then 
+    look for a subarray sum of zero for the modified par_traded values.'''
+    if {'S', 'P'} != set(group_df['trade_type']): return []
+    sell_mask = group_df['trade_type'] == 'S'
+    par_traded_sell_negative_purchase_positive = group_df['par_traded'].to_numpy()
+    par_traded_sell_negative_purchase_positive[sell_mask] = -1 * group_df[sell_mask]['par_traded']
+    return subarray_sum_equaling_zero(par_traded_sell_negative_purchase_positive, group_df.index)
 
 
 def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
@@ -80,7 +80,7 @@ def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
     df = df.astype({'par_traded': np.float64})    # `par_traded` type is Category so need to change it order to sum up; chose float64 to prevent potential rounding errors
 
     df[flag_name] = False
-    group_by_day_cusip = df.groupby(['trade_date', 'cusip'], observed=True)[['par_traded', 'trade_type']]    # only need the 'par_traded' and 'trade_type' columns in the helper function
+    group_by_day_cusip = df[df['trade_type'] != 'D'].groupby(['trade_date', 'cusip'], observed=True)[['par_traded', 'trade_type']]    # only need the 'par_traded' and 'trade_type' columns in the helper function
     day_cusip_to_indices_to_mark = _select_apply_function(use_parallel_apply)(group_by_day_cusip, _add_same_day_flag_for_group)
     indices_to_mark = day_cusip_to_indices_to_mark.sum()
     df.loc[indices_to_mark, flag_name] = True
@@ -96,7 +96,7 @@ def add_replica_flag(df, flag_name=IS_REPLICA):
     meaningful.'''
     group_by_day_cusip_quantity_price_tradetype = df.groupby(['trade_date', 'cusip', 'quantity', 'dollar_price', 'trade_type'], observed=True)
     df[flag_name] = group_by_day_cusip_quantity_price_tradetype['cusip'].transform('size')    # chose `.transform('size')` instead of `.transform(len)` since it is faster https://stackoverflow.com/questions/23017625/dataframe-add-column-with-the-size-of-a-group
-    df[flag_name] = df[flag_name] > 1
+    df.loc[:, flag_name] = df[flag_name] > 1
     return df
 
 
