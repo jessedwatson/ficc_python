@@ -37,7 +37,6 @@ def subarray_sum_equaling_zero(lst, indices):
     '''Given an unsorted array of integers `lst`, find a subarray that adds to 0. 
     If there is more than one subarray return the longest one.
     Reference: https://www.geeksforgeeks.org/find-subarray-with-given-sum-in-array-of-integers/ '''
-    print('inside subarray_sum_equaling_zero')
     d = dict()
     current_sum = 0
     left_idx_of_longest_subarray, right_idx_of_longest_subarray = None, None
@@ -53,15 +52,11 @@ def subarray_sum_equaling_zero(lst, indices):
                 left_idx_of_longest_subarray, right_idx_of_longest_subarray = potential_left_idx, potential_right_idx
         if current_sum not in d: d[current_sum] = idx    # do not put the index into the map if it already exists, in order to have the largest list
 
-    print(left_idx_of_longest_subarray, right_idx_of_longest_subarray)
-    print(indices)
-    print(indices[left_idx_of_longest_subarray : right_idx_of_longest_subarray + 1])
     return indices[left_idx_of_longest_subarray : right_idx_of_longest_subarray + 1] if left_idx_of_longest_subarray is not None else []
 
 
 def _select_apply_function(use_parallel_apply):
     '''Choose between .apply(...) and .parallel_apply(...) for the groupby.'''
-    print('select apply function')
     return pd.core.groupby.GroupBy.parallel_apply if use_parallel_apply else pd.core.groupby.GroupBy.apply
 
 
@@ -73,40 +68,48 @@ def _add_same_day_flag_for_group(group_df):
     look for a subarray sum of zero for the modified par_traded values.'''
     if {'S', 'P'} != set(group_df['trade_type']): return []
     sell_mask = group_df['trade_type'] == 'S'
-    print('after making the mask')
-    print(group_df)
     par_traded_sell_negative_purchase_positive = group_df['par_traded'].to_numpy()
     par_traded_sell_negative_purchase_positive[sell_mask] = -1 * group_df[sell_mask]['par_traded']
-    print(par_traded_sell_negative_purchase_positive)
     return subarray_sum_equaling_zero(par_traded_sell_negative_purchase_positive, group_df.index)
 
 
-def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
+def add_same_day_flag_with_apply(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
     '''Call `_add_same_day_flag_for_group(...)` on each group as 
     specified in the `groupby`. Similar code structure to other 
-    `add_*_flag(...)` functions.'''
+    `add_*_flag(...)` functions.
+    
+    Note that using the groupby apply function is not working and 
+    throwing: `TypeError: Series.name must be a hashable type`. Unable
+    to figure out why this is the case, but seem to think it may be a 
+    pandas error because the operation is performing fine with just 
+    a for loop (see function below).'''
     df = df.astype({'par_traded': np.float64})    # `par_traded` type is Category so need to change it order to sum up; chose float64 to prevent potential rounding errors
 
     df[flag_name] = False
-    print('after init the flag')
-    print(df[df['trade_type'] != 'D'])
     group_by_day_cusip = df[df['trade_type'] != 'D'].groupby(['trade_date', 'cusip'], observed=True)[['par_traded', 'trade_type']]    # only need the 'par_traded' and 'trade_type' columns in the helper function
-    print(f'num of groups: {len(group_by_day_cusip)}')
-    for _, sub_df in group_by_day_cusip:
-        print('printing sub_df:')
-        print(sub_df)
-    print('done printing sub_df')
-    # day_cusip_to_indices_to_mark = _select_apply_function(use_parallel_apply)(group_by_day_cusip, _add_same_day_flag_for_group)
-    # # day_cusip_to_indices_to_mark = group_by_day_cusip.apply(_add_same_day_flag_for_group)
-    # print('done with applying')
+    day_cusip_to_indices_to_mark = _select_apply_function(use_parallel_apply)(group_by_day_cusip, _add_same_day_flag_for_group)
+    indices_to_mark = day_cusip_to_indices_to_mark.sum()
+    
+    df.loc[indices_to_mark, flag_name] = True
+    return df
+
+
+def add_same_day_flag(df, flag_name=IS_SAME_DAY):
+    '''Call `_add_same_day_flag_for_group(...)` on each group as 
+    specified in the `groupby`. Similar code structure to other 
+    `add_*_flag(...)` functions.
+    
+    Future work to speed up the for loop with multiple cores: 
+    https://stackoverflow.com/questions/59184496/how-to-make-the-following-for-loop-use-multiple-core-in-python '''
+    df = df.astype({'par_traded': np.float64})    # `par_traded` type is Category so need to change it order to sum up; chose float64 to prevent potential rounding errors
+
+    df[flag_name] = False
+    group_by_day_cusip = df[df['trade_type'] != 'D'].groupby(['trade_date', 'cusip'], observed=True)[['par_traded', 'trade_type']]    # only need the 'par_traded' and 'trade_type' columns in the helper function
 
     indices_to_mark = []
     for _, sub_df in group_by_day_cusip:
         indices_to_mark.extend(_add_same_day_flag_for_group(sub_df))
 
-    # indices_to_mark = day_cusip_to_indices_to_mark.sum()
-    
-    print(f'indices to mark: {indices_to_mark}')
     df.loc[indices_to_mark, flag_name] = True
     return df
 
