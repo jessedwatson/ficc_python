@@ -6,6 +6,8 @@
  # @ Description: Adds flags to trades to provide additional features
  '''
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -94,13 +96,15 @@ def add_same_day_flag_with_apply(df, flag_name=IS_SAME_DAY, use_parallel_apply=T
     return df
 
 
-def add_same_day_flag(df, flag_name=IS_SAME_DAY):
+def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
     '''Call `_add_same_day_flag_for_group(...)` on each group as 
     specified in the `groupby`. Similar code structure to other 
     `add_*_flag(...)` functions.
     
     Future work to speed up the for loop with multiple cores: 
     https://stackoverflow.com/questions/59184496/how-to-make-the-following-for-loop-use-multiple-core-in-python '''
+    if use_parallel_apply: warnings.warn('For loop is not parallelized yet')
+    
     df = df.astype({'par_traded': np.float64})    # `par_traded` type is Category so need to change it order to sum up; chose float64 to prevent potential rounding errors
 
     df[flag_name] = False
