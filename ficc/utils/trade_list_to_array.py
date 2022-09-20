@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:56:59
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-07 15:34:29
+ # @ Modified time: 2022-09-20 12:00:00
  # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
  # function to unpack the list of dictionaries and creates a list of historical trades. 
  # With each element in the list containing all the information for that particular trade
@@ -14,12 +14,9 @@ from ficc.utils.trade_dict_to_list import trade_dict_to_list
 
 def trade_list_to_array(trade_history, 
                         remove_short_maturity, 
-                        remove_non_transaction_based, 
-                        remove_trade_type, 
                         trade_history_delay, 
                         remove_replicas_from_trade_history, 
-                        rtrs_control_number_and_is_replica_flag,
-                        send_last_values):
+                        rtrs_control_number_and_is_replica_flag):
     '''The `remove_replicas_from_trade_history` is a boolean variable that 
     determines whether replica trades should be excluded from the trade 
     history. If this variable is set to `True`, then we must have a dataframe 
@@ -30,37 +27,28 @@ def trade_list_to_array(trade_history,
         return np.array([])
 
     trades_list = []
+    last_trade_features = None
     for entry in trade_history:
-        trades = trade_dict_to_list(entry,
-                                    remove_short_maturity, 
-                                    remove_non_transaction_based, 
-                                    remove_trade_type, 
+        trades, temp_last_features = trade_dict_to_list(entry,
+                                    remove_short_maturity,
                                     trade_history_delay, 
                                     remove_replicas_from_trade_history,
-                                    rtrs_control_number_and_is_replica_flag,
-                                    send_last_values)
-        
-        if trades is not None and send_last_values == True:
-            trades_list.append(trades)
-            break
-
+                                    rtrs_control_number_and_is_replica_flag)
         if trades is not None:
             trades_list.append(trades)
         
+        if last_trade_features is None:
+            last_trade_features = temp_last_features
+        
 
-    if len(trades_list) > 0 and send_last_values == False:
+    if len(trades_list) > 0:
         try:
-            return np.stack(trades_list)
-        except Exception:
+            return np.stack(trades_list), last_trade_features
+        except Exception as e:
             for i in trades_list:
                 print(i)
-            raise Exception("Failed to stack the arrays")
-    
-    elif send_last_values == True:
-        if len(trades_list) > 0:
-            return trades_list
-        else:
-            return [None] * 7
-    
+            for i in last_trade_features:
+                print(i)
+            raise e
     else:
-        return []
+        return [], [None]*8

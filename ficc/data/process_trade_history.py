@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-07 16:24:52
+ # @ Modified time: 2022-09-20 12:50:38
  # @ Description:
  '''
 
@@ -47,11 +47,8 @@ def process_trade_history(query,
                           client, 
                           SEQUENCE_LENGTH, 
                           NUM_FEATURES, 
-                          PATH, 
-                          estimate_calc_date, 
-                          remove_short_maturity, 
-                          remove_non_transaction_based,
-                          remove_trade_type, 
+                          PATH,  
+                          remove_short_maturity,
                           trade_history_delay, 
                           remove_replicas_from_trade_history, 
                           min_trades_in_history, 
@@ -63,8 +60,6 @@ def process_trade_history(query,
             yield_curve_params(client, globals.YIELD_CURVE_TO_USE.upper())
         except Exception as e:
             raise e 
-            print("Failed to grab yield curve parameters")
-            raise e
     
     if globals.YIELD_CURVE_TO_USE.upper() == "MMD":
         print("Grabbing MMD yield curve level")
@@ -79,58 +74,33 @@ def process_trade_history(query,
     trade_dataframe = convert_object_to_category(trade_dataframe)
 
     print(f'Raw data contains {len(trade_dataframe)} samples')
-    
-    # Dropping empty trades
-    print("Dropping empty trades")
-    trade_dataframe['empty_trade'] = trade_dataframe.recent.apply(lambda x: x[0]['rtrs_control_number'] is None)
-    trade_dataframe = trade_dataframe[trade_dataframe.empty_trade == False]
 
     # Taking only the most recent trades
     # trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
 
-    if estimate_calc_date == True:
-        trade_dataframe['calc_date'] = trade_dataframe.apply(calc_end_date, axis=1)
-        print('Estimating calculation date')
-        print(trade_dataframe[['maturity_date','next_call_date','calc_date']])
-
     print('Creating trade history')
-    
     if remove_short_maturity == True:
         print("Removing trades with shorter maturity")
-    
-    if len(remove_trade_type) > 0:
-        print(f"Removing trade types {remove_trade_type}")
 
     if remove_replicas_from_trade_history:
         print(f'Marking trades with the {IS_REPLICA} flag in order to remove them from the trade history')
-        trade_dataframe = add_replica_flag(trade_dataframe, IS_REPLICA)
-
-    
+        trade_dataframe = add_replica_flag(trade_dataframe, IS_REPLICA)    
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
-    trade_dataframe['trade_history'] = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
-                                                                                                remove_non_transaction_based,
-                                                                                                remove_trade_type,
+    temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                                                 trade_history_delay, 
                                                                                                 remove_replicas_from_trade_history, 
-                                                                                                dict(zip(trade_dataframe['rtrs_control_number'], trade_dataframe[IS_REPLICA])) if remove_replicas_from_trade_history else None,
-                                                                                                False]))    # trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay,  remove_replicas_from_trade_history]))
-    print('Trade history created')
-
-    print('Getting last trade features')
-    temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
-                                                                            remove_non_transaction_based,
-                                                                            remove_trade_type,
-                                                                            trade_history_delay, 
-                                                                            remove_replicas_from_trade_history, 
-                                                                            dict(zip(trade_dataframe['rtrs_control_number'], trade_dataframe[IS_REPLICA])) if remove_replicas_from_trade_history else None,
-                                                                            True]))
+                                                                                                dict(zip(trade_dataframe['rtrs_control_number'], trade_dataframe[IS_REPLICA])) if remove_replicas_from_trade_history else None]))    # trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay,  remove_replicas_from_trade_history]))
+                                                                                                
                                                                         
-    temp = temp.apply(lambda x: x[0])
-    trade_dataframe[['last_dollar_price', 'last_calc_date', 'last_maturity_date', 'last_next_call_date', 'last_par_call_date', 'last_refund_date','last_trade_datetime','last_calc_day_cat']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)
+    trade_dataframe[['trade_history','temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)
     del temp
+    print('Trade history created')
+    print('Getting last trade features')
+    trade_dataframe[['last_dollar_price', 'last_calc_date', 'last_maturity_date', 'last_next_call_date', 'last_par_call_date', 'last_refund_date','last_trade_datetime','last_calc_day_cat']] = pd.DataFrame(trade_dataframe['temp_last_features'].tolist(), index=trade_dataframe.index)
+    
 
-    trade_dataframe.drop(columns=['recent', 'empty_trade'],inplace=True)
+    trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
     
     print(f"Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
