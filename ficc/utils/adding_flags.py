@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-08-08 12:11:00
- # @ Modified by: Mitas Ray
- # @ Modified time: 2022-09-06 15:00:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2022-09-07 14:42:00
  # @ Description: Adds flags to trades to provide additional features
  '''
 
