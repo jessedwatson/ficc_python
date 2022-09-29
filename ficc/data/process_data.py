@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-20 11:48:39
+ # @ Modified time: 2022-09-29 14:09:53
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -31,20 +31,19 @@ def process_data(query,
                  SEQUENCE_LENGTH, 
                  NUM_FEATURES, 
                  PATH, 
-                 YIELD_CURVE="FICC", 
-                 estimate_calc_date=False, 
+                 YIELD_CURVE="FICC_NEW", 
                  remove_short_maturity=False, 
-                 remove_replicas_from_trade_history=False,    # this should always be False since our experiments concluded that setting this to True does not improve accuracy
                  trade_history_delay=1, 
                  min_trades_in_history=1, 
                  process_ratings=True, 
                  keep_nan=False, 
-                 add_flags=False, 
+                 add_flags=False,
+                 treasury_spread=False, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
-    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_replicas_from_trade_history:{remove_replicas_from_trade_history}\n trade_history_delay:{trade_history_delay}\n min_trades_in_hist:{min_trades_in_history}\n process_ratings:{process_ratings}\n add_flags:{add_flags}')
+    print(f'Running with\n remove_short_maturity:{remove_short_maturity}\n trade_history_delay:{trade_history_delay}\n min_trades_in_hist:{min_trades_in_history}\n process_ratings:{process_ratings}\n add_flags:{add_flags}')
     
     trades_df = process_trade_history(query,
                                       client, 
@@ -52,10 +51,10 @@ def process_data(query,
                                       NUM_FEATURES,
                                       PATH,
                                       remove_short_maturity, 
-                                      trade_history_delay, 
-                                      remove_replicas_from_trade_history, 
+                                      trade_history_delay,  
                                       min_trades_in_history,
-                                      process_ratings)
+                                      process_ratings,
+                                      treasury_spread)
 
     if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
         # Calculating yield spreads using ficc_ycl

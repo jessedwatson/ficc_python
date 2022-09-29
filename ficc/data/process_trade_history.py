@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-21 13:55:21
+ # @ Modified time: 2022-09-29 15:11:16
  # @ Description:
  '''
 
@@ -10,15 +10,13 @@ import os
 import pandas as pd
 import pickle5 as pickle
 
-from ficc.utils.auxiliary_functions import sqltodf, process_ratings, convert_object_to_category, convert_calc_date_to_category
-from ficc.utils.auxiliary_variables import IS_REPLICA
-from ficc.utils.adding_flags import add_replica_flag
+from ficc.utils.auxiliary_functions import sqltodf, process_ratings, convert_object_to_category
 from ficc.utils.pad_trade_history import pad_trade_history
 import ficc.utils.globals as globals
-from ficc.utils.ficc_calc_end_date import calc_end_date
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.create_mmd_data import create_mmd_data
+from ficc.utils.get_treasury_rate import get_treasury_rate
 
 
 def fetch_trade_data(query, client, PATH='data.pkl'):
@@ -50,9 +48,9 @@ def process_trade_history(query,
                           PATH,  
                           remove_short_maturity,
                           trade_history_delay, 
-                          remove_replicas_from_trade_history, 
                           min_trades_in_history, 
-                          drop_ratings):
+                          drop_ratings,
+                          treasury_spread):
     
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE.upper() == "FICC_NEW":
         print("Grabbing yield curve params")
@@ -68,6 +66,9 @@ def process_trade_history(query,
         except Exception as e:
             print("Failed to grab MMD ycl")
             raise e
+    if treasury_spread == True:
+        get_treasury_rate(client)
+    
 
     trade_dataframe = fetch_trade_data(query, client, PATH)
     trade_dataframe = process_ratings(trade_dataframe, drop_ratings)
@@ -82,15 +83,10 @@ def process_trade_history(query,
     if remove_short_maturity == True:
         print("Removing trades with shorter maturity")
 
-    if remove_replicas_from_trade_history:
-        print(f'Marking trades with the {IS_REPLICA} flag in order to remove them from the trade history')
-        trade_dataframe = add_replica_flag(trade_dataframe, IS_REPLICA)    
-
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
-                                                                                                trade_history_delay, 
-                                                                                                remove_replicas_from_trade_history, 
-                                                                                                dict(zip(trade_dataframe['rtrs_control_number'], trade_dataframe[IS_REPLICA])) if remove_replicas_from_trade_history else None]))    # trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity, remove_non_transaction_based, remove_trade_type, trade_history_delay,  remove_replicas_from_trade_history]))
+                                                                             trade_history_delay,
+                                                                             treasury_spread]))
                                                                                                 
                                                                         
     trade_dataframe[['trade_history','temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)

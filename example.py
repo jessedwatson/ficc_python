@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-20 13:01:47
+ # @ Modified time: 2022-09-29 15:38:14
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -24,7 +24,7 @@ from ficc.data.process_data import process_data
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 SEQUENCE_LENGTH = 5
-NUM_FEATURES = 5
+NUM_FEATURES = 6
 
 DATA_QUERY = ''' 
 SELECT
@@ -105,7 +105,8 @@ WHERE
   yield IS NOT NULL
   AND yield > 0
   AND par_traded >= 10000
-  AND trade_date >= '2022-08-01'
+  AND trade_date >= '2022-09-20'
+  AND trade_date <= '2022-09-22'
   AND maturity_description_code = 2
   AND coupon_type in (8, 4, 10)
   AND capital_type <> 10
@@ -117,7 +118,7 @@ WHERE
   --AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
   ORDER BY trade_datetime desc
-  LIMIT 100000
+  LIMIT 100
 ''' 
 
 bq_client = bigquery.Client()
@@ -132,5 +133,6 @@ if __name__ == "__main__":
                               remove_short_maturity=True,
                               trade_history_delay = 1,
                               min_trades_in_history = 0,
-                              process_ratings=False)
+                              process_ratings=False,
+                              treasury_spread=True)
     print(trade_data)

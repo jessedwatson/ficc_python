@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-20 11:47:37
+ # @ Modified time: 2022-09-29 15:42:36
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -24,9 +24,8 @@ import ficc.utils.globals as globals
 
 def trade_dict_to_list(trade_dict: dict, 
                        remove_short_maturity, 
-                       trade_history_delay, 
-                       remove_replicas_from_trade_history, 
-                       rtrs_control_number_and_is_replica_flag) -> list:
+                       trade_history_delay,
+                       treasury_spread) -> list:
 
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
@@ -49,9 +48,6 @@ def trade_dict_to_list(trade_dict: dict,
     else:
         return None, None
 
-    if remove_replicas_from_trade_history and rtrs_control_number_and_is_replica_flag.get(trade_dict['rtrs_control_number'], False): 
-        return None, None
-
     if trade_dict['settlement_date'] is None and remove_short_maturity == True:
         return None, None
     elif remove_short_maturity == True:
@@ -65,9 +61,9 @@ def trade_dict_to_list(trade_dict: dict,
             return None, None
 
     calc_date = trade_dict['calc_date']
+    time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
     #calculating the time to maturity in years from the trade_date
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE == 'FICC_NEW':
-        time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
         global nelson_params
         global scalar_params
         yield_at_that_time = yield_curve_level(time_to_maturity,
@@ -83,7 +79,6 @@ def trade_dict_to_list(trade_dict: dict,
             return None, None
     
     elif globals.YIELD_CURVE_TO_USE.upper() == "MMD":
-        time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
         yield_at_that_time = mmd_ycl(target_date, time_to_maturity)
         if trade_dict['yield'] is not None:
             try:
@@ -110,6 +105,14 @@ def trade_dict_to_list(trade_dict: dict,
             print(f'{key} is missing, skipping this trade')
             return None, None
     
+    if treasury_spread == True:
+        treasury_maturities = np.array([1,2,3,5,7,10,20,30])
+        maturity = min(treasury_maturities, key=lambda x:abs(x-time_to_maturity))
+        maturity = 'year_'+str(maturity)
+        t_rate = globals.treasury_rate[target_date][maturity]
+        t_spread = (trade_dict['yield'] - t_rate) * 100
+        trade_list.append(np.round(t_spread,3))
+
     trade_list.append(np.float32(np.log10(trade_dict['par_traded'])))        
     trade_list += trade_type_mapping[trade_dict['trade_type']]
     trade_list.append(np.log10(1+trade_dict['seconds_ago']))
