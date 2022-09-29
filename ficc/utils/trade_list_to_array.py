@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:56:59
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-29 15:11:57
+ # @ Modified time: 2022-09-29 16:02:41
  # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
  # function to unpack the list of dictionaries and creates a list of historical trades. 
  # With each element in the list containing all the information for that particular trade
@@ -16,11 +16,6 @@ def trade_list_to_array(trade_history,
                         remove_short_maturity, 
                         trade_history_delay, 
                         treasury_spread):
-    '''The `remove_replicas_from_trade_history` is a boolean variable that 
-    determines whether replica trades should be excluded from the trade 
-    history. If this variable is set to `True`, then we must have a dataframe 
-    in `rtrs_control_number_and_is_replica_flag` which contains both the 
-    `rtrs_control_number` and the corresponding `is_replica_flag`.'''
     
     if len(trade_history) == 0:
         return np.array([]), [None]*8
