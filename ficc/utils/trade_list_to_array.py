@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:56:59
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-20 12:00:00
+ # @ Modified time: 2022-09-21 12:01:29
  # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
  # function to unpack the list of dictionaries and creates a list of historical trades. 
  # With each element in the list containing all the information for that particular trade
@@ -24,7 +24,7 @@ def trade_list_to_array(trade_history,
     `rtrs_control_number` and the corresponding `is_replica_flag`.'''
     
     if len(trade_history) == 0:
-        return np.array([])
+        return np.array([]), [None]*8
 
     trades_list = []
     last_trade_features = None
