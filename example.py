@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-29 15:38:14
+ # @ Modified time: 2022-09-30 09:57:52
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -118,7 +118,7 @@ WHERE
   --AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
   ORDER BY trade_datetime desc
-  LIMIT 100
+  LIMIT 100000
 ''' 
 
 bq_client = bigquery.Client()
