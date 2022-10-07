@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-30 09:57:52
+ # @ Modified time: 2022-10-07 12:43:27
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -26,100 +26,120 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
 
-DATA_QUERY = ''' 
+# DATA_QUERY = ''' 
+# SELECT
+# rtrs_control_number,
+# cusip,
+# yield,
+# is_callable,
+# refund_date,
+# accrual_date,
+# dated_date,
+# next_sink_date,
+# coupon,
+# delivery_date,
+# trade_date,
+# trade_datetime,
+# par_call_date,
+# interest_payment_frequency,
+# is_called,
+# is_non_transaction_based_compensation,
+# is_general_obligation,
+# callable_at_cav,
+# extraordinary_make_whole_call,
+# make_whole_call,
+# has_unexpired_lines_of_credit,
+# escrow_exists,
+# incorporated_state_code,
+# trade_type,
+# par_traded,
+# maturity_date,
+# settlement_date,
+# next_call_date,
+# issue_amount,
+# maturity_amount,
+# issue_price,
+# orig_principal_amount,
+# max_amount_outstanding,
+# yield_spread,
+# recent,
+# dollar_price,
+# calc_date,
+# purpose_sub_class,
+# called_redemption_type,
+# calc_day_cat,
+# previous_coupon_payment_date,
+# instrument_primary_name,
+# purpose_class,
+# call_timing,
+# call_timing_in_part,
+# sink_frequency,
+# sink_amount_type,
+# issue_text,
+# state_tax_status,
+# series_name,
+# transaction_type,
+# next_call_price,
+# par_call_price,
+# min_amount_outstanding,
+# original_yield,
+# par_price,
+# default_indicator,
+# sp_stand_alone,
+# sp_long,
+# moodys_long,
+# coupon_type,
+# federal_tax_status,
+# use_of_proceeds,
+# muni_security_type,
+# muni_issue_type,
+# capital_type,
+# other_enhancement_type,
+# next_coupon_payment_date,
+# first_coupon_date,
+# last_period_accrues_from_date,
+# FROM
+#   `eng-reactor-287421.auxiliary_views.materialized_trade_history`
+#   --`eng-reactor-287421.primary_views.trade_history_with_reference_data`
+# WHERE
+#   yield IS NOT NULL
+#   AND yield > 0
+#   AND par_traded >= 10000
+#   --AND trade_date >= '2022-09-20'
+#   --AND trade_date <= '2022-09-22'
+#   AND maturity_description_code = 2
+#   AND coupon_type in (8, 4, 10)
+#   AND capital_type <> 10
+#   AND default_exists <> TRUE
+#   AND sale_type <> 4
+#   AND sec_regulation IS NULL
+#   AND most_recent_default_event IS NULL
+#   AND default_indicator IS FALSE
+#   AND rtrs_control_number = 2022040101374900
+#   --AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
+#   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
+#   ORDER BY trade_datetime desc
+#   LIMIT 100000
+# ''' 
+
+DATA_QUERY = '''
 SELECT
-rtrs_control_number,
-cusip,
-yield,
-is_callable,
-refund_date,
-accrual_date,
-dated_date,
-next_sink_date,
-coupon,
-delivery_date,
-trade_date,
-trade_datetime,
-par_call_date,
-interest_payment_frequency,
-is_called,
-is_non_transaction_based_compensation,
-is_general_obligation,
-callable_at_cav,
-extraordinary_make_whole_call,
-make_whole_call,
-has_unexpired_lines_of_credit,
-escrow_exists,
-incorporated_state_code,
-trade_type,
-par_traded,
-maturity_date,
-settlement_date,
-next_call_date,
-issue_amount,
-maturity_amount,
-issue_price,
-orig_principal_amount,
-max_amount_outstanding,
-yield_spread,
-recent,
-dollar_price,
-calc_date,
-purpose_sub_class,
-called_redemption_type,
-calc_day_cat,
-previous_coupon_payment_date,
-instrument_primary_name,
-purpose_class,
-call_timing,
-call_timing_in_part,
-sink_frequency,
-sink_amount_type,
-issue_text,
-state_tax_status,
-series_name,
-transaction_type,
-next_call_price,
-par_call_price,
-min_amount_outstanding,
-original_yield,
-par_price,
-default_indicator,
-sp_stand_alone,
-sp_long,
-moodys_long,
-coupon_type,
-federal_tax_status,
-use_of_proceeds,
-muni_security_type,
-muni_issue_type,
-capital_type,
-other_enhancement_type,
-next_coupon_payment_date,
-first_coupon_date,
-last_period_accrues_from_date,
+  * except(most_recent_event)
 FROM
   `eng-reactor-287421.auxiliary_views.materialized_trade_history`
-  --`eng-reactor-287421.primary_views.trade_history_with_reference_data`
 WHERE
   yield IS NOT NULL
-  AND yield > 0
-  AND par_traded >= 10000
-  AND trade_date >= '2022-09-20'
-  AND trade_date <= '2022-09-22'
   AND maturity_description_code = 2
-  AND coupon_type in (8, 4, 10)
-  AND capital_type <> 10
+  AND trade_date >= '2022-09-01'
   AND default_exists <> TRUE
-  AND sale_type <> 4
-  AND sec_regulation IS NULL
   AND most_recent_default_event IS NULL
   AND default_indicator IS FALSE
-  --AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
-  ORDER BY trade_datetime desc
-  LIMIT 100000
-''' 
+ORDER BY
+  trade_datetime
+limit 1000
+'''
+
 
 bq_client = bigquery.Client()
 
@@ -130,7 +150,7 @@ if __name__ == "__main__":
                               NUM_FEATURES,
                               'data.pkl',
                               "FICC_NEW",
-                              remove_short_maturity=True,
+                              remove_short_maturity=False,
                               trade_history_delay = 1,
                               min_trades_in_history = 0,
                               process_ratings=False,

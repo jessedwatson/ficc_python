@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-29 15:11:16
+ # @ Modified time: 2022-10-05 13:38:17
  # @ Description:
  '''
 
@@ -72,7 +72,7 @@ def process_trade_history(query,
 
     trade_dataframe = fetch_trade_data(query, client, PATH)
     trade_dataframe = process_ratings(trade_dataframe, drop_ratings)
-    trade_dataframe = convert_object_to_category(trade_dataframe)
+    #trade_dataframe = convert_object_to_category(trade_dataframe)
 
     print(f'Raw data contains {len(trade_dataframe)} samples')
 
