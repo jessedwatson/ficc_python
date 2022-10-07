@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-15 14:05:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-22 16:01:36
+ # @ Modified time: 2022-09-29 14:59:48
  # @ Description: The file contains variables which are used across 
                   the data processing module
  '''
@@ -25,3 +25,6 @@ def init():
 
     global shape_parameter
     shape_parameter = None
+
+    global treasury_rate
+    treasury_rate = None

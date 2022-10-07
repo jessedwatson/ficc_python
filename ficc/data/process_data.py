@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-20 11:48:39
+ # @ Modified time: 2022-10-07 12:38:53
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -23,6 +23,7 @@ from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
+from ficc.utils.get_treasury_rate import current_treasury_rate
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_ntbc_precursor_flag, add_replica_flag
 
 
@@ -31,20 +32,19 @@ def process_data(query,
                  SEQUENCE_LENGTH, 
                  NUM_FEATURES, 
                  PATH, 
-                 YIELD_CURVE="FICC", 
-                 estimate_calc_date=False, 
+                 YIELD_CURVE="FICC_NEW", 
                  remove_short_maturity=False, 
-                 remove_replicas_from_trade_history=False,    # this should always be False since our experiments concluded that setting this to True does not improve accuracy
                  trade_history_delay=1, 
                  min_trades_in_history=1, 
                  process_ratings=True, 
                  keep_nan=False, 
-                 add_flags=False, 
+                 add_flags=False,
+                 treasury_spread=False, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
-    print(f'Running with\n estimate_calc_date:{estimate_calc_date}\n remove_short_maturity:{remove_short_maturity}\n remove_replicas_from_trade_history:{remove_replicas_from_trade_history}\n trade_history_delay:{trade_history_delay}\n min_trades_in_hist:{min_trades_in_history}\n process_ratings:{process_ratings}\n add_flags:{add_flags}')
+    print(f'Running with\n remove_short_maturity:{remove_short_maturity}\n trade_history_delay:{trade_history_delay}\n min_trades_in_hist:{min_trades_in_history}\n process_ratings:{process_ratings}\n add_flags:{add_flags}')
     
     trades_df = process_trade_history(query,
                                       client, 
@@ -52,10 +52,10 @@ def process_data(query,
                                       NUM_FEATURES,
                                       PATH,
                                       remove_short_maturity, 
-                                      trade_history_delay, 
-                                      remove_replicas_from_trade_history, 
+                                      trade_history_delay,  
                                       min_trades_in_history,
-                                      process_ratings)
+                                      process_ratings,
+                                      treasury_spread)
 
     if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
         # Calculating yield spreads using ficc_ycl
@@ -80,6 +80,10 @@ def process_data(query,
     
     print('Yield spread calculated')
 
+    if treasury_spread == True:
+        trades_df['treasury_rate'] = trades_df[['trade_date','calc_date']].parallel_apply(current_treasury_rate, axis=1)
+        trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
+
     # Dropping columns which are not used for training
     # trades_df = drop_extra_columns(trades_df)
     trades_df = convert_dates(trades_df)
@@ -88,7 +92,7 @@ def process_data(query,
     trades_df = process_features(trades_df, keep_nan)
 
     if remove_short_maturity == True:
-        trades_df = trades_df[trades_df.days_to_maturity >= np.log10(400)]
+        trades_df = trades_df[trades_df.days_to_maturity >= np.log10(1 + 400)]
 
     if 'training_features' in kwargs:
         trades_df = trades_df[kwargs['training_features']]

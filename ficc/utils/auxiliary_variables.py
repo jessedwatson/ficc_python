@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-10 14:48:33
+ # @ Modified time: 2022-09-29 13:50:09
  # @ Description:
  '''
 
@@ -85,11 +85,7 @@ BINARY = ['callable',
           'extraordinary_make_whole_call', 
           'make_whole_call',
           'has_unexpired_lines_of_credit',
-          'escrow_exists',
-          IS_SAME_DAY, 
-          NTBC_PRECURSOR, 
-          IS_BOOKKEEPING, 
-          IS_REPLICA]
+          'escrow_exists']
 
 CATEGORICAL_FEATURES = ['rating',
                         'incorporated_state_code',

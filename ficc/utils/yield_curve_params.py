@@ -3,23 +3,23 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 10:40:14
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-22 16:04:40
+ # @ Modified time: 2022-09-21 13:27:30
  # @ Description:
  '''
 
 import ficc.utils.globals as globals
 from ficc.utils.auxiliary_functions import sqltodf
 
-def yield_curve_params(client, yield_crurve_to_use):
+def yield_curve_params(client, yield_curve_to_use):
     # The following fetches Nelson-Siegel coefficient and standard scalar parameters from BigQuery and sends them to a dataframe.
     
-    if yield_crurve_to_use == "FICC":
+    if yield_curve_to_use == "FICC":
         globals.nelson_params = sqltodf(
             "select * from `eng-reactor-287421.yield_curves.nelson_siegel_coef_daily` order by date desc", client)
         globals.scalar_params = sqltodf(
             "select * from`eng-reactor-287421.yield_curves.standardscaler_parameters_daily` order by date desc", client)
     
-    elif yield_crurve_to_use == "FICC_NEW":
+    elif yield_curve_to_use == "FICC_NEW":
         globals.nelson_params = sqltodf(
             "select * from `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc", client)
         globals.scalar_params = sqltodf(
