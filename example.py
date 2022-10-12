@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-07 12:43:27
+ # @ Modified time: 2022-10-12 15:15:05
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -137,7 +137,7 @@ WHERE
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
 ORDER BY
   trade_datetime
-limit 1000
+limit 100000
 '''
 
 
@@ -154,5 +154,7 @@ if __name__ == "__main__":
                               trade_history_delay = 1,
                               min_trades_in_history = 0,
                               process_ratings=False,
-                              treasury_spread=True)
+                              treasury_spread=True,
+                              add_previous_treasury_rate=True,
+                              add_previous_treasury_difference=True)
     print(trade_data)
