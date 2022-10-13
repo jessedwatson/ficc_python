@@ -1,4 +1,3 @@
-from . import attr
 from . import auxiliary_functions
 from . import auxiliary_variables
 from . import days_in_interest_payment
