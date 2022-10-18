@@ -1,4 +1,3 @@
-from . import attr
 from . import auxiliary_functions
 from . import auxiliary_variables
 from . import days_in_interest_payment
@@ -7,7 +6,7 @@ from . import ficc_calc_end_date
 from . import fill_missing_values
 from . import frequency
 from . import globals
-from . import nelson_seigel_model
+from . import nelson_siegel_model
 from . import pad_trade_history
 from . import process_features
 from . import trade_dict_to_list

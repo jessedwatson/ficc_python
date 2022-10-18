@@ -2,10 +2,11 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-07 12:38:53
+ # @ Modified time: 2022-10-18 10:31:48
  # @ Description: Source code to process trade history from BigQuery
  '''
  
+import pandas as pd
 import numpy as np
 
 # Pandaralled is a python package that is 
@@ -23,7 +24,7 @@ from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
-from ficc.utils.get_treasury_rate import current_treasury_rate
+from ficc.utils.get_treasury_rate import current_treasury_rate, get_all_treasury_rate, get_previous_treasury_difference
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_same_day_flag, add_ntbc_precursor_flag, add_replica_flag
 
 
@@ -39,7 +40,9 @@ def process_data(query,
                  process_ratings=True, 
                  keep_nan=False, 
                  add_flags=False,
-                 treasury_spread=False, 
+                 treasury_spread=False,
+                 add_previous_treasury_rate=False,
+                 add_previous_treasury_difference=False, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -60,7 +63,9 @@ def process_data(query,
     if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
         # Calculating yield spreads using ficc_ycl
         print("Calculating yield spread using ficc yield curve")
-        trades_df['ficc_ycl'] = trades_df.parallel_apply(get_ficc_ycl,axis=1) 
+        temp = trades_df.parallel_apply(get_ficc_ycl,axis=1)
+        trades_df[['ficc_ycl','ficc_ycl_3_month','ficc_ycl_1_month']] = pd.DataFrame(temp.tolist(), index=trades_df.index)
+        
         # As ficc ycl is already in basis points
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
         trades_df.dropna(subset=['yield_spread'],inplace=True)
@@ -81,9 +86,22 @@ def process_data(query,
     print('Yield spread calculated')
 
     if treasury_spread == True:
-        trades_df['treasury_rate'] = trades_df[['trade_date','calc_date']].parallel_apply(current_treasury_rate, axis=1)
+        trades_df['treasury_rate'] = trades_df[['trade_date','last_calc_date']].parallel_apply(current_treasury_rate, axis=1)
         trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
+    
+    if add_previous_treasury_rate == True: 
+        # Adding the treasury rates
+        temp = trades_df[['trade_date']].parallel_apply(get_all_treasury_rate, axis=1)
+        trades_df[['t_rate_1', 't_rate_2', 't_rate_3', 't_rate_5', 't_rate_7', 't_rate_10', 't_rate_20', 't_rate_30']] = pd.DataFrame(temp.to_list(), index=trades_df.index)
+        del temp
+        print('Fetiching treasury rates')
 
+    if add_previous_treasury_difference == True:
+        temp = trades_df[['trade_date']].parallel_apply(get_previous_treasury_difference, axis=1)
+        trades_df[['t_rate_diff_1', 't_rate_diff_2', 't_rate_diff_3', 't_rate_diff_5', 't_rate_diff_7', 't_rate_diff_10', 't_rate_diff_20', 't_rate_diff_30']] = pd.DataFrame(temp.to_list(), index=trades_df.index)
+        del temp
+        print("Difference in treasury rates calculated")
+        
     # Dropping columns which are not used for training
     # trades_df = drop_extra_columns(trades_df)
     trades_df = convert_dates(trades_df)
