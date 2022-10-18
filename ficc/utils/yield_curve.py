@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-17 10:58:35
+ # @ Modified time: 2022-10-17 18:59:31
  # @ Description: This file contains the code to get 
  # the ficc yield curve level using the calc_date
  '''
@@ -46,12 +46,21 @@ def get_ficc_ycl(trade, **kwargs):
                                     globals.nelson_params,
                                     globals.scalar_params,
                                     globals.shape_parameter)
+
         ficc_ycl_3_month = ficc_yl = yield_curve_level(0.25,
                                     target_date,
                                     globals.nelson_params,
                                     globals.scalar_params,
                                     globals.shape_parameter)                                    
-        return ficc_yl, ficc_ycl_3_month
+
+        ficc_ycl_1_month = ficc_yl = yield_curve_level(1/12,
+                                    target_date,
+                                    globals.nelson_params,
+                                    globals.scalar_params,
+                                    globals.shape_parameter)
+
+        return ficc_yl, ficc_ycl_3_month, ficc_ycl_1_month
+        
     except Exception as e:
         if 'client' not in kwargs:
             raise Exception("Need to provide bigquery client if being used as a stand alone function")

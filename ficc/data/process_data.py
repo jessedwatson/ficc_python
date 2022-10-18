@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-17 11:02:11
+ # @ Modified time: 2022-10-17 19:03:07
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -64,7 +64,7 @@ def process_data(query,
         # Calculating yield spreads using ficc_ycl
         print("Calculating yield spread using ficc yield curve")
         temp = trades_df.parallel_apply(get_ficc_ycl,axis=1)
-        trades_df[['ficc_ycl','ficc_ycl_3_month']] = pd.DataFrame(temp.tolist(), index=trades_df.index)
+        trades_df[['ficc_ycl','ficc_ycl_3_month','ficc_ycl_1_month']] = pd.DataFrame(temp.tolist(), index=trades_df.index)
         
         # As ficc ycl is already in basis points
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
