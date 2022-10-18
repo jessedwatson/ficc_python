@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-23 10:22:24
+ # @ Modified time: 2022-10-18 10:12:41
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -14,8 +14,7 @@
 
 import numpy as np
 from datetime import datetime
-
-from pandas import ExcelFile
+import pandas as pd
 
 from ficc.utils.mmd_ycl import mmd_ycl
 from ficc.utils.diff_in_days import diff_in_days_two_dates
@@ -25,26 +24,21 @@ import ficc.utils.globals as globals
 
 def trade_dict_to_list(trade_dict: dict, 
                        remove_short_maturity, 
-                       remove_non_transaction_based, 
-                       remove_trade_type, 
-                       trade_history_delay, 
-                       remove_replicas_from_trade_history, 
-                       rtrs_control_number_and_is_replica_flag) -> list:
+                       trade_history_delay,
+                       treasury_spread) -> list:
+
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
-    if trade_dict['rtrs_control_number'] is None:
-        print('rtrs control number is missing, skipping this trade')
-        return None
 
-    # Checking if the seconds a go feature is missing
-    if trade_dict['seconds_ago'] is None:
-        print('Seconds a go missing, skipping this trade')
-        return None
-    elif trade_dict['seconds_ago'] < (trade_history_delay * 60):
-        return None
+    # Checking if the rtrs_control_numner or seconds a go feature is missing
+    if trade_dict['rtrs_control_number'] is None or trade_dict['seconds_ago'] is None:
+        return None, None
+    # Making sure that the most recent trade
+    if trade_dict['seconds_ago'] < (trade_history_delay * 60):
+        return None, None
 
-    # We do not have weighted average maturity before July 27 for ficc yc
+    # The ficc yield curve coefficients are only present before 27th July for the old yield curve and 2nd August for the new yield curve
     if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,7,27):
         target_date = datetime(2021,7,27).date()
     elif globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,8,2):
@@ -52,16 +46,10 @@ def trade_dict_to_list(trade_dict: dict,
     elif trade_dict['trade_datetime'] is not None:
         target_date = trade_dict['trade_datetime'].date()
     else:
-        print("Trade date is missing, skipping this trade")
-        return None
-
-    if remove_replicas_from_trade_history and rtrs_control_number_and_is_replica_flag.get(trade_dict['rtrs_control_number'], False): return None
-    
-    if remove_non_transaction_based == True and trade_dict['is_non_transaction_based_compensation'] == True:
-        return None
+        return None, None
 
     if trade_dict['settlement_date'] is None and remove_short_maturity == True:
-        return None
+        return None, None
     elif remove_short_maturity == True:
         try:
             days_to_maturity = (trade_dict['maturity_date'] - trade_dict['settlement_date']).days
@@ -70,15 +58,12 @@ def trade_dict_to_list(trade_dict: dict,
             for key in trade_dict.keys():
                 print(f'{key} : {trade_dict[key]}')
         if days_to_maturity < 400:
-            return None
-    
-    if len(remove_trade_type) > 0 and trade_dict['trade_type'] in remove_trade_type:
-        return None
+            return None, None
 
     calc_date = trade_dict['calc_date']
+    time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
     #calculating the time to maturity in years from the trade_date
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE == 'FICC_NEW':
-        time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
         global nelson_params
         global scalar_params
         yield_at_that_time = yield_curve_level(time_to_maturity,
@@ -91,10 +76,9 @@ def trade_dict_to_list(trade_dict: dict,
             trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
         else:
             print('Yield is missing, skipping trade')
-            return None
+            return None, None
     
     elif globals.YIELD_CURVE_TO_USE.upper() == "MMD":
-        time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
         yield_at_that_time = mmd_ycl(target_date, time_to_maturity)
         if trade_dict['yield'] is not None:
             try:
@@ -104,14 +88,14 @@ def trade_dict_to_list(trade_dict: dict,
                 raise e
         else:
             print('Yield is missing, skipping trade')
-            return None
+            return None, None
 
     elif globals.YIELD_CURVE_TO_USE.upper() == "S&P":
         if trade_dict['yield'] is not None:
             trade_list.append(trade_dict['yield_spread'] * 100)
         else:
             print('Yield is missing, skipping this trade')
-            return None
+            return None, None
     
     elif globals.YIELD_CURVE_TO_USE.upper() == "MSRB_YTW":
         trade_list.append(trade_dict['yield'] * 100)
@@ -119,10 +103,19 @@ def trade_dict_to_list(trade_dict: dict,
     for key in ['par_traded','trade_type','seconds_ago']:
         if trade_dict[key] is None:
             print(f'{key} is missing, skipping this trade')
-            return None
+            return None, None
     
+    if treasury_spread == True:
+        # add all the maturities and the difference in the levels among them and the ted spread
+        treasury_maturities = np.array([1,2,3,5,7,10,20,30])
+        maturity = min(treasury_maturities, key=lambda x:abs(x-time_to_maturity))
+        maturity = 'year_'+str(maturity)
+        t_rate = globals.treasury_rate[target_date][maturity]
+        t_spread = (trade_dict['yield'] - t_rate) * 100
+        trade_list.append(np.round(t_spread,3))
+
     trade_list.append(np.float32(np.log10(trade_dict['par_traded'])))        
     trade_list += trade_type_mapping[trade_dict['trade_type']]
     trade_list.append(np.log10(1+trade_dict['seconds_ago']))
 
-    return np.stack(trade_list)
+    return np.stack(trade_list) , (trade_dict['dollar_price'], trade_dict['calc_date'], trade_dict['maturity_date'], trade_dict['next_call_date'], trade_dict['par_call_date'], trade_dict['refund_date'], trade_dict['trade_datetime'], trade_dict['calc_day_cat'], trade_dict['settlement_date'], trade_dict['trade_type'])
