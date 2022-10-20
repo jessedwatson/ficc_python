@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-20 15:38:03
+ # @ Modified time: 2022-10-20 15:44:24
  # @ Description: This file contains the code to get 
  # the ficc yield curve level using the calc_date
  '''
@@ -46,7 +46,6 @@ def get_ficc_ycl(trade, **kwargs):
                                     globals.nelson_params,
                                     globals.scalar_params,
                                     globals.shape_parameter)
-        print(duration, trade.calc_date)
 
         ficc_ycl_3_month = yield_curve_level(0.25,
                                     target_date,
