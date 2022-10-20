@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-18 10:11:19
+ # @ Modified time: 2022-10-20 15:25:17
  # @ Description:
  '''
 
@@ -93,16 +93,19 @@ def process_trade_history(query,
     del temp
     print('Trade history created')
     print('Getting last trade features')
-    trade_dataframe[['last_dollar_price',
-                    'last_calc_date', 
-                    'last_maturity_date', 
-                    'last_next_call_date', 
-                    'last_par_call_date', 
-                    'last_refund_date',
-                    'last_trade_datetime',
-                    'last_calc_day_cat',
-                    'last_settlement_date',
-                    'last_trade_type']] = pd.DataFrame(trade_dataframe['temp_last_features'].tolist(), index=trade_dataframe.index)
+    trade_dataframe[['last_yield_spread',
+                     'last_dollar_price',
+                     'last_seconds_ago',
+                     'last_size',
+                     'last_calc_date', 
+                     'last_maturity_date', 
+                     'last_next_call_date', 
+                     'last_par_call_date', 
+                     'last_refund_date',
+                     'last_trade_datetime',
+                     'last_calc_day_cat',
+                     'last_settlement_date',
+                     'last_trade_type']] = pd.DataFrame(trade_dataframe['temp_last_features'].tolist(), index=trade_dataframe.index)
     
 
     trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
