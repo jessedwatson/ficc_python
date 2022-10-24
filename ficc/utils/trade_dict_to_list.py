@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-18 10:12:41
+ # @ Modified time: 2022-10-20 15:30:59
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -73,7 +73,8 @@ def trade_dict_to_list(trade_dict: dict,
                                                globals.shape_parameter)
 
         if trade_dict['yield'] is not None:
-            trade_list.append(trade_dict['yield'] * 100 - yield_at_that_time)
+            yield_spread = trade_dict['yield'] * 100 - yield_at_that_time
+            trade_list.append(yield_spread)
         else:
             print('Yield is missing, skipping trade')
             return None, None
@@ -118,4 +119,16 @@ def trade_dict_to_list(trade_dict: dict,
     trade_list += trade_type_mapping[trade_dict['trade_type']]
     trade_list.append(np.log10(1+trade_dict['seconds_ago']))
 
-    return np.stack(trade_list) , (trade_dict['dollar_price'], trade_dict['calc_date'], trade_dict['maturity_date'], trade_dict['next_call_date'], trade_dict['par_call_date'], trade_dict['refund_date'], trade_dict['trade_datetime'], trade_dict['calc_day_cat'], trade_dict['settlement_date'], trade_dict['trade_type'])
+    return np.stack(trade_list) , (yield_spread,
+                                   trade_dict['dollar_price'], 
+                                   trade_dict['seconds_ago'], 
+                                   trade_dict['par_traded'],
+                                   trade_dict['calc_date'], 
+                                   trade_dict['maturity_date'], 
+                                   trade_dict['next_call_date'], 
+                                   trade_dict['par_call_date'], 
+                                   trade_dict['refund_date'], 
+                                   trade_dict['trade_datetime'], 
+                                   trade_dict['calc_day_cat'], 
+                                   trade_dict['settlement_date'], 
+                                   trade_dict['trade_type'])

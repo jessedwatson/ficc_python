@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 21:44:27
+ # @ Modified time: 2022-10-20 15:25:38
  # @ Description:
  '''
 
@@ -58,9 +58,9 @@ def process_features(df, keep_nan):
     df.days_to_par.replace(-np.inf, np.nan, inplace=True)
     
     # Adding features of the last trade i.e the trade before the most recent trade
-    temp_df = df.trade_history.apply(get_latest_trade_feature)
-    df[['last_seconds_ago', 'last_yield_spread', 'last_size']] = pd.DataFrame(temp_df.tolist(), index=df.index)
-    del temp_df
+    # temp_df = df.trade_history.apply(get_latest_trade_feature)
+    # df[['last_seconds_ago', 'last_yield_spread', 'last_size']] = pd.DataFrame(temp_df.tolist(), index=df.index)
+    # del temp_df
 
     # Adding features from MSRB rule 33G
     df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type="accrual", axis=1)
