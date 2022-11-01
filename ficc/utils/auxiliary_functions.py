@@ -50,9 +50,9 @@ If date1 equals date2, return 0. Otherwise, return -1.
 '''
 def compare_dates(date1, date2):
     if type(date1) == pd.Timestamp:
-        date1 = date1.date()
+        date1 = date1.to_pydatetime()
     if type(date2) == pd.Timestamp:
-        date2 = date2.date()
+        date2 = date2.to_pydatetime()
     
     if date1 > date2:
         return 1
