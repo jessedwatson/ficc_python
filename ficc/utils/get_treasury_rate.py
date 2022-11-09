@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2022-09-29 14:41:45
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-12 15:30:37
+ # @ Modified time: 2022-11-09 11:02:14
  # @ Description:
  '''
 
@@ -39,9 +39,12 @@ def get_previous_treasury_difference(trade_date):
     return diff_rate.tolist()
 
 
-def current_treasury_rate(trade):
+def current_treasury_rate(trade, use_last_duration):
     treasury_maturities = np.array([1,2,3,5,7,10,20,30])
-    time_to_maturity = diff_in_days_two_dates(trade['calc_date'],trade['trade_date'])/NUM_OF_DAYS_IN_YEAR
+    if use_last_duration == True:
+        time_to_maturity = diff_in_days_two_dates(trade['last_calc_date'],trade['last_settlement_date'])/NUM_OF_DAYS_IN_YEAR
+    else:
+        time_to_maturity = diff_in_days_two_dates(trade['calc_date'],trade['settlement_date'])/NUM_OF_DAYS_IN_YEAR
     maturity = min(treasury_maturities, key=lambda x:abs(x-time_to_maturity))
     maturity = 'year_'+str(maturity)
     t_rate = globals.treasury_rate[trade['trade_date']][maturity]

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-20 15:25:17
+ # @ Modified time: 2022-11-09 09:54:32
  # @ Description:
  '''
 
@@ -94,6 +94,7 @@ def process_trade_history(query,
     print('Trade history created')
     print('Getting last trade features')
     trade_dataframe[['last_yield_spread',
+                     'last_yield',
                      'last_dollar_price',
                      'last_seconds_ago',
                      'last_size',

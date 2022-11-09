@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-20 15:42:04
+ # @ Modified time: 2022-11-09 11:01:26
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -42,7 +42,8 @@ def process_data(query,
                  add_flags=False,
                  treasury_spread=False,
                  add_previous_treasury_rate=False,
-                 add_previous_treasury_difference=False, 
+                 add_previous_treasury_difference=False,
+                 use_last_duration=False, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -86,8 +87,16 @@ def process_data(query,
     print('Yield spread calculated')
 
     if treasury_spread == True:
-        trades_df['treasury_rate'] = trades_df[['trade_date','calc_date']].parallel_apply(current_treasury_rate, axis=1)
-        trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
+        if use_last_duration == True:
+            trades_df['treasury_rate'] = trades_df[['trade_date','last_calc_date','last_settlement_date']].parallel_apply(current_treasury_rate, 
+                                                                                                                         args = ([use_last_duration]), 
+                                                                                                                         axis=1)
+            trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
+        else:
+            trades_df['treasury_rate'] = trades_df[['trade_date','calc_date','settlement_date']].parallel_apply(current_treasury_rate, 
+                                                                                                                args=([use_last_duration]),
+                                                                                                                axis=1)
+            trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
     
     if add_previous_treasury_rate == True: 
         # Adding the treasury rates

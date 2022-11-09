@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-20 15:44:28
+ # @ Modified time: 2022-11-09 11:14:26
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -124,20 +124,14 @@ WHERE
 
 # DATA_QUERY = '''
 # SELECT
-#   * except(most_recent_event)
-# FROM
-#   `eng-reactor-287421.auxiliary_views.materialized_trade_history`
-# WHERE
-#   yield IS NOT NULL
-#   AND maturity_description_code = 2
-#   AND trade_date >= '2022-09-01'
-#   AND default_exists <> TRUE
-#   AND most_recent_default_event IS NULL
-#   AND default_indicator IS FALSE
-#   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
-# ORDER BY
-#   trade_datetime
-# limit 100000
+#     * except(most_recent_event)
+#   FROM
+#     `eng-reactor-287421.auxiliary_views.materialized_trade_history`
+#   WHERE
+#     msrb_valid_to_date > current_date -- condition to remove cancelled trades
+#     AND rtrs_control_number = 2022091909215800
+#   ORDER BY
+#     trade_datetime desc
 # '''
 
 
@@ -157,7 +151,8 @@ if __name__ == "__main__":
                               process_ratings=False,
                               treasury_spread=True,
                               add_previous_treasury_rate=False,
-                              add_previous_treasury_difference=False)
+                              add_previous_treasury_difference=False,
+                              use_last_duration=True)
     end_time = time.time()
     print(f"time elapsed in seconds = {end_time - start_time}")
     print(trade_data)
