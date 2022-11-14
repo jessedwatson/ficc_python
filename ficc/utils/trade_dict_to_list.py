@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-11-09 10:12:10
+ # @ Modified time: 2022-11-14 10:43:07
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -12,6 +12,7 @@
  # Taking the log of the number of seconds between the historical trade and the latest trade
  '''
 
+from time import time
 import numpy as np
 from datetime import datetime
 import pandas as pd
@@ -59,6 +60,12 @@ def trade_dict_to_list(trade_dict: dict,
                 print(f'{key} : {trade_dict[key]}')
         if days_to_maturity < 400:
             return None, None
+    
+    #Checking if any field is missing
+    for key in ['par_traded','trade_type','seconds_ago']:
+        if trade_dict[key] is None:
+            print(f'{key} is missing, skipping this trade')
+            return None, None
 
     calc_date = trade_dict['calc_date']
     time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
@@ -100,11 +107,6 @@ def trade_dict_to_list(trade_dict: dict,
     
     elif globals.YIELD_CURVE_TO_USE.upper() == "MSRB_YTW":
         trade_list.append(trade_dict['yield'] * 100)
-        
-    for key in ['par_traded','trade_type','seconds_ago']:
-        if trade_dict[key] is None:
-            print(f'{key} is missing, skipping this trade')
-            return None, None
     
     if treasury_spread == True:
         # add all the maturities and the difference in the levels among them and the ted spread
@@ -118,6 +120,7 @@ def trade_dict_to_list(trade_dict: dict,
     trade_list.append(np.float32(np.log10(trade_dict['par_traded'])))        
     trade_list += trade_type_mapping[trade_dict['trade_type']]
     trade_list.append(np.log10(1+trade_dict['seconds_ago']))
+    trade_list.appen(time_to_maturity * NUM_OF_DAYS_IN_YEAR)
 
     return np.stack(trade_list) , (yield_spread,
                                    trade_dict['yield'],
