@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-11-14 10:26:48
+ # @ Modified time: 2022-11-28 09:59:24
  # @ Description:
  '''
 
@@ -120,6 +120,6 @@ def process_trade_history(query,
     trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history])
     print("Padding completed")
      
-    trade_dataframe.dropna(subset=['trade_history', 'yield_spread'], inplace=True)
+    trade_dataframe.dropna(subset=['trade_history'], inplace=True)
     print(f'Processed trade history contain {len(trade_dataframe)} samples')
     return trade_dataframe
