@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-11-28 09:57:00
+ # @ Modified time: 2022-12-01 11:35:39
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -25,7 +25,7 @@ from ficc.data.process_data import process_data
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 SEQUENCE_LENGTH = 5
-NUM_FEATURES = 7
+NUM_FEATURES = 6
 
 DATA_QUERY = '''SELECT
 rtrs_control_number,
