@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-20 15:25:17
+ # @ Modified time: 2022-11-28 09:59:24
  # @ Description:
  '''
 
@@ -94,6 +94,7 @@ def process_trade_history(query,
     print('Trade history created')
     print('Getting last trade features')
     trade_dataframe[['last_yield_spread',
+                     'last_yield',
                      'last_dollar_price',
                      'last_seconds_ago',
                      'last_size',
@@ -108,7 +109,8 @@ def process_trade_history(query,
                      'last_trade_type']] = pd.DataFrame(trade_dataframe['temp_last_features'].tolist(), index=trade_dataframe.index)
     
 
-    trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
+    # trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
+    trade_dataframe = trade_dataframe.drop(columns=['temp_last_features'])
     
     print(f"Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
@@ -118,6 +120,6 @@ def process_trade_history(query,
     trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history])
     print("Padding completed")
      
-    trade_dataframe.dropna(subset=['trade_history', 'yield_spread'], inplace=True)
+    trade_dataframe.dropna(subset=['trade_history'], inplace=True)
     print(f'Processed trade history contain {len(trade_dataframe)} samples')
     return trade_dataframe

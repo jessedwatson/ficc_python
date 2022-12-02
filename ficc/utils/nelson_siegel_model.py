@@ -2,14 +2,13 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-14 14:34:08
+ # @ Modified time: 2022-10-31 10:30:07
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
  # instead of grabbing them from memory store
  '''
 
-from ftplib import ftpcp
 import numpy as np 
 from pandas.tseries.offsets import BDay
 

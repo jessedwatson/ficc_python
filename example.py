@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-20 15:44:28
+ # @ Modified time: 2022-12-01 11:35:39
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -61,7 +61,6 @@ maturity_amount,
 issue_price,
 orig_principal_amount,
 max_amount_outstanding,
-yield_spread,
 recent,
 dollar_price,
 calc_date,
@@ -119,25 +118,19 @@ WHERE
 --  AND DATETIME_DIFF(trade_datetime,recent[SAFE_OFFSET(0)].trade_datetime,SECOND) < 1000000 -- 12 days to the most recent trade
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
   ORDER BY trade_datetime desc 
-  limit 100
+  limit 10000
   '''
 
 # DATA_QUERY = '''
 # SELECT
-#   * except(most_recent_event)
-# FROM
-#   `eng-reactor-287421.auxiliary_views.materialized_trade_history`
-# WHERE
-#   yield IS NOT NULL
-#   AND maturity_description_code = 2
-#   AND trade_date >= '2022-09-01'
-#   AND default_exists <> TRUE
-#   AND most_recent_default_event IS NULL
-#   AND default_indicator IS FALSE
-#   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
-# ORDER BY
-#   trade_datetime
-# limit 100000
+#     * except(most_recent_event)
+#   FROM
+#     `eng-reactor-287421.auxiliary_views.materialized_trade_history`
+#   WHERE
+#     msrb_valid_to_date > current_date -- condition to remove cancelled trades
+#     AND rtrs_control_number = 2022051107687000
+#   ORDER BY
+#     trade_datetime desc
 # '''
 
 
@@ -145,19 +138,39 @@ bq_client = bigquery.Client()
 
 if __name__ == "__main__":
     start_time  = time.time()
-    trade_data = process_data(DATA_QUERY,
-                              bq_client,
-                              SEQUENCE_LENGTH,
-                              NUM_FEATURES,
-                              'data.pkl',
-                              "FICC_NEW",
-                              remove_short_maturity=False,
-                              trade_history_delay = 1,
-                              min_trades_in_history = 0,
-                              process_ratings=False,
-                              treasury_spread=True,
-                              add_previous_treasury_rate=False,
-                              add_previous_treasury_difference=False)
+    # trade_data = process_data(DATA_QUERY,
+    #                           bq_client,
+    #                           SEQUENCE_LENGTH,
+    #                           NUM_FEATURES,
+    #                           'data.pkl',
+    #                           "FICC_NEW",
+    #                           remove_short_maturity=False,
+    #                           trade_history_delay = 1,
+    #                           min_trades_in_history = 0,
+    #                           process_ratings=False,
+    #                           treasury_spread=True,
+    #                           add_previous_treasury_rate=False,
+    #                           add_previous_treasury_difference=False,
+    #                           use_last_duration=True)
+    trade_data = process_data(DATA_QUERY, 
+                    bq_client,
+                    SEQUENCE_LENGTH,
+                    NUM_FEATURES,
+                    'data.pkl',
+                    'FICC_NEW',
+                    estimate_calc_date=False,
+                    remove_short_maturity=False,
+                    remove_non_transaction_based=False,
+                    remove_trade_type = [],
+                    trade_history_delay = 0,
+                    min_trades_in_history = 0,
+                    process_ratings=False,
+                    treasury_spread = True,
+                    add_previous_treasury_rate=True,
+                    add_previous_treasury_difference=True,
+                    use_last_duration=False,
+                    add_flags=False)
+    
     end_time = time.time()
     print(f"time elapsed in seconds = {end_time - start_time}")
     print(trade_data)
