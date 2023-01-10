@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-08-08 12:11:00
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-07 14:42:00
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2023-01-10 10:58:00
  # @ Description: Adds flags to trades to provide additional features
  '''
 
@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, REPLICA_COUNT
+from ficc.utils.auxiliary_functions import flatten
 
 
 def subarray_sum(lst, target_sum, indices):
@@ -50,7 +51,7 @@ def subarray_sum_equaling_zero(lst, indices):
         if current_sum in d:
             potential_left_idx = d[current_sum] + 1
             potential_right_idx = idx
-            if right_idx_of_longest_subarray - left_idx_of_longest_subarray < potential_right_idx - potential_left_idx:
+            if left_idx_of_longest_subarray is None or right_idx_of_longest_subarray - left_idx_of_longest_subarray < potential_right_idx - potential_left_idx:
                 left_idx_of_longest_subarray, right_idx_of_longest_subarray = potential_left_idx, potential_right_idx
         if current_sum not in d: d[current_sum] = idx    # do not put the index into the map if it already exists, in order to have the largest list
 
@@ -103,16 +104,18 @@ def add_same_day_flag(df, flag_name=IS_SAME_DAY, use_parallel_apply=True):
     
     Future work to speed up the for loop with multiple cores: 
     https://stackoverflow.com/questions/59184496/how-to-make-the-following-for-loop-use-multiple-core-in-python '''
-    if use_parallel_apply: warnings.warn('For loop is not parallelized yet')
-    
     df = df.astype({'par_traded': np.float64})    # `par_traded` type is Category so need to change it order to sum up; chose float64 to prevent potential rounding errors
 
     df[flag_name] = False
     group_by_day_cusip = df[df['trade_type'] != 'D'].groupby(['trade_date', 'cusip'], observed=True)[['par_traded', 'trade_type']]    # only need the 'par_traded' and 'trade_type' columns in the helper function
 
-    indices_to_mark = []
-    for _, sub_df in group_by_day_cusip:
-        indices_to_mark.extend(_add_same_day_flag_for_group(sub_df))
+    if use_parallel_apply:
+        _add_same_day_flag_for_group_func = lambda _, sub_df: _add_same_day_flag_for_group(sub_df)
+        with mp.Pool() as pool_object:
+            indices_to_mark = pool_object.starmap(_add_same_day_flag_for_group_func, group_by_day_cusip)
+    else:
+        indices_to_mark = [_add_same_day_flag_for_group(sub_df) for _, sub_df in group_by_day_cusip]
+    indices_to_mark = flatten(indices_to_mark)
 
     df.loc[indices_to_mark, flag_name] = True
     return df
