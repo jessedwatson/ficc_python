@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-12-28 01:24:15
+ # @ Modified time: 2023-01-13 14:16:14
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -22,6 +22,9 @@ from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
+
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def trade_dict_to_list(trade_dict: dict, 
                        remove_short_maturity, 

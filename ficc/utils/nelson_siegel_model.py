@@ -2,7 +2,7 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-31 10:30:07
+ # @ Modified time: 2023-01-13 14:16:20
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
@@ -11,12 +11,11 @@
 
 import numpy as np 
 from pandas.tseries.offsets import BDay
+from datetime import datetime
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 PROJECT_ID = "eng-reactor-287421"
-
-#Default shape parameter based on initial hyperparameter tuning. This affects the curvature and slope of the nelson-siegel curve
-#higher values generally imply a straighter, more monotonic yield curve (particularly at maturities < 1)
-L = 17 
 
 ###Functions to transform maturities into the components in the nelson-siegel model
 def decay_transformation(t:np.array, L:float):
@@ -47,23 +46,15 @@ def load_model_parameters(target_date, nelson_params, scalar_params, shape_param
     This function grabs the nelson siegel and standard scalar coefficient from the dataframes 
     '''
 
-    # temp_date = datetime.strptime(target_date, '%Y-%m-%d')
-    # dates = list(nelson_params.index)
-    # cloz_dict = { abs(temp_date.timestamp() - date.timestamp()) : date for date in dates}
-    # target_date = cloz_dict[min(cloz_dict.keys())].date().strftime('%Y-%m-%d')
-    nelson_coeff = nelson_params[target_date].values()
-    scalar_coeff = scalar_params[target_date].values()
-    
-    try:
-        shape_param = shape_parameter[target_date]['L']
-    except Exception as e:
-        shape_param = shape_parameter[target_date - BDay(1)]['L']
-    
+    nelson_coeff = nelson_params.iloc[nelson_params.index.get_loc(target_date, method='backfill')].values
+    scalar_coeff = scalar_params.iloc[scalar_params.index.get_loc(target_date, method='backfill')].values
+    shape_param = shape_parameter.iloc[shape_parameter.index.get_loc(target_date, method='backfill')].values[0]
+        
     return nelson_coeff, scalar_coeff, shape_param
 
 
 ###Functions used for prediction  Function to 
-def get_scaled_features(t:np.array, exponential_mean:float, exponential_std:float, laguerre_mean:float, laguerre_std:float):
+def get_scaled_features(t:np.array, exponential_mean:float, exponential_std:float, laguerre_mean:float, laguerre_std:float, shape_paramter:float):
     
     '''
     This function takes as input the parameters loaded from the scaler parameter table in bigquery on a given day, alongside an array (or a
@@ -78,11 +69,19 @@ def get_scaled_features(t:np.array, exponential_mean:float, exponential_std:floa
     laguerre_std:float
     '''
     
-    X1 = (decay_transformation(t, L) - exponential_mean)/exponential_std 
-    X2 = (laguerre_transformation(t, L) - laguerre_mean)/laguerre_std 
+    X1 = (decay_transformation(t, shape_paramter) - exponential_mean)/exponential_std 
+    X2 = (laguerre_transformation(t, shape_paramter) - laguerre_mean)/laguerre_std 
     return X1, X2
 
-def predict_ytw(t:np.array, const:float , exponential:float , laguerre:float , exponential_mean:float , exponential_std:float , laguerre_mean:float , laguerre_std:float ):
+def predict_ytw(maturity:np.array, 
+                const:float, 
+                exponential:float, 
+                laguerre:float, 
+                exponential_mean:float, 
+                exponential_std:float, 
+                laguerre_mean:float, 
+                laguerre_std:float, 
+                shape_parameter:float):
     '''
     This is a wrapper function that takes the prediction inputs, the scaler parameters and the model parameters from a given day. It then
     scales the input using the get_scaled_features function to obtain the model inputs, and predicts the yield-to-worst implied by the
@@ -97,13 +96,24 @@ def predict_ytw(t:np.array, const:float , exponential:float , laguerre:float , e
     exponential_std:float
     laguerre_mean:float
     laguerre_std:float
+    shape_parameter:float
     '''
     
-    X1, X2 = get_scaled_features(t, exponential_mean, exponential_std, laguerre_mean, laguerre_std)
+    X1, X2 = get_scaled_features(maturity, 
+                                 exponential_mean, 
+                                 exponential_std, 
+                                 laguerre_mean, 
+                                 laguerre_std, 
+                                 shape_parameter)
+
     return const + exponential*X1 + laguerre*X2
 
 
-def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_params, shape_paramter):
+def yield_curve_level(maturity:float, 
+                      target_date, 
+                      nelson_params, 
+                      scalar_params, 
+                      shape_paramter):
     '''
     This is the main function takes as input a json containing two arguments: the maturity we want the yield-to-worst for and the target 
     ate from which we want the yield curve used in the ytw calculations to be from. There are several conditional statements to deal with
@@ -113,21 +123,28 @@ def yield_curve_level(maturity:float, target_date:str, nelson_params, scalar_par
     and the result (nan if calculation was unsuccessful).
     '''
     
-    t = maturity
-    
     #If a target_date is provided but it is in an invalid format, then the correct values from the model and scaler parameters cannot be
     #retrieved, and an error is also returned.
     try:
-        nelson_siegel_daily_coef, scaler_daily_parameters, shape_param = load_model_parameters(target_date, nelson_params, scalar_params, shape_paramter)
+        nelson_siegel_daily_coef, scaler_daily_parameters, shape_param = load_model_parameters(target_date, 
+                                                                                               nelson_params, 
+                                                                                               scalar_params, 
+                                                                                               shape_paramter)
     except Exception as e:
         raise e 
     
     const, exponential, laguerre = nelson_siegel_daily_coef
     exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters
-    global L
-    L = shape_param
     
     #If the function gets this far, the values are correct. A prediction is made and returned appropriately.
-    prediction = predict_ytw(t, const, exponential, laguerre, exponential_mean, exponential_std, laguerre_mean, laguerre_std)
+    prediction = predict_ytw(maturity, 
+                             const, 
+                             exponential, 
+                             laguerre, 
+                             exponential_mean, 
+                             exponential_std, 
+                             laguerre_mean, 
+                             laguerre_std,
+                             shape_param)
     
     return prediction

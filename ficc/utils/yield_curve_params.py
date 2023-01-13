@@ -3,7 +3,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 10:40:14
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-21 13:27:30
+ # @ Modified time: 2023-01-13 14:11:25
  # @ Description:
  '''
 
@@ -36,9 +36,3 @@ def yield_curve_params(client, yield_curve_to_use):
     globals.nelson_params = globals.nelson_params[~globals.nelson_params.index.duplicated(keep='first')]
     globals.scalar_params = globals.scalar_params[~globals.scalar_params.index.duplicated(keep='first')]
     globals.shape_parameter = globals.shape_parameter[~globals.shape_parameter.index.duplicated(keep='first')]
-
-    # Transpose here so we can index along the longer of the two dimensions once. Otherwise we would have to index
-    # the target_date once for each sub-param
-    globals.nelson_params = globals.nelson_params.transpose().to_dict()
-    globals.scalar_params = globals.scalar_params.transpose().to_dict()
-    globals.shape_parameter = globals.shape_parameter.transpose().to_dict()
