@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-10-20 15:25:38
+ # @ Modified time: 2022-12-22 08:35:51
  # @ Description:
  '''
 
@@ -25,7 +25,7 @@ def process_features(df, keep_nan):
     # Processing 
     df.loc[:,'quantity'] = np.log10(df.par_traded.astype(np.float32))
     df.coupon = df.coupon.astype(np.float32)
-    df.issue_amount = np.log10(df.issue_amount.astype(np.float32))
+    df.issue_amount = np.log10(1 + df.issue_amount.astype(np.float32))
     df.maturity_amount = np.log10(1.0 + df.maturity_amount.astype(float))
     df.orig_principal_amount = np.log10(1.0 + df.orig_principal_amount.astype(float))
     #Check the outstanding_amount
