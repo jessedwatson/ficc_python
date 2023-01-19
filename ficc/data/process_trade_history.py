@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-12-28 01:20:31
+ # @ Modified time: 2023-01-19 11:52:42
  # @ Description:
  '''
 
@@ -89,11 +89,12 @@ def process_trade_history(query,
                                                                              treasury_spread]))
                                                                                                 
                                                                         
-    trade_dataframe[['trade_history','temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)
+    trade_dataframe[['trade_history','temp_last_features','previous_trades_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)
     del temp
     print('Trade history created')
     print('Getting last trade features')
     trade_dataframe[['last_yield_spread',
+                     'last_ficc_ycl',
                      'last_rtrs_control_number',
                      'last_yield',
                      'last_dollar_price',
