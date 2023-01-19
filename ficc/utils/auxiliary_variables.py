@@ -12,6 +12,7 @@ IS_BOOKKEEPING = 'is_bookkeeping'
 IS_SAME_DAY = 'is_same_day'
 IS_REPLICA = 'is_replica'
 NTBC_PRECURSOR = 'ntbc_precursor'
+REPLICA_COUNT = 'replica_count'
 
 COUPON_FREQUENCY_DICT = {0:"Unknown",
                          1:"Semiannually",
@@ -107,7 +108,8 @@ NON_CAT_FEATURES = ['quantity',
                     'max_amount_outstanding',
                     'accrued_days',
                     'days_in_interest_payment',
-                    'A/E']
+                    'A/E', 
+                    REPLICA_COUNT]
 
 TRADE_HISTORY = ['trade_history']
 
