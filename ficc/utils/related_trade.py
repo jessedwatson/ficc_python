@@ -14,7 +14,7 @@ from ficc.utils.auxiliary_variables import VERY_LARGE_NUMBER, \
                                            get_appended_feature_name, \
                                            related_trade_features,\
                                            flatten
-                                           
+
 from ficc.utils.auxiliary_functions import compare_dates, double_quote_a_string
 from ficc.utils.trade_mapping import TRADE_TYPE_MAPPING, TRADE_TYPE_CROSS_PRODUCT_MAPPING
 from ficc.utils.encode import encode_and_get_encoders
@@ -202,7 +202,7 @@ def add_related_trades(df, prefix, num_trades, categorical_features, default_val
     categorical_features_to_add_functions = {feature: get_neighbor_feature(feature) for feature in categorical_features}
     related_trade_feature_functions = {**RELATED_TRADE_FEATURE_FUNCTIONS, **categorical_features_to_add_functions}    # RELATED_TRADE_FEATURE_FUNCTIONS | categorical_features_to_add_functions    # changed code to work with python 3.7 (| notation for combining ditionaries is for 3.9+)
 
-    print(f'Each trade in the related trade history has the following features: {list(related_trade_feature_functions.keys())}')
+    # print(f'Each trade in the related trade history has the following features: {list(related_trade_feature_functions.keys())}')
 
     RELATED_TRADE_FEATURE_FUNCTIONS_AND_DEFAULT_VALUES = {key: (function, default_values[key]) for key, function in related_trade_feature_functions.items()}
 

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-19 16:49:24
+ # @ Modified time: 2023-01-20 13:43:20
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -44,7 +44,8 @@ def process_data(query,
                  treasury_spread=False,
                  add_previous_treasury_rate=False,
                  add_previous_treasury_difference=False,
-                 use_last_duration=False, 
+                 use_last_duration=False,
+                 add_related_trades_bool=False,
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -133,8 +134,12 @@ def process_data(query,
         trades_df = add_same_day_flag(trades_df)
         trades_df = add_ntbc_precursor_flag(trades_df)
     
-    print('Adding most recent related trade')
-    trades_df = add_related_trades(trades_df, RELATED_TRADE_FEATURE_PREFIX, NUM_RELATED_TRADES, CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE)
+    if add_related_trades_bool == True:
+        print('Adding most recent related trade')
+        trades_df = add_related_trades(trades_df,
+                                       RELATED_TRADE_FEATURE_PREFIX, 
+                                       NUM_RELATED_TRADES, 
+                                       CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE)
     
 
     print(f"Numbers of samples {len(trades_df)}")
