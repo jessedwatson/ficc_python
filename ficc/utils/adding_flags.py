@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-08-08 12:11:00
- # @ Modified by: Mitas Ray
- # @ Modified time: 2023-01-10 10:58:00
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2023-01-19 16:10:44
  # @ Description: Adds flags to trades to provide additional features
  '''
 
@@ -10,9 +10,9 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import multiprocess as mp
 
-from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, REPLICA_COUNT
-from ficc.utils.auxiliary_functions import flatten
+from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, REPLICA_COUNT, flatten
 
 
 def subarray_sum(lst, target_sum, indices):

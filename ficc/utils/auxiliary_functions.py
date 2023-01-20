@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-19 13:10:59
+ # @ Modified time: 2023-01-19 16:10:23
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -12,6 +12,13 @@ import numpy as np
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.diff_in_days import diff_in_days_two_dates
+
+
+'''Quote a string twice: e.g., double_quote_a_string('hello') -> "'hello'". This 
+function is used to put string arguments into formatted string expressions and 
+maintain the quotation.'''
+double_quote_a_string = lambda potential_string: f'"{str(potential_string)}"' if type(potential_string) == str else potential_string
+
 
 def sqltodf(sql, bq_client):
     bqr = bq_client.query(sql).result()
@@ -49,17 +56,11 @@ The different types are causing a future warning. If date1 occurs after date2, r
 If date1 equals date2, return 0. Otherwise, return -1.
 '''
 def compare_dates(date1, date2):
-    if type(date1) == pd.Timestamp:
+    if type(date1) == pd.Timestamp: 
         date1 = date1.to_pydatetime()
-    if type(date2) == pd.Timestamp:
+    if type(date2) == pd.Timestamp: 
         date2 = date2.to_pydatetime()
-    
-    if date1 > date2:
-        return 1
-    elif date1 == date2:
-        return 0
-    elif date1 < date2:
-        return -1
+    return (date1 - date2).total_seconds()
 
 '''
 This function directly calls `compare_dates` to check if two dates are equal.
@@ -117,3 +118,5 @@ def calculate_dollar_error(df, predicted_ys):
     years_to_calc_date = diff_in_days_two_dates(df.calc_date,df.settlement_date) / NUM_OF_DAYS_IN_YEAR    # the division by `np.timedelta64(NUM_OF_DAYS_IN_YEAR, 'D')` converts the quantity to years according to the MSRB convention of NUM_OF_DAYS_IN_YEAR in a year
     ytw_error = ((predicted_ys + df['ficc_ycl']) / 100 - df['yield']) / 100    # the second divide by 100 is because the unit of the dividend is in percent
     return ytw_error * (10 ** df['quantity']) * years_to_calc_date    # dollar error = duration * quantity * ytw error; duration = calc_date - settlement_date [in years]
+
+
