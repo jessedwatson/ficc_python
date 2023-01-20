@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-19 11:52:42
+ # @ Modified time: 2023-01-20 14:23:37
  # @ Description:
  '''
 
@@ -112,7 +112,7 @@ def process_trade_history(query,
     
 
     # trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
-    trade_dataframe = trade_dataframe.drop(columns=['temp_last_features'])
+    trade_dataframe = trade_dataframe.drop(columns=['temp_last_features','recent'])
     
     print(f"Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
