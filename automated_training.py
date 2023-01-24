@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-23 15:52:42
+ # @ Modified time: 2023-01-23 16:21:35
  # @ Description:
  '''
 
@@ -110,37 +110,40 @@ def return_data_query(last_trade_date):
                  AND settlement_date is not null
                ORDER BY trade_datetime desc limit 10'''
 
+def update_data():
+  fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
+  with fs.open('automated_training/processed_data.pkl') as f:
+      data = pd.read_pickle(f)
+  
+  last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
+  
+  DATA_QUERY = return_data_query(last_trade_date)
+  
+  file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
+  new_data = process_data(DATA_QUERY,
+                      bq_client,
+                      SEQUENCE_LENGTH,NUM_FEATURES,
+                      f"raw_data_{file_timestamp}.pkl",
+                      'FICC_NEW',
+                      estimate_calc_date=False,
+                      remove_short_maturity=True,
+                      remove_non_transaction_based=False,
+                      remove_trade_type = [],
+                      trade_history_delay = 1,
+                      min_trades_in_history = 0,
+                      process_ratings=False,
+                      treasury_spread = True,
+                      add_previous_treasury_rate=True,
+                      add_previous_treasury_difference=True,
+                      add_flags=False,
+                      add_related_trades_bool=True)
+  
+  data = pd.concat([new_data, data])
+  data.to_pickle('processed_data.pkl')
+  return data
+
 def main():
-    fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
-    with fs.open('automated_training/processed_data.pkl') as f:
-        data = pd.read_pickle(f)
-    
-    last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
-    
-    DATA_QUERY = return_data_query(last_trade_date)
-    
-    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
-    new_data = process_data(DATA_QUERY,
-                        bq_client,
-                        SEQUENCE_LENGTH,NUM_FEATURES,
-                        f"raw_data_{file_timestamp}.pkl",
-                        'FICC_NEW',
-                        estimate_calc_date=False,
-                        remove_short_maturity=True,
-                        remove_non_transaction_based=False,
-                        remove_trade_type = [],
-                        trade_history_delay = 1,
-                        min_trades_in_history = 0,
-                        process_ratings=False,
-                        treasury_spread = True,
-                        add_previous_treasury_rate=True,
-                        add_previous_treasury_difference=True,
-                        add_flags=False,
-                        add_related_trades_bool=True)
-    
-    data = pd.concat([new_data, data])
-    # data = data.sort_values('trade_datetime', ascending=False)
-    data.to_pickle('processed_data.pkl')
+  data = update_data()  
     
 
 
