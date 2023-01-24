@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-19 11:50:13
+ # @ Modified time: 2023-01-24 10:58:09
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -116,7 +116,7 @@ def trade_dict_to_list(trade_dict: dict,
         treasury_maturities = np.array([1,2,3,5,7,10,20,30])
         maturity = min(treasury_maturities, key=lambda x:abs(x-time_to_maturity))
         maturity = 'year_'+str(maturity)
-        t_rate = globals.treasury_rate.iloc[globals.treasury_rate.index.get_loc(target_date, method='backfill')][maturity]
+        t_rate = globals.treasury_rate[target_date][maturity]
         t_spread = (trade_dict['yield'] - t_rate) * 100
         trade_list.append(np.round(t_spread,3))
 

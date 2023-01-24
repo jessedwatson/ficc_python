@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-12-22 08:35:51
+ # @ Modified time: 2023-01-24 11:29:28
  # @ Description:
  '''
 
@@ -17,7 +17,7 @@ from ficc.utils.auxiliary_functions import calculate_a_over_e
 
 def process_features(df, keep_nan):
     # Removing bonds from Puerto Rico
-    df = df[df.incorporated_state_code != 'PR']
+    # df = df[df.incorporated_state_code != 'PR']
 
     df.interest_payment_frequency.fillna(0, inplace=True)
     df.loc[:,'interest_payment_frequency'] = df.interest_payment_frequency.apply(lambda x: COUPON_FREQUENCY_DICT[x])

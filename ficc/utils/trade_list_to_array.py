@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:56:59
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-19 11:52:45
+ # @ Modified time: 2023-01-24 09:33:56
  # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
  # function to unpack the list of dictionaries and creates a list of historical trades. 
  # With each element in the list containing all the information for that particular trade
@@ -18,11 +18,10 @@ def trade_list_to_array(trade_history,
                         treasury_spread):
     
     if len(trade_history) == 0:
-        return np.array([]), [None]*16, []
+        return np.array([]), [None]*16
 
     trades_list = []
     last_trade_features = None
-    previous_trades_features = []
     for entry in trade_history:
         trades, temp_last_features = trade_dict_to_list(entry,
                                     remove_short_maturity,
@@ -30,7 +29,6 @@ def trade_list_to_array(trade_history,
                                     treasury_spread)
         if trades is not None:
             trades_list.append(trades)
-            previous_trades_features.append(list(temp_last_features))
         
         if last_trade_features is None:
             last_trade_features = temp_last_features
@@ -38,7 +36,7 @@ def trade_list_to_array(trade_history,
 
     if len(trades_list) > 0:
         try:
-            return np.stack(trades_list), last_trade_features, np.stack(previous_trades_features)
+            return np.stack(trades_list), last_trade_features
         except Exception as e:
             for i in trades_list:
                 print(i)
@@ -46,4 +44,4 @@ def trade_list_to_array(trade_history,
                 print(i)
             raise e
     else:
-        return [], [None]*16, []
+        return [], [None]*16
