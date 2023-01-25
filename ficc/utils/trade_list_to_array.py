@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:56:59
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-12-15 06:48:38
+ # @ Modified time: 2023-01-24 09:33:56
  # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
  # function to unpack the list of dictionaries and creates a list of historical trades. 
  # With each element in the list containing all the information for that particular trade
@@ -18,7 +18,7 @@ def trade_list_to_array(trade_history,
                         treasury_spread):
     
     if len(trade_history) == 0:
-        return np.array([]), [None]*15
+        return np.array([]), [None]*16
 
     trades_list = []
     last_trade_features = None
@@ -44,4 +44,4 @@ def trade_list_to_array(trade_history,
                 print(i)
             raise e
     else:
-        return [], [None]*15
+        return [], [None]*16

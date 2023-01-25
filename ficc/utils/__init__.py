@@ -19,3 +19,4 @@ from . import mmd_ycl
 from . import get_mmd_ycl
 from . import gcp_storage_functions
 from . import get_treasury_rate
+from . import related_trade

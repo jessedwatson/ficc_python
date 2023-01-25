@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-11-09 11:01:26
+ # @ Modified time: 2023-01-20 13:43:20
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -24,9 +24,10 @@ from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
+from ficc.utils.auxiliary_variables import RELATED_TRADE_FEATURE_PREFIX, NUM_RELATED_TRADES, CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE
 from ficc.utils.get_treasury_rate import current_treasury_rate, get_all_treasury_rate, get_previous_treasury_difference
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_replica_count_flag, add_same_day_flag, add_ntbc_precursor_flag
-
+from ficc.utils.related_trade import add_related_trades
 
 def process_data(query, 
                  client, 
@@ -43,7 +44,8 @@ def process_data(query,
                  treasury_spread=False,
                  add_previous_treasury_rate=False,
                  add_previous_treasury_difference=False,
-                 use_last_duration=False, 
+                 use_last_duration=False,
+                 add_related_trades_bool=False,
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -132,6 +134,14 @@ def process_data(query,
         trades_df = add_same_day_flag(trades_df)
         trades_df = add_ntbc_precursor_flag(trades_df)
     
+    if add_related_trades_bool == True:
+        print('Adding most recent related trade')
+        trades_df = add_related_trades(trades_df,
+                                       RELATED_TRADE_FEATURE_PREFIX, 
+                                       NUM_RELATED_TRADES, 
+                                       CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE)
+    
+
     print(f"Numbers of samples {len(trades_df)}")
     
     return trades_df

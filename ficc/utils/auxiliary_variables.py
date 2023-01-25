@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-09-29 13:50:09
+ # @ Modified time: 2023-01-19 16:08:55
  # @ Description:
  '''
 
@@ -13,6 +13,49 @@ IS_SAME_DAY = 'is_same_day'
 IS_REPLICA = 'is_replica'
 NTBC_PRECURSOR = 'ntbc_precursor'
 REPLICA_COUNT = 'replica_count'
+
+import numpy as np
+from ficc.utils.trade_mapping import TRADE_TYPE_MAPPING, TRADE_TYPE_CROSS_PRODUCT_MAPPING
+from ficc.utils.diff_in_days import diff_in_days_two_dates
+
+
+def quantity_diff(par_traded_diff):
+    MINIMUM_PAR_TRADED_DIFF_BETWEEN_TWO_BONDS = 100
+    sign = np.sign(par_traded_diff)
+    if abs(par_traded_diff) < MINIMUM_PAR_TRADED_DIFF_BETWEEN_TWO_BONDS: return 0    # use 0 to represent that the quantites are very close
+    else: return float(sign * np.log10(abs(par_traded_diff)))    # wrap in `float(...)` to convert Decimal type to float type
+
+flatten = lambda lst: [item for sublst in lst for item in sublst]
+
+
+get_neighbor_feature = lambda feature: lambda curr, neighbor: neighbor[feature]
+
+RELATED_TRADE_FEATURE_FUNCTIONS = {'yield_spread': get_neighbor_feature('yield_spread'), 
+                                   'treasury_spread': get_neighbor_feature('ficc_treasury_spread'), 
+                                   'quantity': get_neighbor_feature('quantity'), 
+                                   'quantity_diff': lambda curr, neighbor: quantity_diff(10 ** neighbor['quantity'] - 10 ** curr['quantity']), 
+                                   'trade_type1': lambda curr, neighbor: TRADE_TYPE_MAPPING[neighbor['trade_type']][0], 
+                                   'trade_type2': lambda curr, neighbor: TRADE_TYPE_MAPPING[neighbor['trade_type']][1], 
+                                   'seconds_ago': lambda curr, neighbor: np.log10(1 + (curr['trade_datetime'] - neighbor['trade_datetime']).total_seconds()), 
+                                   'settlement_date_to_calc_date': lambda curr, neighbor: np.log10(1 + diff_in_days_two_dates(neighbor['calc_date'], neighbor['settlement_date'], convention='exact')), 
+                                   'calc_day_cat': get_neighbor_feature('calc_day_cat'), 
+                                   'trade_type_past_latest': lambda curr, neighbor: TRADE_TYPE_CROSS_PRODUCT_MAPPING[neighbor['trade_type'] + curr['trade_type']], 
+                                   'same_day': lambda curr, neighbor: int(neighbor['trade_date'] == curr['trade_date'])}
+
+RELATED_TRADE_FEATURE_PREFIX = 'related_last_'
+RELATED_TRADE_BINARY_FEATURES = ['same_day']    # will be replaced by the column name for every past related trade
+RELATED_TRADE_CATEGORICAL_FEATURES = ['calc_day_cat', 'trade_type_past_latest']    # will be replaced by the column name for every past related trade
+RELATED_TRADE_NON_CAT_FEATURES = ['yield_spread', 'treasury_spread', 'quantity', 'quantity_diff', 'seconds_ago', 'settlement_date_to_calc_date']    # will be replaced by the column name for every past related trade
+CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE = ['rating', 'incorporated_state_code']    # need to be separated from RELATED_TRADE_CATEGORICAL_FEATURES since we create feature functions with these names using `get_neighbor_feature`
+NUM_RELATED_TRADES = 1
+
+get_appended_feature_name = lambda idx, feature_name='', prefix='': f'{idx + 1}{prefix}{feature_name}' if idx != 0 else f'{prefix}{feature_name}'
+related_trade_features = lambda features: flatten([[get_appended_feature_name(idx, feature, RELATED_TRADE_FEATURE_PREFIX) for feature in features] for idx in range(NUM_RELATED_TRADES)])
+
+RELATED_TRADE_BINARY_FEATURES = related_trade_features(RELATED_TRADE_BINARY_FEATURES)
+RELATED_TRADE_CATEGORICAL_FEATURES = related_trade_features(RELATED_TRADE_CATEGORICAL_FEATURES) + related_trade_features(CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE) + related_trade_features(['trade_type'])
+RELATED_TRADE_NON_CAT_FEATURES = related_trade_features(RELATED_TRADE_NON_CAT_FEATURES)
+
 
 COUPON_FREQUENCY_DICT = {0:"Unknown",
                          1:"Semiannually",
@@ -108,12 +151,11 @@ NON_CAT_FEATURES = ['quantity',
                     'max_amount_outstanding',
                     'accrued_days',
                     'days_in_interest_payment',
-                    'A/E', 
-                    REPLICA_COUNT]
+                    'A/E']
 
 TRADE_HISTORY = ['trade_history']
 
-TARGET = ['yield_spread', 'calc_day_cat']
+TARGET = ['yield_spread']
 
 SPECIAL_CONDITIONS = ['is_non_transaction_based_compensation', 'brokers_broker', 'is_lop_or_takedown', 'is_alternative_trading_system']    # special conditions on trades as reported in EMMA
 
