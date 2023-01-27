@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-07-18 11:37:52
+ # @ Modified time: 2023-01-27 14:53:52
  # @ Description: fill in features with the corresponding default values.
  '''
 
@@ -49,5 +49,8 @@ def fill_missing_values(df, keep_nan):
     df.dropna(subset=['instrument_primary_name'], inplace=True)
     if not keep_nan:
         for feature, default_value in FEATURES_AND_DEFAULT_VALUES.items():
-            replace_nan_with_value(df, feature, default_value)
+            try:
+                replace_nan_with_value(df, feature, default_value)
+            except Exception as e:
+                print(f"Feature {feature} not in dataframe")
     return df

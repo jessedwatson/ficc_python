@@ -2,20 +2,19 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-24 11:29:28
+ # @ Modified time: 2023-01-27 14:50:35
  # @ Description:
  '''
 
 import pandas as pd
 import numpy as np
 from ficc.utils.auxiliary_variables import COUPON_FREQUENCY_DICT
-from ficc.utils.auxiliary_functions import get_latest_trade_feature
 from ficc.utils.diff_in_days import diff_in_days
 from ficc.utils.days_in_interest_payment import days_in_interest_payment
 from ficc.utils.fill_missing_values import fill_missing_values
 from ficc.utils.auxiliary_functions import calculate_a_over_e
 
-def process_features(df, keep_nan):
+def process_features(df, keep_nan, production_set):
     # Removing bonds from Puerto Rico
     # df = df[df.incorporated_state_code != 'PR']
 
@@ -23,7 +22,8 @@ def process_features(df, keep_nan):
     df.loc[:,'interest_payment_frequency'] = df.interest_payment_frequency.apply(lambda x: COUPON_FREQUENCY_DICT[x])
     
     # Processing 
-    df.loc[:,'quantity'] = np.log10(df.par_traded.astype(np.float32))
+    if production_set == False:
+        df.loc[:,'quantity'] = np.log10(df.par_traded.astype(np.float32))
     df.coupon = df.coupon.astype(np.float32)
     df.issue_amount = np.log10(1 + df.issue_amount.astype(np.float32))
     df.maturity_amount = np.log10(1.0 + df.maturity_amount.astype(float))
