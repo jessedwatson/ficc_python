@@ -69,7 +69,9 @@ def process_data(query,
 
     if production_set == True:
         trades_df['trade_date'] = datetime.now().date() - BDay(1)
+        trades_df['trade_date'] = trades_df['trade_date'].dt.date
         trades_df['settlement_date'] = trades_df['trade_date'] + BDay(2)
+        trades_df['settlement_date'] = trades_df['settlement_date'].dt.date
     
     if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
         # Calculating yield spreads using ficc_ycl
