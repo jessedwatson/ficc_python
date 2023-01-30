@@ -66,8 +66,9 @@ def process_data(query,
                                       treasury_spread,
                                       production_set)
 
-    trades_df['trade_date'] = datetime.now().date() - timedelta(days=1)
-    trades_df['settlement_date'] = trades_df['trade_date'] + timedelta(days=2)
+    if production_set == True:
+        trades_df['trade_date'] = datetime.now().date() - timedelta(days=1)
+        trades_df['settlement_date'] = trades_df['trade_date'] + timedelta(days=2)
     
     if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
         # Calculating yield spreads using ficc_ycl
