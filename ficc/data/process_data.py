@@ -7,6 +7,7 @@
  '''
  
 import pandas as pd
+from pandas.tseries.offsets import BDay
 import numpy as np
 
 # Pandaralled is a python package that is 
@@ -67,8 +68,8 @@ def process_data(query,
                                       production_set)
 
     if production_set == True:
-        trades_df['trade_date'] = datetime.now().date() - timedelta(days=1)
-        trades_df['settlement_date'] = trades_df['trade_date'] + timedelta(days=2)
+        trades_df['trade_date'] = datetime.now().date() - BDay(1)
+        trades_df['settlement_date'] = trades_df['trade_date'] + BDay(2)
     
     if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
         # Calculating yield spreads using ficc_ycl
