@@ -2,21 +2,26 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-23 16:21:35
+ # @ Modified time: 2023-01-31 16:24:49
  # @ Description:
  '''
 
 import os
 import gcsfs
+import numpy as np
 import pandas as pd
 from google.cloud import bigquery
 from google.cloud import storage
 from ficc.data.process_data import process_data
+from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, IDENTIFIERS
 from datetime import datetime, timedelta
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
+PREDICTORS.append('target_attention_features')
+PREDICTORS.append('ficc_treasury_spread')
+NON_CAT_FEATURES.append('ficc_treasury_spread')
 
 storage_client = storage.Client()
 bq_client = bigquery.Client()
@@ -110,6 +115,21 @@ def return_data_query(last_trade_date):
                  AND settlement_date is not null
                ORDER BY trade_datetime desc limit 10'''
 
+
+def target_trade_processing_for_attention(row):
+  trade_mapping = {'D':[0,0], 'S':[0,1], 'P':[1,0]}
+  target_trade_features = []
+  target_trade_features.append(row['quantity'])
+  target_trade_features = target_trade_features + trade_mapping[row['trade_type']]
+  return np.tile(target_trade_features, (SEQUENCE_LENGTH,1))
+
+def replace_ratings_by_standalone_rating(data):
+  data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
+  data.rating = data.rating.astype('str')
+  data.sp_stand_alone = data.sp_stand_alone.astype('str')
+  data.loc[(data.sp_stand_alone != 'NR'),'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
+  return data
+
 def update_data():
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
   with fs.open('automated_training/processed_data.pkl') as f:
@@ -118,8 +138,8 @@ def update_data():
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
   
   DATA_QUERY = return_data_query(last_trade_date)
-  
   file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
+
   new_data = process_data(DATA_QUERY,
                       bq_client,
                       SEQUENCE_LENGTH,NUM_FEATURES,
@@ -136,14 +156,23 @@ def update_data():
                       add_previous_treasury_rate=True,
                       add_previous_treasury_difference=True,
                       add_flags=False,
-                      add_related_trades_bool=True)
+                      add_related_trades_bool=False,
+                      production_set=False)
   
+  # new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
+  # new_data = replace_ratings_by_standalone_rating(new_data)
+  # new_data['yield'] = new_data['yield'] * 100
+
   data = pd.concat([new_data, data])
+  data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
+  data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
+  data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
   data.to_pickle('processed_data.pkl')
   return data
 
 def main():
-  data = update_data()  
+  data = update_data()
+  print(data)
   
     
 
