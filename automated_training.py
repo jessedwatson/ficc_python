@@ -22,7 +22,7 @@ from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime, timedelta
 from model import yield_spread_model
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
 PREDICTORS.append('target_attention_features')
@@ -137,10 +137,11 @@ def replace_ratings_by_standalone_rating(data):
   return data
 
 def update_data():
-  print("Here")
+  print("Downloading data")
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
   with fs.open('automated_training/processed_data.pkl') as f:
       data = pd.read_pickle(f)
+  print('Download data')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
   
@@ -175,6 +176,7 @@ def update_data():
   data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
   data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
   data.to_pickle('processed_data.pkl')
+  upload_data(storage_client, 'automated_training', 'processed_data.pkl')
   return data
 
 def create_input(df, encoders):
