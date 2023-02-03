@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-02 14:49:34
+ # @ Modified time: 2023-02-03 10:26:10
  # @ Description:
  '''
 
@@ -22,7 +22,8 @@ from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime, timedelta
 from model import yield_spread_model
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
 PREDICTORS.append('target_attention_features')
@@ -261,7 +262,7 @@ def save_model(model, encoders):
   os.system(f"rm -r saved_model_{file_timestamp}")
 
 def main():
-  print('\n\n Starting Training')
+  print('\n\nFunction starting')
   
   print('Processing data')
   data = update_data()
