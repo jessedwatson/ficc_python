@@ -261,9 +261,20 @@ def save_model(model, encoders):
   os.system(f"rm -r saved_model_{file_timestamp}")
 
 def main():
+  print('\n\n Starting Training')
+  
+  print('Processing data')
   data = update_data()
+  print('Data processed')
+  
+  print('Training model')
   model, encoders = train_model(data)
+  print('Training done')
+
+  print('Saving model')
   save_model(model, encoders)
+  
+  print('Finished Training\n\n')
 
 
 if __name__ == '__main__':
