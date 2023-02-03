@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-01 15:14:55
+ # @ Modified time: 2023-02-02 14:49:34
  # @ Description:
  '''
 
@@ -255,9 +255,10 @@ def save_model(model, encoders):
   upload_data(storage_client, 'ahmad_data', f"encoders_{file_timestamp}.pkl")
 
   print("Saving and uploading model")
-  model.save(f"saved_model_test_{file_timestamp}")
-  shutil.make_archive(f"model_jan_30_test", 'zip', f"saved_model_test_{file_timestamp}")
-  upload_data(storage_client, 'ahmad_data', f"model_jan_30_test.zip")
+  model.save(f"saved_model_{file_timestamp}")
+  shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
+  upload_data(storage_client, 'ahmad_data', f"model.zip")
+  os.system(f"rm -r saved_model_{file_timestamp}")
 
 def main():
   data = update_data()
