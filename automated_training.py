@@ -22,8 +22,8 @@ from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime, timedelta
 from model import yield_spread_model
 
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
+#os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
 PREDICTORS.append('target_attention_features')
