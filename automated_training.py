@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-03 10:26:10
+ # @ Modified time: 2023-02-13 11:48:31
  # @ Description:
  '''
 
@@ -17,7 +17,10 @@ from google.cloud import storage
 from sklearn import preprocessing
 from pickle5 import pickle
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, IDENTIFIERS
+from ficc.utils.auxiliary_functions import sqltodf
+from ficc.utils.diff_in_days import diff_in_days_two_dates
+from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, IDENTIFIERS, NUM_OF_DAYS_IN_YEAR
+from ficc.utils.nelson_seigel_model import yield_curve_level
 from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime, timedelta
 from model import yield_spread_model
@@ -33,6 +36,21 @@ NON_CAT_FEATURES.append('ficc_treasury_spread')
 storage_client = storage.Client()
 bq_client = bigquery.Client()
 
+
+nelson_params = sqltodf("select * from `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc", bq_client)
+nelson_params.set_index("date", drop=True, inplace=True)
+nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
+nelson_params = nelson_params.transpose().to_dict()
+
+scalar_params = sqltodf("select * from`eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc", bq_client)
+scalar_params.set_index("date", drop=True, inplace=True)
+scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
+scalar_params = scalar_params.transpose().to_dict()
+
+shape_parameter  = sqltodf("SELECT *  FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc", bq_client)
+shape_parameter.set_index("Date", drop=True, inplace=True)
+shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
+shape_parameter = shape_parameter.transpose().to_dict()
 
 def return_data_query(last_trade_date):
     return f'''SELECT
@@ -137,6 +155,13 @@ def replace_ratings_by_standalone_rating(data):
   data.loc[(data.sp_stand_alone != 'NR'),'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
   return data
 
+def get_yield_for_last_duration(row):
+    if row['last_calc_date'] is None or row['last_trade_date'] is None:
+        return None
+    duration =  diff_in_days_two_dates(row['last_calc_date'],row['last_trade_date'])/NUM_OF_DAYS_IN_YEAR
+    ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter)/100
+    return ycl
+
 def update_data():
   print("Downloading data")
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
@@ -171,6 +196,10 @@ def update_data():
   new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
   new_data = replace_ratings_by_standalone_rating(new_data)
   new_data['yield'] = new_data['yield'] * 100
+  new_data['new_ficc_ycl'] = new_data[['last_calc_date',
+                                       'last_settlement_date',
+                                       'trade_date',
+                                       'last_trade_date']].parallel_apply(get_yield_for_last_duration, axis=1)
 
   data = pd.concat([new_data, data])
   data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
@@ -266,16 +295,16 @@ def main():
   
   print('Processing data')
   data = update_data()
-  print('Data processed')
+  # print('Data processed')
   
-  print('Training model')
-  model, encoders = train_model(data)
-  print('Training done')
+  # print('Training model')
+  # model, encoders = train_model(data)
+  # print('Training done')
 
-  print('Saving model')
-  save_model(model, encoders)
+  # print('Saving model')
+  # save_model(model, encoders)
   
-  print('Finished Training\n\n')
+  # print('Finished Training\n\n')
 
 
 if __name__ == '__main__':
