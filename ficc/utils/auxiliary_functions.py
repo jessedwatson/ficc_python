@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-19 16:10:23
+ # @ Modified time: 2023-01-27 11:34:21
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -42,13 +42,6 @@ def process_ratings(df, drop_ratings):
     df['rating'] = df['sp_long']
     return df
     
-'''
-This function extracts the features of the latest trade from 
-the trade history array
-'''
-def get_latest_trade_feature(x):
-    recent_trade = x[0]
-    return recent_trade[-1], recent_trade[0] , recent_trade[1]
 
 '''
 This function compares two date objects whether they are in Timestamp or datetime.date. 

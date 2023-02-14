@@ -2,25 +2,56 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-23 16:21:35
+ # @ Modified time: 2023-02-13 11:48:31
  # @ Description:
  '''
 
 import os
 import gcsfs
+import shutil
+import numpy as np
 import pandas as pd
+from tensorflow import keras
 from google.cloud import bigquery
 from google.cloud import storage
+from sklearn import preprocessing
+from pickle5 import pickle
 from ficc.data.process_data import process_data
+from ficc.utils.auxiliary_functions import sqltodf
+from ficc.utils.diff_in_days import diff_in_days_two_dates
+from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, IDENTIFIERS, NUM_OF_DAYS_IN_YEAR
+from ficc.utils.nelson_siegel_model import yield_curve_level
+from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime, timedelta
+from model import yield_spread_model
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
+#os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
+PREDICTORS.append('target_attention_features')
+PREDICTORS.append('ficc_treasury_spread')
+NON_CAT_FEATURES.append('ficc_treasury_spread')
 
 storage_client = storage.Client()
 bq_client = bigquery.Client()
 
+
+nelson_params = sqltodf("select * from `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc", bq_client)
+nelson_params.set_index("date", drop=True, inplace=True)
+nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
+nelson_params = nelson_params.transpose().to_dict()
+
+scalar_params = sqltodf("select * from`eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc", bq_client)
+scalar_params.set_index("date", drop=True, inplace=True)
+scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
+scalar_params = scalar_params.transpose().to_dict()
+
+shape_parameter  = sqltodf("SELECT *  FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc", bq_client)
+shape_parameter.set_index("Date", drop=True, inplace=True)
+shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
+shape_parameter = shape_parameter.transpose().to_dict()
 
 def return_data_query(last_trade_date):
     return f'''SELECT
@@ -108,18 +139,42 @@ def return_data_query(last_trade_date):
                  AND default_indicator IS FALSE
                  AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
                  AND settlement_date is not null
-               ORDER BY trade_datetime desc limit 10'''
+               ORDER BY trade_datetime desc'''
+
+
+def target_trade_processing_for_attention(row):
+  trade_mapping = {'D':[0,0], 'S':[0,1], 'P':[1,0]}
+  target_trade_features = []
+  target_trade_features.append(row['quantity'])
+  target_trade_features = target_trade_features + trade_mapping[row['trade_type']]
+  return np.tile(target_trade_features, (SEQUENCE_LENGTH,1))
+
+def replace_ratings_by_standalone_rating(data):
+  data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
+  data.rating = data.rating.astype('str')
+  data.sp_stand_alone = data.sp_stand_alone.astype('str')
+  data.loc[(data.sp_stand_alone != 'NR'),'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
+  return data
+
+def get_yield_for_last_duration(row):
+    if row['last_calc_date'] is None or row['last_trade_date'] is None:
+        return None
+    duration =  diff_in_days_two_dates(row['last_calc_date'],row['last_trade_date'])/NUM_OF_DAYS_IN_YEAR
+    ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter)/100
+    return ycl
 
 def update_data():
+  print("Downloading data")
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
   with fs.open('automated_training/processed_data.pkl') as f:
       data = pd.read_pickle(f)
+  print('Download data')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
   
   DATA_QUERY = return_data_query(last_trade_date)
-  
   file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
+
   new_data = process_data(DATA_QUERY,
                       bq_client,
                       SEQUENCE_LENGTH,NUM_FEATURES,
@@ -136,16 +191,124 @@ def update_data():
                       add_previous_treasury_rate=True,
                       add_previous_treasury_difference=True,
                       add_flags=False,
-                      add_related_trades_bool=True)
+                      add_related_trades_bool=False,
+                      production_set=False)
   
+  new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
+  new_data = replace_ratings_by_standalone_rating(new_data)
+  new_data['yield'] = new_data['yield'] * 100
+  new_data['last_trade_date'] = new_data['last_trade_datetime'].dt.date
+  new_data['new_ficc_ycl'] = new_data[['last_calc_date',
+                                       'last_settlement_date',
+                                       'trade_date',
+                                       'last_trade_date']].parallel_apply(get_yield_for_last_duration, axis=1)
+
+  new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
   data = pd.concat([new_data, data])
+  data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
+  data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
+  data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
   data.to_pickle('processed_data.pkl')
+  upload_data(storage_client, 'automated_training', 'processed_data.pkl')
   return data
 
-def main():
-  data = update_data()  
-  
+def create_input(df, encoders):
+    datalist = []
+    datalist.append(np.stack(df['trade_history'].to_numpy()))
+    datalist.append(np.stack(df['target_attention_features'].to_numpy()))
+
+    noncat_and_binary = []
+    for f in NON_CAT_FEATURES + BINARY:
+        noncat_and_binary.append(np.expand_dims(df[f].to_numpy().astype('float32'), axis=1))
+    datalist.append(np.concatenate(noncat_and_binary, axis=-1))
     
+    for f in CATEGORICAL_FEATURES:
+        encoded = encoders[f].transform(df[f])
+        datalist.append(encoded.astype('float32'))
+    
+    return datalist
+
+def fit_encoders(data):
+  encoders = {}
+  fmax = {}
+  for f in CATEGORICAL_FEATURES:
+      print(f)
+      fprep = preprocessing.LabelEncoder().fit(data[f].drop_duplicates())
+      fmax[f] = np.max(fprep.transform(fprep.classes_))
+      encoders[f] = fprep
+      
+  with open('encoders.pkl','wb') as file:
+      pickle.dump(encoders,file)
+  return encoders, fmax
+
+def train_model(data):
+  encoders, fmax  = fit_encoders(data)
+  x_train = create_input(data, encoders)
+  y_train = data.yield_spread
+  
+  model = yield_spread_model(x_train, 
+                             SEQUENCE_LENGTH, 
+                             NUM_FEATURES, 
+                             PREDICTORS, 
+                             CATEGORICAL_FEATURES, 
+                             NON_CAT_FEATURES, 
+                             BINARY,
+                             fmax)
+  
+  fit_callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss",
+                                                 patience=10,
+                                                 verbose=0,
+                                                 mode="auto",
+                                                 restore_best_weights=True)]
+    
+  model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+                loss=keras.losses.MeanAbsoluteError(),
+                metrics=[keras.metrics.MeanAbsoluteError()])
+
+  history = model.fit(x_train, 
+                    y_train, 
+                    epochs=100, 
+                    batch_size=1000, 
+                    verbose=1, 
+                    validation_split=0.1, 
+                    callbacks=fit_callbacks,
+                    use_multiprocessing=True,
+                    workers=8) 
+  return model, encoders           
+  
+
+
+def save_model(model, encoders):
+  file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
+  print(f"file time stamp : {file_timestamp}")
+
+  print("Saving encoders and uploading encoders")
+  with open(f"encoders_{file_timestamp}.pkl",'wb') as file:
+      pickle.dump(encoders,file)    
+  upload_data(storage_client, 'ahmad_data', f"encoders_{file_timestamp}.pkl")
+
+  print("Saving and uploading model")
+  model.save(f"saved_model_{file_timestamp}")
+  shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
+  upload_data(storage_client, 'ahmad_data', f"model.zip")
+  os.system(f"rm -r saved_model_{file_timestamp}")
+
+def main():
+  print('\n\nFunction starting')
+  
+  print('Processing data')
+  data = update_data()
+  print('Data processed')
+  
+  print('Training model')
+  model, encoders = train_model(data)
+
+  print('Training done')
+
+  print('Saving model')
+  save_model(model, encoders)
+  
+  print('Finished Training\n\n')
 
 
 if __name__ == '__main__':
