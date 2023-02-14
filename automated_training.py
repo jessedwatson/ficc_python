@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-13 11:48:31
+ # @ Modified time: 2023-02-14 13:25:34
  # @ Description:
  '''
 
@@ -20,13 +20,14 @@ from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_functions import sqltodf
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, IDENTIFIERS, NUM_OF_DAYS_IN_YEAR
-from ficc.utils.nelson_seigel_model import yield_curve_level
+from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime, timedelta
 from model import yield_spread_model
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
 #os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
 PREDICTORS.append('target_attention_features')
@@ -196,11 +197,13 @@ def update_data():
   new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
   new_data = replace_ratings_by_standalone_rating(new_data)
   new_data['yield'] = new_data['yield'] * 100
+  new_data['last_trade_date'] = new_data['last_trade_datetime'].dt.date
   new_data['new_ficc_ycl'] = new_data[['last_calc_date',
                                        'last_settlement_date',
                                        'trade_date',
                                        'last_trade_date']].parallel_apply(get_yield_for_last_duration, axis=1)
 
+  new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
   data = pd.concat([new_data, data])
   data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
   data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
@@ -280,9 +283,9 @@ def save_model(model, encoders):
   print(f"file time stamp : {file_timestamp}")
 
   print("Saving encoders and uploading encoders")
-  with open(f"encoders_{file_timestamp}.pkl",'wb') as file:
+  with open(f"encoders.pkl",'wb') as file:
       pickle.dump(encoders,file)    
-  upload_data(storage_client, 'ahmad_data', f"encoders_{file_timestamp}.pkl")
+  upload_data(storage_client, 'automated_training', f"encoders.pkl")
 
   print("Saving and uploading model")
   model.save(f"saved_model_{file_timestamp}")
@@ -295,16 +298,17 @@ def main():
   
   print('Processing data')
   data = update_data()
-  # print('Data processed')
+  print('Data processed')
   
-  # print('Training model')
-  # model, encoders = train_model(data)
-  # print('Training done')
+  print('Training model')
+  model, encoders = train_model(data)
 
-  # print('Saving model')
-  # save_model(model, encoders)
+  print('Training done')
+
+  print('Saving model')
+  save_model(model, encoders)
   
-  # print('Finished Training\n\n')
+  print('Finished Training\n\n')
 
 
 if __name__ == '__main__':
