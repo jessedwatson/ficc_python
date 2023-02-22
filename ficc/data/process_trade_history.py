@@ -86,7 +86,7 @@ def process_trade_history(query,
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     
-    # temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history','temp_last_features'])
+    temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history','temp_last_features'])
     
     temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
