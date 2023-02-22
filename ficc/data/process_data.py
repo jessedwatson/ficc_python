@@ -2,24 +2,26 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-27 14:48:43
+ # @ Modified time: 2023-02-22 11:39:17
  # @ Description: Source code to process trade history from BigQuery
  '''
  
 import pandas as pd
 from pandas.tseries.offsets import BDay
 import numpy as np
+from pytz import timezone
+pacific = timezone('US/Pacific')
 
 # Pandaralled is a python package that is 
 # used to multi-thread df apply
 from pandarallel import pandarallel
 from datetime import datetime, timedelta
 
-from tqdm import tqdm
-tqdm.pandas()
+import os
 
 from ficc.utils.process_features import process_features
-pandarallel.initialize(progress_bar=False)
+print(f'Initializing pandarallel with {os.cpu_count()/2} cores')
+pandarallel.initialize(progress_bar=False, nb_workers=int(os.cpu_count()/2))
 
 import ficc.utils.globals as globals
 from ficc.data.process_trade_history import process_trade_history
@@ -68,7 +70,7 @@ def process_data(query,
                                       production_set)
 
     if production_set == True:
-        trades_df['trade_date'] = datetime.now().date() - BDay(1)
+        trades_df['trade_date'] = datetime.now(pacific).date() - BDay(1)
         trades_df['trade_date'] = trades_df['trade_date'].dt.date
         trades_df['settlement_date'] = trades_df['trade_date'] + BDay(2)
         trades_df['settlement_date'] = trades_df['settlement_date'].dt.date

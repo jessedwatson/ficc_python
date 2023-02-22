@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-13 11:48:31
+ # @ Modified time: 2023-02-14 13:25:34
  # @ Description:
  '''
 
@@ -283,9 +283,9 @@ def save_model(model, encoders):
   print(f"file time stamp : {file_timestamp}")
 
   print("Saving encoders and uploading encoders")
-  with open(f"encoders_{file_timestamp}.pkl",'wb') as file:
+  with open(f"encoders.pkl",'wb') as file:
       pickle.dump(encoders,file)    
-  upload_data(storage_client, 'ahmad_data', f"encoders_{file_timestamp}.pkl")
+  upload_data(storage_client, 'automated_training', f"encoders.pkl")
 
   print("Saving and uploading model")
   model.save(f"saved_model_{file_timestamp}")
