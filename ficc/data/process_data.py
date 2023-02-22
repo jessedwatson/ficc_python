@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-14 21:21:23
+ # @ Modified time: 2023-02-22 11:39:17
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -17,11 +17,11 @@ pacific = timezone('US/Pacific')
 from pandarallel import pandarallel
 from datetime import datetime, timedelta
 
-from tqdm import tqdm
-tqdm.pandas()
+import os
 
 from ficc.utils.process_features import process_features
-pandarallel.initialize(progress_bar=False)
+print(f'Initializing pandarallel with {os.cpu_count()/2} cores')
+pandarallel.initialize(progress_bar=False, nb_workers=int(os.cpu_count()/2))
 
 import ficc.utils.globals as globals
 from ficc.data.process_trade_history import process_trade_history

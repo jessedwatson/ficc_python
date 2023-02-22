@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-27 14:19:54
+ # @ Modified time: 2023-02-22 13:41:04
  # @ Description:
  '''
 
@@ -85,6 +85,9 @@ def process_trade_history(query,
         print("Removing trades with shorter maturity")
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
+    
+    # temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history','temp_last_features'])
+    
     temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
                                                                              treasury_spread]))
