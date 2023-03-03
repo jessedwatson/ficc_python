@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-14 13:25:34
+ # @ Modified time: 2023-03-03 07:33:56
  # @ Description:
  '''
 
@@ -206,6 +206,7 @@ def update_data():
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
   data = pd.concat([new_data, data])
   data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
+  data['new_ys'] = data['new_ficc_ycl'] - data['yield']
   data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
   data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
   data.to_pickle('processed_data.pkl')
@@ -244,7 +245,7 @@ def fit_encoders(data):
 def train_model(data):
   encoders, fmax  = fit_encoders(data)
   x_train = create_input(data, encoders)
-  y_train = data.yield_spread
+  y_train = data.new_ys
   
   model = yield_spread_model(x_train, 
                              SEQUENCE_LENGTH, 
