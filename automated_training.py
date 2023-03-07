@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-03 07:33:56
+ # @ Modified time: 2023-03-07 13:27:35
  # @ Description:
  '''
 
@@ -205,8 +205,9 @@ def update_data():
 
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
   data = pd.concat([new_data, data])
-  data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
+  
   data['new_ys'] = data['new_ficc_ycl'] - data['yield']
+  data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
   data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
   data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
   data.to_pickle('processed_data.pkl')
