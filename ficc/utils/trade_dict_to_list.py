@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-24 10:58:09
+ # @ Modified time: 2023-03-14 14:36:50
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -17,7 +17,6 @@ import numpy as np
 from datetime import datetime
 import pandas as pd
 
-from ficc.utils.mmd_ycl import mmd_ycl
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.yield_curve import yield_curve_level
@@ -34,10 +33,10 @@ def trade_dict_to_list(trade_dict: dict,
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
+    for feature in ['rtrs_control_number','seconds_ago','settlement_date','par_traded','trade_type','seconds_ago']:
+        if trade_dict[feature] is None:
+            return None
 
-    # Checking if the rtrs_control_numner or seconds a go feature is missing
-    if trade_dict['rtrs_control_number'] is None or trade_dict['seconds_ago'] is None:
-        return None, None
     # Making sure that the most recent trade
     if trade_dict['seconds_ago'] < (trade_history_delay * 60):
         return None, None
@@ -52,9 +51,8 @@ def trade_dict_to_list(trade_dict: dict,
     else:
         return None, None
 
-    if trade_dict['settlement_date'] is None and remove_short_maturity == True:
-        return None, None
-    elif remove_short_maturity == True:
+    
+    if remove_short_maturity == True:
         try:
             days_to_maturity = (trade_dict['maturity_date'] - trade_dict['settlement_date']).days
         except Exception as e:
@@ -64,11 +62,6 @@ def trade_dict_to_list(trade_dict: dict,
         if days_to_maturity < 400:
             return None, None
     
-    #Checking if any field is missing
-    for key in ['par_traded','trade_type','seconds_ago']:
-        if trade_dict[key] is None:
-            print(f'{key} is missing, skipping this trade')
-            return None, None
 
     calc_date = trade_dict['calc_date']
     time_to_maturity = diff_in_days_two_dates(calc_date,target_date)/NUM_OF_DAYS_IN_YEAR
@@ -88,28 +81,7 @@ def trade_dict_to_list(trade_dict: dict,
         else:
             print('Yield is missing, skipping trade')
             return None, None
-    
-    elif globals.YIELD_CURVE_TO_USE.upper() == "MMD":
-        yield_at_that_time = mmd_ycl(target_date, time_to_maturity)
-        if trade_dict['yield'] is not None:
-            try:
-                trade_list.append( (trade_dict['yield'] - yield_at_that_time) * 100 )
-            except Exception as e:
-                print(yield_at_that_time, target_date, trade_dict['rtrs_control_number'])
-                raise e
-        else:
-            print('Yield is missing, skipping trade')
-            return None, None
-
-    elif globals.YIELD_CURVE_TO_USE.upper() == "S&P":
-        if trade_dict['yield'] is not None:
-            trade_list.append(trade_dict['yield_spread'] * 100)
-        else:
-            print('Yield is missing, skipping this trade')
-            return None, None
-    
-    elif globals.YIELD_CURVE_TO_USE.upper() == "MSRB_YTW":
-        trade_list.append(trade_dict['yield'] * 100)
+        
     
     if treasury_spread == True:
         # add all the maturities and the difference in the levels among them and the ted spread
