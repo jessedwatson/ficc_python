@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-14 15:44:27
+ # @ Modified time: 2023-03-15 10:40:01
  # @ Description:
  '''
 
@@ -80,7 +80,7 @@ def process_trade_history(query,
     
     temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history','temp_last_features'])
     
-    temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
+    temp = trade_dataframe.recent.apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
                                                                              treasury_spread]))
                                                                                                 
