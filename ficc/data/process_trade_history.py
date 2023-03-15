@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-27 14:19:54
+ # @ Modified time: 2023-03-15 10:40:01
  # @ Description:
  '''
 
@@ -10,12 +10,11 @@ import os
 import pandas as pd
 import pickle5 as pickle
 
-from ficc.utils.auxiliary_functions import sqltodf, process_ratings, convert_object_to_category
+from ficc.utils.auxiliary_functions import sqltodf, process_ratings
 from ficc.utils.pad_trade_history import pad_trade_history
 import ficc.utils.globals as globals
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
-from ficc.utils.create_mmd_data import create_mmd_data
 from ficc.utils.get_treasury_rate import get_treasury_rate
 
 
@@ -60,13 +59,6 @@ def process_trade_history(query,
         except Exception as e:
             raise e 
     
-    if globals.YIELD_CURVE_TO_USE.upper() == "MMD":
-        print("Grabbing MMD yield curve level")
-        try:
-            create_mmd_data(client)
-        except Exception as e:
-            print("Failed to grab MMD ycl")
-            raise e
     if treasury_spread == True:
         get_treasury_rate(client)
     
@@ -85,7 +77,10 @@ def process_trade_history(query,
         print("Removing trades with shorter maturity")
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
-    temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
+    
+    temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history','temp_last_features'])
+    
+    temp = trade_dataframe.recent.apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
                                                                              treasury_spread]))
                                                                                                 

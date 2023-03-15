@@ -2,20 +2,39 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-24 10:34:01
+ # @ Modified time: 2023-03-15 11:14:11
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
  # instead of grabbing them from memory store
  '''
 
+import copy
 import numpy as np 
 from pandas.tseries.offsets import BDay
+from functools import lru_cache, wraps
 from datetime import datetime
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 PROJECT_ID = "eng-reactor-287421"
+
+
+def cache(function):
+    @wraps(function)
+    def wrapper(*args,**kwargs):
+        #Creating a key using maturity and target date
+        cache_key = str(args[0]) + str(args[1])
+        if cache_key in wrapper.cache:
+            output = wrapper.cache[cache_key]
+        else:
+            output = function(*args)
+            wrapper.cache[cache_key] = output
+        return output
+    wrapper.cache = dict()
+    return wrapper
+
+
 
 ###Functions to transform maturities into the components in the nelson-siegel model
 def decay_transformation(t:np.array, L:float):
@@ -46,13 +65,20 @@ def load_model_parameters(target_date, nelson_params, scalar_params, shape_param
     This function grabs the nelson siegel and standard scalar coefficient from the dataframes 
     '''
 
+    target_date = (target_date - BDay(1)).date()
+    target_date_shape = copy.deepcopy(target_date)
+    
+    while target_date not in nelson_params.keys():    
+        target_date = (target_date - BDay(1)).date()
+
+    
     nelson_coeff = nelson_params[target_date].values()
     scalar_coeff = scalar_params[target_date].values()
     
-    try:
-        shape_param = shape_parameter[target_date]['L']
-    except Exception as e:
-        shape_param = shape_parameter[target_date - BDay(1)]['L']
+    while target_date_shape not in shape_parameter.keys():
+        target_date_shape = (target_date_shape - BDay(1)).date()
+    shape_param = shape_parameter[target_date_shape]['L']
+
     
     return nelson_coeff, scalar_coeff, shape_param
 
@@ -113,7 +139,7 @@ def predict_ytw(maturity:np.array,
 
     return const + exponential*X1 + laguerre*X2
 
-
+@cache
 def yield_curve_level(maturity:float, 
                       target_date, 
                       nelson_params, 

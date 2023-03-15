@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-13 11:48:31
+ # @ Modified time: 2023-03-07 13:27:35
  # @ Description:
  '''
 
@@ -205,6 +205,8 @@ def update_data():
 
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
   data = pd.concat([new_data, data])
+  
+  data['new_ys'] = data['new_ficc_ycl'] - data['yield']
   data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
   data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
   data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
@@ -244,7 +246,7 @@ def fit_encoders(data):
 def train_model(data):
   encoders, fmax  = fit_encoders(data)
   x_train = create_input(data, encoders)
-  y_train = data.yield_spread
+  y_train = data.new_ys
   
   model = yield_spread_model(x_train, 
                              SEQUENCE_LENGTH, 
@@ -283,9 +285,9 @@ def save_model(model, encoders):
   print(f"file time stamp : {file_timestamp}")
 
   print("Saving encoders and uploading encoders")
-  with open(f"encoders_{file_timestamp}.pkl",'wb') as file:
+  with open(f"encoders.pkl",'wb') as file:
       pickle.dump(encoders,file)    
-  upload_data(storage_client, 'ahmad_data', f"encoders_{file_timestamp}.pkl")
+  upload_data(storage_client, 'automated_training', f"encoders.pkl")
 
   print("Saving and uploading model")
   model.save(f"saved_model_{file_timestamp}")

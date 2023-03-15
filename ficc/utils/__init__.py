@@ -14,9 +14,6 @@ from . import trade_list_to_array
 from . import truncation
 from . import yield_curve_params
 from . import yield_curve
-from . import create_mmd_data
-from . import mmd_ycl
-from . import get_mmd_ycl
 from . import gcp_storage_functions
 from . import get_treasury_rate
 from . import related_trade
