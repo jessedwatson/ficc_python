@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-07 13:27:35
+ # @ Modified time: 2023-03-17 12:21:38
  # @ Description:
  '''
 
@@ -24,6 +24,10 @@ from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime, timedelta
 from model import yield_spread_model
+
+import smtplib, ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
 #os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
@@ -212,7 +216,7 @@ def update_data():
   data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
   data.to_pickle('processed_data.pkl')
   upload_data(storage_client, 'automated_training', 'processed_data.pkl')
-  return data
+  return data, last_trade_date
 
 def create_input(df, encoders):
     datalist = []
@@ -243,11 +247,19 @@ def fit_encoders(data):
       pickle.dump(encoders,file)
   return encoders, fmax
 
-def train_model(data):
+def train_model(data, last_trade_date):
   encoders, fmax  = fit_encoders(data)
-  x_train = create_input(data, encoders)
-  y_train = data.new_ys
   
+  train_data = data[data.trade_date < last_trade_date]
+  test_data = data[data.trade_date >= last_trade_date]
+  
+  
+  x_train = create_input(train_data, encoders)
+  y_train = train_data.new_ys
+  
+  x_test = create_input(test_data, encoders)
+  y_test = test_data.new_ys
+
   model = yield_spread_model(x_train, 
                              SEQUENCE_LENGTH, 
                              NUM_FEATURES, 
@@ -276,7 +288,14 @@ def train_model(data):
                     callbacks=fit_callbacks,
                     use_multiprocessing=True,
                     workers=8) 
-  return model, encoders           
+  
+  _, mae = model.evaluate(x_test, 
+                          y_test, 
+                          verbose=1, 
+                          batch_size = 1000)
+  
+
+  return model, encoders, mae           
   
 
 
@@ -295,22 +314,50 @@ def save_model(model, encoders):
   upload_data(storage_client, 'ahmad_data', f"model.zip")
   os.system(f"rm -r saved_model_{file_timestamp}")
 
+
+def send_results_email(mae, last_trade_date):
+    receiver_email = "ahmad@ficc.ai"
+    sender_email = "notifications@ficc.ai"
+    
+    msg = MIMEMultipart()
+    msg['Subject'] = f"Mae for model trained till {last_trade_date}"
+    msg['From'] = sender_email
+
+
+    message = MIMEText(f"The MAE for the model on trades that occurred on {last_trade_date} is {mae}.", 'plain')
+    msg.attach(message)
+
+    smtp_server = "smtp.gmail.com"
+    port = 587
+
+    with smtplib.SMTP(smtp_server,port) as server:
+        try:
+            server.starttls()
+            server.login(sender_email, 'ztwbwrzdqsucetbg')
+            server.sendmail(sender_email, receiver_email, msg.as_string())
+        except Exception as e:
+            print(e)
+        finally:
+            server.quit() 
+
+
 def main():
   print('\n\nFunction starting')
   
   print('Processing data')
-  data = update_data()
+  data, last_trade_date = update_data()
   print('Data processed')
   
   print('Training model')
-  model, encoders = train_model(data)
-
+  model, encoders, mae = train_model(data, last_trade_date)
   print('Training done')
 
   print('Saving model')
   save_model(model, encoders)
-  
   print('Finished Training\n\n')
+
+  print('sending email')
+  send_results_email(mae, last_trade_date)
 
 
 if __name__ == '__main__':
