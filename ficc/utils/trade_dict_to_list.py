@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-15 11:10:27
+ # @ Modified time: 2023-03-20 15:17:50
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -21,6 +21,8 @@ from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
+from pandas.tseries.offsets import BDay
+
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -88,7 +90,7 @@ def trade_dict_to_list(trade_dict: dict,
         treasury_maturities = np.array([1,2,3,5,7,10,20,30])
         maturity = min(treasury_maturities, key=lambda x:abs(x-time_to_maturity))
         maturity = 'year_'+str(maturity)
-        t_rate = globals.treasury_rate[target_date][maturity]
+        t_rate = globals.treasury_rate[(target_date - BDay(1)).date()][maturity]
         t_spread = (trade_dict['yield'] - t_rate) * 100
         trade_list.append(np.round(t_spread,3))
 
