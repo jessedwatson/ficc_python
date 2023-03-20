@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2022-09-29 14:41:45
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-20 15:59:46
+ # @ Modified time: 2023-03-20 16:05:58
  # @ Description:
  '''
 
@@ -33,7 +33,7 @@ def get_previous_treasury_difference(trade_date):
     while day_before not in globals.treasury_rate.keys():
         day_before = (day_before - BDay(1)).date()
 
-    t_rate = np.array(list(globals.treasury_rate[trade_date.values[0]].values()))
+    t_rate = np.array(list(globals.treasury_rate[day_before].values()))
     t_rate_before = np.array(list(globals.treasury_rate[day_before].values()))
     diff_rate = (t_rate - t_rate_before)*100
     return diff_rate.tolist()
