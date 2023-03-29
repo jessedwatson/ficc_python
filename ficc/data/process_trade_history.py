@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-22 13:41:04
+ # @ Modified time: 2023-03-16 09:47:32
  # @ Description:
  '''
 
@@ -10,12 +10,11 @@ import os
 import pandas as pd
 import pickle5 as pickle
 
-from ficc.utils.auxiliary_functions import sqltodf, process_ratings, convert_object_to_category
+from ficc.utils.auxiliary_functions import sqltodf, process_ratings
 from ficc.utils.pad_trade_history import pad_trade_history
 import ficc.utils.globals as globals
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
-from ficc.utils.create_mmd_data import create_mmd_data
 from ficc.utils.get_treasury_rate import get_treasury_rate
 
 
@@ -51,7 +50,8 @@ def process_trade_history(query,
                           min_trades_in_history, 
                           drop_ratings,
                           treasury_spread,
-                          production_set):
+                          production_set,
+                          add_rtrs_in_history):
     
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE.upper() == "FICC_NEW":
         print("Grabbing yield curve params")
@@ -60,13 +60,6 @@ def process_trade_history(query,
         except Exception as e:
             raise e 
     
-    if globals.YIELD_CURVE_TO_USE.upper() == "MMD":
-        print("Grabbing MMD yield curve level")
-        try:
-            create_mmd_data(client)
-        except Exception as e:
-            print("Failed to grab MMD ycl")
-            raise e
     if treasury_spread == True:
         get_treasury_rate(client)
     
@@ -90,7 +83,8 @@ def process_trade_history(query,
     
     temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
-                                                                             treasury_spread]))
+                                                                             treasury_spread,
+                                                                             add_rtrs_in_history]))
                                                                                                 
                                                                         
     trade_dataframe[['trade_history','temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)

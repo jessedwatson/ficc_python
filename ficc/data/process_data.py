@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-22 11:39:17
+ # @ Modified time: 2023-03-16 09:46:58
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -26,7 +26,6 @@ pandarallel.initialize(progress_bar=False, nb_workers=int(os.cpu_count()/2))
 import ficc.utils.globals as globals
 from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
-from ficc.utils.get_mmd_ycl import get_mmd_ycl
 from ficc.utils.auxiliary_functions import convert_dates
 from ficc.utils.auxiliary_variables import RELATED_TRADE_FEATURE_PREFIX, NUM_RELATED_TRADES, CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE
 from ficc.utils.get_treasury_rate import current_treasury_rate, get_all_treasury_rate, get_previous_treasury_difference
@@ -51,6 +50,7 @@ def process_data(query,
                  use_last_duration=False,
                  add_related_trades_bool=False,
                  production_set=False,
+                 add_rtrs_in_history=False,
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -67,7 +67,8 @@ def process_data(query,
                                       min_trades_in_history,
                                       process_ratings,
                                       treasury_spread,
-                                      production_set)
+                                      production_set,
+                                      add_rtrs_in_history)
 
     if production_set == True:
         trades_df['trade_date'] = datetime.now(pacific).date() - BDay(1)
@@ -85,19 +86,7 @@ def process_data(query,
         if production_set == False:
             trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
             trades_df.dropna(subset=['yield_spread'],inplace=True)
-    
-    elif YIELD_CURVE.upper() == "MMD":
-        print("Calculating yield spreads using MMD yield curve")
-        trades_df['mmd_ycl'] = trades_df.parallel_apply(get_mmd_ycl,axis=1)  
-        trades_df['yield_spread'] = (trades_df['yield'] - trades_df['mmd_ycl']) * 100
-        
-    elif YIELD_CURVE.upper() == "S&P":
-        print("Using yield spreds created from the S&P muni index")
-        # Converting the yield spread to basis points
-        trades_df['yield_spread'] = trades_df['yield_spread'] * 100
-    
-    elif YIELD_CURVE.upper() == 'MSRB_YTW':
-        trades_df['yield'] = trades_df['yield'] * 100 # converting it to basis points
+             
 
     print('Yield spread calculated')
 

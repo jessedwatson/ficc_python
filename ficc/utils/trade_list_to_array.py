@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:56:59
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-24 09:33:56
+ # @ Modified time: 2023-03-16 09:48:15
  # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
  # function to unpack the list of dictionaries and creates a list of historical trades. 
  # With each element in the list containing all the information for that particular trade
@@ -15,7 +15,8 @@ from ficc.utils.trade_dict_to_list import trade_dict_to_list
 def trade_list_to_array(trade_history, 
                         remove_short_maturity, 
                         trade_history_delay, 
-                        treasury_spread):
+                        treasury_spread,
+                        add_rtrs_in_history):
     
     if len(trade_history) == 0:
         return np.array([]), [None]*16
@@ -26,7 +27,8 @@ def trade_list_to_array(trade_history,
         trades, temp_last_features = trade_dict_to_list(entry,
                                     remove_short_maturity,
                                     trade_history_delay,
-                                    treasury_spread)
+                                    treasury_spread,
+                                    add_rtrs_in_history)
         if trades is not None:
             trades_list.append(trades)
         

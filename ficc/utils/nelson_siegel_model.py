@@ -2,7 +2,7 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-24 10:34:01
+ # @ Modified time: 2023-03-14 16:05:11
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
@@ -11,11 +11,29 @@
 
 import numpy as np 
 from pandas.tseries.offsets import BDay
+from functools import lru_cache, wraps
 from datetime import datetime
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 PROJECT_ID = "eng-reactor-287421"
+
+
+def cache(function):
+    @wraps(function)
+    def wrapper(*args,**kwargs):
+        #Creating a key using maturity and target date
+        cache_key = str(args[0]) + str(args[1])
+        if cache_key in wrapper.cache:
+            output = wrapper.cache[cache_key]
+        else:
+            output = function(*args)
+            wrapper.cache[cache_key] = output
+        return output
+    wrapper.cache = dict()
+    return wrapper
+
+
 
 ###Functions to transform maturities into the components in the nelson-siegel model
 def decay_transformation(t:np.array, L:float):
@@ -113,7 +131,7 @@ def predict_ytw(maturity:np.array,
 
     return const + exponential*X1 + laguerre*X2
 
-
+@cache
 def yield_curve_level(maturity:float, 
                       target_date, 
                       nelson_params, 

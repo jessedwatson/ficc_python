@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-20 13:43:16
+ # @ Modified time: 2023-03-16 09:56:40
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -23,9 +23,9 @@ import time
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ahmad_creds.json"
-SEQUENCE_LENGTH = 5
-NUM_FEATURES = 6
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+SEQUENCE_LENGTH = 8
+NUM_FEATURES = 6 + 2
 
 DATA_QUERY = '''SELECT
 rtrs_control_number,
@@ -114,7 +114,7 @@ WHERE
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
   AND settlement_date is not null
   ORDER BY trade_datetime desc
-  limit 100000
+  limit 20000
 '''
 
 # DATA_QUERY = '''
@@ -152,21 +152,19 @@ if __name__ == "__main__":
                     NUM_FEATURES,
                     'data.pkl',
                     'FICC_NEW',
-                    estimate_calc_date=False,
-                    remove_short_maturity=False,
-                    remove_non_transaction_based=False,
-                    remove_trade_type = [],
+                    remove_short_maturity=True,
                     trade_history_delay = 0,
                     min_trades_in_history = 0,
                     process_ratings=False,
                     treasury_spread = True,
                     add_previous_treasury_rate=True,
                     add_previous_treasury_difference=True,
-                    use_last_duration=False,
                     add_flags=False,
                     add_related_trades_bool=False,
-                    production_set=False)
+                    production_set=False,
+                    add_rtrs_in_history=True)
     
     end_time = time.time()
+
     print(f"time elapsed in seconds = {end_time - start_time}")
     print(trade_data)
