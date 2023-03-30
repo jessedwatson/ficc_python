@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-29 22:24:23
+ # @ Modified time: 2023-03-30 20:56:42
  # @ Description:
  '''
 
@@ -374,6 +374,11 @@ def fit_encoders(data):
 def train_model(data, last_trade_date):
   encoders, fmax  = fit_encoders(data)
   
+  data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+  data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+  data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+  data = data[data.days_to_maturity < np.log10(30000)]
+
   train_data = data[data.trade_date < last_trade_date]
   test_data = data[data.trade_date >= last_trade_date]
   
@@ -440,7 +445,7 @@ def save_model(model, encoders):
 
 
 def send_results_email(mae, last_trade_date):
-    receiver_email = "ahmad@ficc.ai"
+    receiver_email = ["ahmad@ficc.ai","gil@ficc.ai","jesse@ficc.ai", "gil@ficc.ai"]
     sender_email = "notifications@ficc.ai"
     
     msg = MIMEMultipart()
@@ -458,7 +463,8 @@ def send_results_email(mae, last_trade_date):
         try:
             server.starttls()
             server.login(sender_email, 'ztwbwrzdqsucetbg')
-            server.sendmail(sender_email, receiver_email, msg.as_string())
+            for receiver in receiver_email:
+                server.sendmail(sender_email, receiver, msg.as_string())
         except Exception as e:
             print(e)
         finally:
@@ -468,10 +474,12 @@ def send_results_email(mae, last_trade_date):
 def main():
   print('\n\nFunction starting')
   
-  print('Processing data')
-  data, last_trade_date = update_data()
-  print('Data processed')
+#   print('Processing data')
+#   data, last_trade_date = update_data()
+#   print('Data processed')
   
+  data = pd.read_pickle('processed_data.pkl')
+  last_trade_date = '2023-03-28'
   print('Training model')
   model, encoders, mae = train_model(data, last_trade_date)
   print('Training done')
