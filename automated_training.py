@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-17 12:21:38
+ # @ Modified time: 2023-04-03 13:27:01
  # @ Description:
  '''
 
@@ -348,16 +348,16 @@ def main():
   data, last_trade_date = update_data()
   print('Data processed')
   
-  print('Training model')
-  model, encoders, mae = train_model(data, last_trade_date)
-  print('Training done')
+  # print('Training model')
+  # model, encoders, mae = train_model(data, last_trade_date)
+  # print('Training done')
 
-  print('Saving model')
-  save_model(model, encoders)
-  print('Finished Training\n\n')
+  # print('Saving model')
+  # save_model(model, encoders)
+  # print('Finished Training\n\n')
 
-  print('sending email')
-  send_results_email(mae, last_trade_date)
+  # print('sending email')
+  # send_results_email(mae, last_trade_date)
 
 
 if __name__ == '__main__':
