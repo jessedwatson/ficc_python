@@ -3,6 +3,7 @@
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
  # @ Modified time: 2023-03-15 10:40:01
+ # @ Modified time: 2023-03-16 09:47:32
  # @ Description:
  '''
 
@@ -50,7 +51,8 @@ def process_trade_history(query,
                           min_trades_in_history, 
                           drop_ratings,
                           treasury_spread,
-                          production_set):
+                          production_set,
+                          add_rtrs_in_history):
     
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE.upper() == "FICC_NEW":
         print("Grabbing yield curve params")
@@ -82,7 +84,8 @@ def process_trade_history(query,
     
     temp = trade_dataframe.recent.apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
-                                                                             treasury_spread]))
+                                                                             treasury_spread,
+                                                                             add_rtrs_in_history]))
                                                                                                 
                                                                         
     trade_dataframe[['trade_history','temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-14 14:44:02
+ # @ Modified time: 2023-03-16 09:46:58
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -50,6 +50,7 @@ def process_data(query,
                  use_last_duration=False,
                  add_related_trades_bool=False,
                  production_set=False,
+                 add_rtrs_in_history=False,
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -66,7 +67,8 @@ def process_data(query,
                                       min_trades_in_history,
                                       process_ratings,
                                       treasury_spread,
-                                      production_set)
+                                      production_set,
+                                      add_rtrs_in_history)
 
     if production_set == True:
         trades_df['trade_date'] = datetime.now(pacific).date() - BDay(1)

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-20 15:59:32
+ # @ Modified time: 2023-03-16 09:59:30
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -30,7 +30,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 def trade_dict_to_list(trade_dict: dict, 
                        remove_short_maturity, 
                        trade_history_delay,
-                       treasury_spread) -> list:
+                       treasury_spread,
+                       add_rtrs_in_history) -> list:
 
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
@@ -103,6 +104,10 @@ def trade_dict_to_list(trade_dict: dict,
     trade_list += trade_type_mapping[trade_dict['trade_type']]
     trade_list.append(np.log10(1+trade_dict['seconds_ago']))
     # trade_list.append(time_to_maturity * NUM_OF_DAYS_IN_YEAR)
+
+    if add_rtrs_in_history == True:
+        trade_list.append(trade_dict['is_non_transaction_based_compensation'])
+        trade_list.append(int(trade_dict['rtrs_control_number']))
 
     return np.stack(trade_list) , (yield_spread,
                                    yield_at_that_time,
