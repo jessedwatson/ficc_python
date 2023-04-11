@@ -11,14 +11,9 @@ This package contains:
 ```pip install . [-upgrade]```
 
 ### Requirements
-<ul> 
-<li> pandas
-<li> numpy
-<li> tensorflow 
-<li> keras-tuner
-<li> pandarallel
-<li> python gcloud api
-</ul>
+To install the required Python packages for running the data package, please use the following command:
+
+``` pip install -r requirements.txt ```
 
 ### API
 
