@@ -1,3 +1,11 @@
 pandas==1.3.5
 pickle5==0.0.11
 pandarallel==1.5.4
+google-cloud
+google-cloud-vision
+google-cloud-storage
+multiprocess
+tqdm
+scikit-learn
+google-cloud-bigquery
+db-dtypes
