@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-30 20:56:42
+ # @ Modified time: 2023-04-19 18:56:34
  # @ Description:
  '''
 
@@ -474,22 +474,20 @@ def send_results_email(mae, last_trade_date):
 def main():
   print('\n\nFunction starting')
   
-#   print('Processing data')
-#   data, last_trade_date = update_data()
-#   print('Data processed')
-  
-  data = pd.read_pickle('processed_data.pkl')
-  last_trade_date = '2023-03-28'
-  print('Training model')
-  model, encoders, mae = train_model(data, last_trade_date)
-  print('Training done')
+  print('Processing data')
+  data, last_trade_date = update_data()
+  print('Data processed')
 
-  print('Saving model')
-  save_model(model, encoders)
-  print('Finished Training\n\n')
+#   print('Training model')
+#   model, encoders, mae = train_model(data, last_trade_date)
+#   print('Training done')
 
-  print('sending email')
-  send_results_email(mae, last_trade_date)
+#   print('Saving model')
+#   save_model(model, encoders)
+#   print('Finished Training\n\n')
+
+#   print('sending email')
+#   send_results_email(mae, last_trade_date)
 
 
 if __name__ == '__main__':
