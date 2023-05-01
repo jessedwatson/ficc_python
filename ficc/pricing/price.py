@@ -111,6 +111,9 @@ def get_price(cusip,
 '''
 This function computes the price of a trade. For bonds that have not been called, the price is the lowest of
 three present values: to the next call date (which may be above par), to the next par call date, and to maturity.
+Note that calling this function, we need to have: `data['interest_payment_frequency'] = data.interest_payment_frequency.map(COUPON_FREQUENCY_TYPE)`, 
+and it is important to note that this must be executed only ONCE since the column is being mutated, so multiple calls 
+of this function will lead to a column of NaN values.
 '''
 def compute_price(trade, yield_rate=None):
     if yield_rate == None:

@@ -8,7 +8,7 @@
 import pandas as pd
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
-from ficc.utils.auxiliary_functions import compare_dates, dates_are_equal
+from ficc.utils.auxiliary_functions import convert_to_date, compare_dates, dates_are_equal
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.frequency import get_frequency
 
@@ -90,12 +90,12 @@ byproduct of computing the other.
 Note that the special case of an odd final coupon is handled below in 
 `price_of_bond_with_multiple_periodic_interest_payments`.
 '''
-def get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, end_date, time_delta): 
+def get_num_of_interest_payments_and_final_coupon_date(next_coupon_date, end_date, time_delta):
     if compare_dates(next_coupon_date, end_date) > 0:
         return 0, next_coupon_date    # return 1, end_date (would be valid in isolation)
     
     num_of_interest_payments = 1
-    final_coupon_date = next_coupon_date
+    final_coupon_date = convert_to_date(next_coupon_date)    # this allows easy addition of the `time_delta` variable which is type dateutil.relativedelta
     while compare_dates(final_coupon_date + time_delta, end_date) <= 0:
         num_of_interest_payments += 1
         final_coupon_date += time_delta

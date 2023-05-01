@@ -21,6 +21,8 @@ from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
+from pandas.tseries.offsets import BDay
+
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -34,7 +36,7 @@ def trade_dict_to_list(trade_dict: dict,
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
-    for feature in ['rtrs_control_number','seconds_ago','settlement_date','par_traded','trade_type','seconds_ago']:
+    for feature in ['rtrs_control_number','seconds_ago','settlement_date','par_traded','trade_type','seconds_ago','trade_datetime']:
         if trade_dict[feature] is None:
             return None
 
@@ -43,10 +45,10 @@ def trade_dict_to_list(trade_dict: dict,
         return None, None
 
     # The ficc yield curve coefficients are only present before 27th July for the old yield curve and 2nd August for the new yield curve
-    if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,7,27):
+    if globals.YIELD_CURVE_TO_USE.upper() == 'FICC'and trade_dict['trade_datetime'] < datetime(2021,7,27):
         target_date = datetime(2021,7,27).date()
-    elif globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW' and trade_dict['trade_datetime'] is not None and trade_dict['trade_datetime'] < datetime(2021,8,2):
-        target_date = datetime(2021,8,2).date()
+    elif globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW' and trade_dict['trade_datetime'] < datetime(2021,8,3):
+        target_date = datetime(2021,8,3).date()
     elif trade_dict['trade_datetime'] is not None:
         target_date = trade_dict['trade_datetime'].date()
     else:
@@ -89,7 +91,12 @@ def trade_dict_to_list(trade_dict: dict,
         treasury_maturities = np.array([1,2,3,5,7,10,20,30])
         maturity = min(treasury_maturities, key=lambda x:abs(x-time_to_maturity))
         maturity = 'year_'+str(maturity)
-        t_rate = globals.treasury_rate[target_date][maturity]
+        
+        try:
+            t_rate = globals.treasury_rate[target_date][maturity]
+        except Exception as e:
+            return None, None
+        
         t_spread = (trade_dict['yield'] - t_rate) * 100
         trade_list.append(np.round(t_spread,3))
 

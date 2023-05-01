@@ -477,7 +477,7 @@ def main():
   print('Processing data')
   data, last_trade_date = update_data()
   print('Data processed')
-
+  
 #   print('Training model')
 #   model, encoders, mae = train_model(data, last_trade_date)
 #   print('Training done')

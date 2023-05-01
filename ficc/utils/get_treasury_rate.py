@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2022-09-29 14:41:45
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-24 10:34:47
+ # @ Modified time: 2023-03-20 16:05:58
  # @ Description:
  '''
 
@@ -24,7 +24,7 @@ def get_treasury_rate(client):
 
 
 def get_all_treasury_rate(trade_date):
-    t_rate = globals.treasury_rate[trade_date.values[0]]
+    t_rate = globals.treasury_rate[(trade_date.values[0] - BDay(1)).date()]
     return list(t_rate.values())
     
 def get_previous_treasury_difference(trade_date):
@@ -33,7 +33,7 @@ def get_previous_treasury_difference(trade_date):
     while day_before not in globals.treasury_rate.keys():
         day_before = (day_before - BDay(1)).date()
 
-    t_rate = np.array(list(globals.treasury_rate[trade_date.values[0]].values()))
+    t_rate = np.array(list(globals.treasury_rate[day_before].values()))
     t_rate_before = np.array(list(globals.treasury_rate[day_before].values()))
     diff_rate = (t_rate - t_rate_before)*100
     return diff_rate.tolist()
@@ -49,5 +49,5 @@ def current_treasury_rate(trade, use_last_duration):
         time_to_maturity = diff_in_days_two_dates(trade['calc_date'],trade['settlement_date'])/NUM_OF_DAYS_IN_YEAR
     maturity = min(treasury_maturities, key=lambda x:abs(x-time_to_maturity))
     maturity = 'year_'+str(maturity)
-    t_rate = globals.treasury_rate[trade['trade_date']][maturity]
+    t_rate = globals.treasury_rate[(trade['trade_date']- BDay(1)).date()][maturity]
     return t_rate

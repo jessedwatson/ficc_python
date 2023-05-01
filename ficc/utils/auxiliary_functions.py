@@ -1,14 +1,13 @@
 '''
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-03 15:16:37
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2023-04-17
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
-
+import datetime
 import pandas as pd
-import numpy as np
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.diff_in_days import diff_in_days_two_dates
@@ -41,7 +40,16 @@ def process_ratings(df, drop_ratings):
         df = df[df.sp_long.isin(['BBB+','A-','A','A+','AA-','AA','AA+','AAA','NR','MR'])] 
     df['rating'] = df['sp_long']
     return df
-    
+
+
+'''
+Converts an object, either of type pd.Timestamp or datetime.datetime to a 
+datetime.date object.
+'''
+def convert_to_date(date):
+    if isinstance(date, pd.Timestamp): date = date.to_pydatetime()
+    if isinstance(date, datetime.datetime): date = date.date()
+    return date    # assumes the type is datetime.date
 
 '''
 This function compares two date objects whether they are in Timestamp or datetime.date. 
@@ -49,11 +57,7 @@ The different types are causing a future warning. If date1 occurs after date2, r
 If date1 equals date2, return 0. Otherwise, return -1.
 '''
 def compare_dates(date1, date2):
-    if type(date1) == pd.Timestamp: 
-        date1 = date1.to_pydatetime()
-    if type(date2) == pd.Timestamp: 
-        date2 = date2.to_pydatetime()
-    return (date1 - date2).total_seconds()
+    return (convert_to_date(date1) - convert_to_date(date2)).total_seconds()
 
 '''
 This function directly calls `compare_dates` to check if two dates are equal.
