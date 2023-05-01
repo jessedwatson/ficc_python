@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-04-03 13:27:01
+ # @ Modified time: 2023-04-19 18:56:34
  # @ Description:
  '''
 
@@ -56,6 +56,109 @@ shape_parameter  = sqltodf("SELECT *  FROM `eng-reactor-287421.ahmad_test.shape_
 shape_parameter.set_index("Date", drop=True, inplace=True)
 shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
 shape_parameter = shape_parameter.transpose().to_dict()
+
+ttype_dict = { (0,0):'D', (0,1):'S', (1,0):'P' }
+
+ys_variants = ["max_ys", "min_ys", "max_qty", "min_ago", "D_min_ago", "P_min_ago", "S_min_ago"]
+ys_feats = ["_ys", "_ttypes", "_ago", "_qdiff"]
+D_prev = dict()
+P_prev = dict()
+S_prev = dict()
+
+def get_trade_history_columns():
+    '''
+    This function is used to create a list of columns
+    '''
+    global ys_variants
+    global ys_feats
+    YS_COLS = []
+    for prefix in ys_variants:
+        for suffix in ys_feats:
+            YS_COLS.append(prefix + suffix)
+    return YS_COLS
+
+def extract_feature_from_trade(row, name, trade):
+    global ttype_dict
+    yield_spread = trade[0]
+    ttypes = ttype_dict[(trade[3],trade[4])] + row.trade_type
+    seconds_ago = trade[5]
+    quantity_diff = np.log10(1 + np.abs(10**trade[2] - 10**row.quantity))
+    return [yield_spread, ttypes,  seconds_ago, quantity_diff]
+
+def trade_history_derived_features(row):
+    global ttype_dict
+    global D_prev
+    global S_prev
+    global P_prev
+    global ys_feats
+    global ys_variants
+    
+    trade_history = row.trade_history
+    trade = trade_history[0]
+    
+    D_min_ago_t = D_prev.get(row.cusip,trade)
+    D_min_ago = 9        
+
+    P_min_ago_t = P_prev.get(row.cusip,trade)
+    P_min_ago = 9
+    
+    S_min_ago_t = S_prev.get(row.cusip,trade)
+    S_min_ago = 9
+    
+    max_ys_t = trade; max_ys = trade[0]
+    min_ys_t = trade; min_ys = trade[0]
+    max_qty_t = trade; max_qty = trade[2]
+    min_ago_t = trade; min_ago = trade[5]
+    
+    for trade in trade_history[0:]:
+        #Checking if the first trade in the history is from the same block
+        if trade[5] == 0: 
+            continue
+ 
+        if trade[0] > max_ys: 
+            max_ys_t = trade
+            max_ys = trade[0]
+        elif trade[0] < min_ys: 
+            min_ys_t = trade; 
+            min_ys = trade[0]
+
+        if trade[2] > max_qty: 
+            max_qty_t = trade 
+            max_qty = trade[2]
+        if trade[5] < min_ago: 
+            min_ago_t = trade; 
+            min_ago = trade[5]
+            
+        side = ttype_dict[(trade[3],trade[4])]
+        if side == "D":
+            if trade[5] < D_min_ago: 
+                D_min_ago_t = trade; D_min_ago = trade[5]
+                D_prev[row.cusip] = trade
+        elif side == "P":
+            if trade[5] < P_min_ago: 
+                P_min_ago_t = trade; P_min_ago = trade[5]
+                P_prev[row.cusip] = trade
+        elif side == "S":
+            if trade[5] < S_min_ago: 
+                S_min_ago_t = trade; S_min_ago = trade[5]
+                S_prev[row.cusip] = trade
+        else: 
+            print("invalid side", trade)
+    
+    trade_history_dict = {"max_ys":max_ys_t,
+                          "min_ys":min_ys_t,
+                          "max_qty":max_qty_t,
+                          "min_ago":min_ago_t,
+                          "D_min_ago":D_min_ago_t,
+                          "P_min_ago":P_min_ago_t,
+                          "S_min_ago":S_min_ago_t}
+
+    return_list = []
+    for variant in ys_variants:
+        feature_list = extract_feature_from_trade(row,variant,trade_history_dict[variant])
+        return_list += feature_list
+    
+    return return_list
 
 def return_data_query(last_trade_date):
     return f'''SELECT
@@ -170,12 +273,13 @@ def get_yield_for_last_duration(row):
 def update_data():
   print("Downloading data")
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
+
   with fs.open('automated_training/processed_data.pkl') as f:
       data = pd.read_pickle(f)
   print('Download data')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
-  
+  print(f"last trade date : {last_trade_date}")
   DATA_QUERY = return_data_query(last_trade_date)
   file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
@@ -196,7 +300,8 @@ def update_data():
                       add_previous_treasury_difference=True,
                       add_flags=False,
                       add_related_trades_bool=False,
-                      production_set=False)
+                      production_set=False,
+                      add_rtrs_in_history=False)
   
   new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
   new_data = replace_ratings_by_standalone_rating(new_data)
@@ -209,13 +314,32 @@ def update_data():
 
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
   data = pd.concat([new_data, data])
+
+  ####### Adding trade history features to the data ###########
+  temp = data[['cusip','trade_history','quantity','trade_type']].parallel_apply(trade_history_derived_features, axis=1)
+  YS_COLS = get_trade_history_columns()
+  data[YS_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
+  del temp
+  
+  for col in YS_COLS:
+    if 'ttypes' in col and col not in PREDICTORS:
+        PREDICTORS.append(col)
+        CATEGORICAL_FEATURES.append(col)
+    elif col not in PREDICTORS:
+        NON_CAT_FEATURES.append(col)
+        PREDICTORS.append(col)
+  #############################################################
   
   data['new_ys'] = data['new_ficc_ycl'] - data['yield']
+
   data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
   data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
   data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
   data.to_pickle('processed_data.pkl')
+  
+  print('Uploading data')
   upload_data(storage_client, 'automated_training', 'processed_data.pkl')
+
   return data, last_trade_date
 
 def create_input(df, encoders):
@@ -250,6 +374,11 @@ def fit_encoders(data):
 def train_model(data, last_trade_date):
   encoders, fmax  = fit_encoders(data)
   
+  data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+  data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+  data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+  data = data[data.days_to_maturity < np.log10(30000)]
+
   train_data = data[data.trade_date < last_trade_date]
   test_data = data[data.trade_date >= last_trade_date]
   
@@ -316,7 +445,7 @@ def save_model(model, encoders):
 
 
 def send_results_email(mae, last_trade_date):
-    receiver_email = "ahmad@ficc.ai"
+    receiver_email = ["ahmad@ficc.ai","gil@ficc.ai","jesse@ficc.ai", "gil@ficc.ai"]
     sender_email = "notifications@ficc.ai"
     
     msg = MIMEMultipart()
@@ -334,7 +463,8 @@ def send_results_email(mae, last_trade_date):
         try:
             server.starttls()
             server.login(sender_email, 'ztwbwrzdqsucetbg')
-            server.sendmail(sender_email, receiver_email, msg.as_string())
+            for receiver in receiver_email:
+                server.sendmail(sender_email, receiver, msg.as_string())
         except Exception as e:
             print(e)
         finally:
@@ -348,16 +478,16 @@ def main():
   data, last_trade_date = update_data()
   print('Data processed')
   
-  # print('Training model')
-  # model, encoders, mae = train_model(data, last_trade_date)
-  # print('Training done')
+#   print('Training model')
+#   model, encoders, mae = train_model(data, last_trade_date)
+#   print('Training done')
 
-  # print('Saving model')
-  # save_model(model, encoders)
-  # print('Finished Training\n\n')
+#   print('Saving model')
+#   save_model(model, encoders)
+#   print('Finished Training\n\n')
 
-  # print('sending email')
-  # send_results_email(mae, last_trade_date)
+#   print('sending email')
+#   send_results_email(mae, last_trade_date)
 
 
 if __name__ == '__main__':
