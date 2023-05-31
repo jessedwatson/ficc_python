@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-05-01 15:11:03
+ # @ Modified time: 2023-05-31 17:56:50
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -23,7 +23,7 @@ import time
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "ahmad_creds.json"
 
 SEQUENCE_LENGTH = 8
 NUM_FEATURES = 6

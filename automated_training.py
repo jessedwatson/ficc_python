@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-04-19 18:56:34
+ # @ Modified time: 2023-05-24 21:09:13
  # @ Description:
  '''
 
@@ -286,7 +286,8 @@ def update_data():
   new_data = process_data(DATA_QUERY,
                       bq_client,
                       SEQUENCE_LENGTH,NUM_FEATURES,
-                      f"raw_data_{file_timestamp}.pkl",
+                      'raw_data_2023-05-24-20:47.pkl',
+                    #   f"raw_data_{file_timestamp}.pkl",
                       'FICC_NEW',
                       estimate_calc_date=False,
                       remove_short_maturity=True,
@@ -313,12 +314,11 @@ def update_data():
                                        'last_trade_date']].parallel_apply(get_yield_for_last_duration, axis=1)
 
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
-  data = pd.concat([new_data, data])
 
   ####### Adding trade history features to the data ###########
-  temp = data[['cusip','trade_history','quantity','trade_type']].parallel_apply(trade_history_derived_features, axis=1)
+  temp = new_data[['cusip','trade_history','quantity','trade_type']].parallel_apply(trade_history_derived_features, axis=1)
   YS_COLS = get_trade_history_columns()
-  data[YS_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
+  new_data[YS_COLS] = pd.DataFrame(temp.tolist(), index=new_data.index)
   del temp
   
   for col in YS_COLS:
@@ -329,6 +329,11 @@ def update_data():
         NON_CAT_FEATURES.append(col)
         PREDICTORS.append(col)
   #############################################################
+
+
+  data = pd.concat([new_data, data])
+
+
   
   data['new_ys'] = data['new_ficc_ycl'] - data['yield']
 
