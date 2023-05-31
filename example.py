@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-05-31 17:56:50
+ # @ Modified time: 2023-05-31 18:40:44
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -132,6 +132,7 @@ SELECT
 
 
 bq_client = bigquery.Client()
+
 
 if __name__ == "__main__":
     start_time  = time.time()
