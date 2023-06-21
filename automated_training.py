@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-05-24 21:09:13
+ # @ Modified time: 2023-06-21 16:15:43
  # @ Description:
  '''
 
@@ -286,8 +286,7 @@ def update_data():
   new_data = process_data(DATA_QUERY,
                       bq_client,
                       SEQUENCE_LENGTH,NUM_FEATURES,
-                      'raw_data_2023-05-24-20:47.pkl',
-                    #   f"raw_data_{file_timestamp}.pkl",
+                      f"raw_data_{file_timestamp}.pkl",
                       'FICC_NEW',
                       estimate_calc_date=False,
                       remove_short_maturity=True,
