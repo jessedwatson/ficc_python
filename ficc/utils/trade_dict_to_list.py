@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-05-01 14:08:19
+ # @ Modified time: 2023-06-20 21:30:46
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -82,7 +82,7 @@ def trade_dict_to_list(trade_dict: dict,
             yield_spread = trade_dict['yield'] * 100 - yield_at_that_time
             trade_list.append(yield_spread)
         else:
-            print('Yield is missing, skipping trade')
+            print(f"Yield is missing, skipping trade {trade_dict['rtrs_control_number']}")
             return None, None
         
     
