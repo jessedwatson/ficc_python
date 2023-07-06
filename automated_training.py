@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-06 12:11:45
+ # @ Modified time: 2023-07-06 12:26:08
  # @ Description:
  '''
 
@@ -263,18 +263,18 @@ def return_data_query(last_trade_date):
 
 
 def target_trade_processing_for_attention(row):
-  trade_mapping = {'D':[0,0], 'S':[0,1], 'P':[1,0]}
-  target_trade_features = []
-  target_trade_features.append(row['quantity'])
-  target_trade_features = target_trade_features + trade_mapping[row['trade_type']]
-  return np.tile(target_trade_features, (SEQUENCE_LENGTH,1))
+    trade_mapping = {'D':[0,0], 'S':[0,1], 'P':[1,0]}
+    target_trade_features = []
+    target_trade_features.append(row['quantity'])
+    target_trade_features = target_trade_features + trade_mapping[row['trade_type']]
+    return np.tile(target_trade_features, (1,1))
 
 def replace_ratings_by_standalone_rating(data):
-  data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
-  data.rating = data.rating.astype('str')
-  data.sp_stand_alone = data.sp_stand_alone.astype('str')
-  data.loc[(data.sp_stand_alone != 'NR'),'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
-  return data
+    data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
+    data.rating = data.rating.astype('str')
+    data.sp_stand_alone = data.sp_stand_alone.astype('str')
+    data.loc[(data.sp_stand_alone != 'NR'),'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
+    return data
 
 def get_yield_for_last_duration(row):
     if row['last_calc_date'] is None or row['last_trade_date'] is None:
@@ -404,43 +404,43 @@ def fit_encoders(data):
     return encoders, fmax
 
 def train_model(data, last_trade_date):
-  encoders, fmax  = fit_encoders(data)
-  
-  data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
-  data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
-  data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
-  data = data[data.days_to_maturity < np.log10(30000)]
+    encoders, fmax  = fit_encoders(data)
 
-  train_data = data[data.trade_date < last_trade_date]
-  test_data = data[data.trade_date >= last_trade_date]
-  
-  x_train = create_input(train_data, encoders)
-  y_train = train_data.new_ys
-  
-  x_test = create_input(test_data, encoders)
-  y_test = test_data.new_ys
+    data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+    data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+    data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+    data = data[data.days_to_maturity < np.log10(30000)]
 
-  model = yield_spread_model(x_train, 
-                             SEQUENCE_LENGTH, 
-                             NUM_FEATURES, 
-                             PREDICTORS, 
-                             CATEGORICAL_FEATURES, 
-                             NON_CAT_FEATURES, 
-                             BINARY,
-                             encoders,
-                             fmax)
-  
-  fit_callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss",
-                                                 patience=10,
-                                                 verbose=0,
-                                                 mode="auto",
-                                                 restore_best_weights=True)]
-    
-  model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+    train_data = data[data.trade_date < last_trade_date]
+    test_data = data[data.trade_date >= last_trade_date]
+
+    x_train = create_input(train_data, encoders)
+    y_train = train_data.new_ys
+
+    x_test = create_input(test_data, encoders)
+    y_test = test_data.new_ys
+
+    model = yield_spread_model(x_train, 
+                                SEQUENCE_LENGTH, 
+                                NUM_FEATURES, 
+                                PREDICTORS, 
+                                CATEGORICAL_FEATURES, 
+                                NON_CAT_FEATURES, 
+                                BINARY,
+                                encoders,
+                                fmax)
+
+    fit_callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss",
+                                                    patience=10,
+                                                    verbose=0,
+                                                    mode="auto",
+                                                    restore_best_weights=True)]
+
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
                 loss=keras.losses.MeanAbsoluteError(),
                 metrics=[keras.metrics.MeanAbsoluteError()])
 
-  history = model.fit(x_train, 
+    history = model.fit(x_train, 
                     y_train, 
                     epochs=100, 
                     batch_size=1000, 
@@ -449,31 +449,31 @@ def train_model(data, last_trade_date):
                     callbacks=fit_callbacks,
                     use_multiprocessing=True,
                     workers=8) 
-  
-  _, mae = model.evaluate(x_test, 
-                          y_test, 
-                          verbose=1, 
-                          batch_size = 1000)
-  
 
-  return model, encoders, mae           
+    _, mae = model.evaluate(x_test, 
+                            y_test, 
+                            verbose=1, 
+                            batch_size = 1000)
+
+
+    return model, encoders, mae           
   
 
 
 def save_model(model, encoders):
-  file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
-  print(f"file time stamp : {file_timestamp}")
+    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
+    print(f"file time stamp : {file_timestamp}")
 
-  print("Saving encoders and uploading encoders")
-  with open(f"encoders.pkl",'wb') as file:
-      pickle.dump(encoders,file)    
-  upload_data(storage_client, 'automated_training', f"encoders.pkl")
+    print("Saving encoders and uploading encoders")
+    with open(f"encoders.pkl",'wb') as file:
+        pickle.dump(encoders,file)    
+    upload_data(storage_client, 'automated_training', f"encoders.pkl")
 
-  print("Saving and uploading model")
-  model.save(f"saved_model_{file_timestamp}")
-  shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
-  upload_data(storage_client, 'ahmad_data', f"model.zip")
-  os.system(f"rm -r saved_model_{file_timestamp}")
+    print("Saving and uploading model")
+    model.save(f"saved_model_{file_timestamp}")
+    shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
+    upload_data(storage_client, 'ahmad_data', f"model.zip")
+    os.system(f"rm -r saved_model_{file_timestamp}")
 
 
 def send_results_email(mae, last_trade_date):
@@ -504,22 +504,22 @@ def send_results_email(mae, last_trade_date):
 
 
 def main():
-  print('\n\nFunction starting')
-  
-  print('Processing data')
-  data, last_trade_date = update_data()
-  print('Data processed')
-  
-  print('Training model')
-  model, encoders, mae = train_model(data, last_trade_date)
-  print('Training done')
+    print('\n\nFunction starting')
 
-#   print('Saving model')
-#   save_model(model, encoders)
-#   print('Finished Training\n\n')
+    print('Processing data')
+    data, last_trade_date = update_data()
+    print('Data processed')
 
-#   print('sending email')
-#   send_results_email(mae, last_trade_date)
+    print('Training model')
+    model, encoders, mae = train_model(data, last_trade_date)
+    print('Training done')
+
+    #   print('Saving model')
+    #   save_model(model, encoders)
+    #   print('Finished Training\n\n')
+
+    #   print('sending email')
+    #   send_results_email(mae, last_trade_date)
 
 
 if __name__ == '__main__':

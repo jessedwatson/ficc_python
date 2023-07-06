@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-02-01 10:38:48
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-06 12:12:35
+ # @ Modified time: 2023-07-06 12:26:01
  # @ Description:
  '''
 
@@ -64,7 +64,7 @@ def model_definition(trade_history_normalizer,
                                     dtype = tf.float32) 
 
     target_attention_input = layers.Input(name="target_attention_input", 
-                                    shape=(SEQUENCE_LENGTH, 3), 
+                                    shape=(1, 3), 
                                     dtype = tf.float32) 
 
 
@@ -127,7 +127,6 @@ def model_definition(trade_history_normalizer,
     reference_hidden = layers.Dense(400,
                                     activation='relu',
                                     name='reference_hidden_1')(layers.concatenate(layer, axis=-1))
-
     reference_hidden = layers.BatchNormalization()(reference_hidden)
     reference_hidden = layers.Dropout(DROPOUT)(reference_hidden)
 
