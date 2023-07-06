@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-02-01 10:38:48
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-01 14:56:46
+ # @ Modified time: 2023-07-06 12:12:35
  # @ Description:
  '''
 
@@ -53,6 +53,7 @@ def model_definition(trade_history_normalizer,
                      CATEGORICAL_FEATURES, 
                      NON_CAT_FEATURES, 
                      BINARY,
+                     encoders,
                      fmax):
     inputs = []
     layer = []
@@ -82,37 +83,37 @@ def model_definition(trade_history_normalizer,
 
     ############## TRADE HISTORY MODEL #################
 
-    lstm_layer = layers.LSTM(50, 
-                            activation='tanh',
-                            input_shape=(SEQUENCE_LENGTH,NUM_FEATURES),
-                            return_sequences = True,
-                            name='LSTM')
+    lstm_layer = layers.Bidirectional(layers.LSTM(50, 
+                                                  activation='tanh',
+                                                  input_shape=(SEQUENCE_LENGTH,NUM_FEATURES),
+                                                  return_sequences = True,
+                                                  name='LSTM'))
 
-    lstm_attention_layer = CustomAttention(50)
+    lstm_layer_2 = layers.Bidirectional(layers.LSTM(100, 
+                                                    activation='tanh',
+                                                    input_shape=(SEQUENCE_LENGTH,50),
+                                                    return_sequences = True,
+                                                    name='LSTM_2'))
 
-    lstm_layer_2 = layers.LSTM(100, 
-                            activation='tanh',
-                            input_shape=(SEQUENCE_LENGTH,50),
-                            return_sequences = False,
-                            name='LSTM_2')
 
 
     features = lstm_layer(trade_history_normalizer(inputs[0]))
-    features = lstm_attention_layer(features, features, inputs[1])
-    features = layers.BatchNormalization()(features)
-    # features = layers.Dropout(DROPOUT)(features)
-
     features = lstm_layer_2(features)
-    features = layers.BatchNormalization()(features)
-    # features = layers.Dropout(DROPOUT)(features)
 
-    trade_history_output = layers.Dense(100, 
-                                        activation='relu')(features)
+
+    attention_sequence = layers.Dense(200, activation='relu', name='attention_dense')(target_attention_input)
+    attention = layers.Dot(axes=[2, 2])([features, attention_sequence])
+    attention = layers.Activation('softmax')(attention)
+
+    context_vector = layers.Dot(axes=[1, 1])([features, attention])
+    context_vector = layers.Flatten(name='context_vector_flatten')(context_vector)
+
+
+    trade_history_output = layers.Dense(100,activation='relu')(context_vector)
 
     ####################################################
 
     ############## REFERENCE DATA MODEL ################
-    global encoders
     for f in CATEGORICAL_FEATURES:
         fin = layers.Input(shape=(1,), name = f)
         inputs.append(fin)
@@ -160,6 +161,7 @@ def yield_spread_model(x_train,
                        CATEGORICAL_FEATURES, 
                        NON_CAT_FEATURES, 
                        BINARY,
+                       encoders,
                        fmax):
     
     trade_history_normalizer = Normalization(name='Trade_history_normalizer')
@@ -175,6 +177,7 @@ def yield_spread_model(x_train,
                              CATEGORICAL_FEATURES, 
                              NON_CAT_FEATURES, 
                              BINARY,
+                             encoders,
                              fmax)
     
     return model
