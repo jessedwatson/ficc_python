@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-06 12:26:08
+ # @ Modified time: 2023-07-07 16:56:01
  # @ Description:
  '''
 
@@ -359,8 +359,8 @@ def update_data():
 
   data.to_pickle('processed_data.pkl')  
   
-  print('Uploading data')
-  upload_data(storage_client, 'automated_training', 'processed_data.pkl')
+#   print('Uploading data')
+#   upload_data(storage_client, 'automated_training', 'processed_data.pkl')
 
   return data, last_trade_date
 
@@ -411,8 +411,10 @@ def train_model(data, last_trade_date):
     data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
     data = data[data.days_to_maturity < np.log10(30000)]
 
-    train_data = data[data.trade_date < last_trade_date]
-    test_data = data[data.trade_date >= last_trade_date]
+    # train_data = data[data.trade_date < last_trade_date]
+    # test_data = data[data.trade_date >= last_trade_date]
+    train_data = data[:]
+    test_data = data[:]
 
     x_train = create_input(train_data, encoders)
     y_train = train_data.new_ys
@@ -421,14 +423,14 @@ def train_model(data, last_trade_date):
     y_test = test_data.new_ys
 
     model = yield_spread_model(x_train, 
-                                SEQUENCE_LENGTH, 
-                                NUM_FEATURES, 
-                                PREDICTORS, 
-                                CATEGORICAL_FEATURES, 
-                                NON_CAT_FEATURES, 
-                                BINARY,
-                                encoders,
-                                fmax)
+                               SEQUENCE_LENGTH, 
+                               NUM_FEATURES,
+                               PREDICTORS, 
+                               CATEGORICAL_FEATURES, 
+                               NON_CAT_FEATURES, 
+                               BINARY,
+                               encoders,
+                               fmax)
 
     fit_callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss",
                                                     patience=10,
@@ -441,14 +443,14 @@ def train_model(data, last_trade_date):
                 metrics=[keras.metrics.MeanAbsoluteError()])
 
     history = model.fit(x_train, 
-                    y_train, 
-                    epochs=100, 
-                    batch_size=1000, 
-                    verbose=1, 
-                    validation_split=0.1, 
-                    callbacks=fit_callbacks,
-                    use_multiprocessing=True,
-                    workers=8) 
+                        y_train, 
+                        epochs=100, 
+                        batch_size=1000,
+                        verbose=1,
+                        validation_split=0.1,
+                        callbacks=fit_callbacks,
+                        use_multiprocessing=True,
+                        workers=8) 
 
     _, mae = model.evaluate(x_test, 
                             y_test, 
@@ -464,20 +466,21 @@ def save_model(model, encoders):
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
     print(f"file time stamp : {file_timestamp}")
 
-    print("Saving encoders and uploading encoders")
-    with open(f"encoders.pkl",'wb') as file:
-        pickle.dump(encoders,file)    
-    upload_data(storage_client, 'automated_training', f"encoders.pkl")
+    # print("Saving encoders and uploading encoders")
+    # with open(f"encoders.pkl",'wb') as file:
+    #     pickle.dump(encoders,file)    
+    # upload_data(storage_client, 'automated_training', f"encoders.pkl")
 
     print("Saving and uploading model")
     model.save(f"saved_model_{file_timestamp}")
     shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
     upload_data(storage_client, 'ahmad_data', f"model.zip")
+    upload_data(storage_client, 'ahmad_data', f"saved_model_{file_timestamp}")
     os.system(f"rm -r saved_model_{file_timestamp}")
 
 
 def send_results_email(mae, last_trade_date):
-    receiver_email = ["ahmad@ficc.ai","gil@ficc.ai","jesse@ficc.ai", "gil@ficc.ai"]
+    receiver_email = ["ahmad@ficc.ai"]#,"gil@ficc.ai","jesse@ficc.ai", "gil@ficc.ai"]
     sender_email = "notifications@ficc.ai"
     
     msg = MIMEMultipart()
@@ -510,16 +513,16 @@ def main():
     data, last_trade_date = update_data()
     print('Data processed')
 
-    print('Training model')
-    model, encoders, mae = train_model(data, last_trade_date)
-    print('Training done')
+    # print('Training model')
+    # model, encoders, mae = train_model(data, last_trade_date)
+    # print('Training done')
 
-    #   print('Saving model')
-    #   save_model(model, encoders)
-    #   print('Finished Training\n\n')
+    # print('Saving model')
+    # save_model(model, encoders)
+    # print('Finished Training\n\n')
 
-    #   print('sending email')
-    #   send_results_email(mae, last_trade_date)
+    # print('sending email')
+    # send_results_email(mae, last_trade_date)
 
 
 if __name__ == '__main__':
