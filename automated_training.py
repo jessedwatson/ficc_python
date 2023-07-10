@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-07 16:56:01
+ # @ Modified time: 2023-07-10 23:03:34
  # @ Description:
  '''
 
@@ -298,13 +298,14 @@ def update_data():
   print('Data downloaded')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
+
   print(f"last trade date : {last_trade_date}")
   DATA_QUERY = return_data_query(last_trade_date)
   file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
   new_data = process_data(DATA_QUERY,
                           bq_client,
-                          SEQUENCE_LENGTH,
+                          5, #incase we want to use more trade in the history, I reduce it later
                           NUM_FEATURES,
                           f"raw_data_{file_timestamp}.pkl",
                           'FICC_NEW',
@@ -346,6 +347,7 @@ def update_data():
         PREDICTORS.append(col)
   #############################################################
 
+  print("Adding new data to master file")
   data = pd.concat([new_data, data])
   data['new_ys'] = data['new_ficc_ycl'] - data['yield']
 
@@ -353,15 +355,16 @@ def update_data():
   data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
   data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
   
-  print(f'Restricting history to {SEQUENCE_LENGTH} trades')
-  data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
-  data.target_attention_features = data.target_attention_features.apply(lambda x:x[:SEQUENCE_LENGTH])
-
+  print("Saving data to pickle file")
   data.to_pickle('processed_data.pkl')  
   
-#   print('Uploading data')
-#   upload_data(storage_client, 'automated_training', 'processed_data.pkl')
+  print('Uploading data')
+  upload_data(storage_client, 'automated_training', 'processed_data.pkl')
 
+  print(f"Restricting history to {SEQUENCE_LENGTH} trades")
+  data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
+  data.target_attention_features = data.target_attention_features.apply(lambda x:x[:SEQUENCE_LENGTH])
+  
   return data, last_trade_date
 
 def create_input(df, encoders):
@@ -411,11 +414,9 @@ def train_model(data, last_trade_date):
     data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
     data = data[data.days_to_maturity < np.log10(30000)]
 
-    # train_data = data[data.trade_date < last_trade_date]
-    # test_data = data[data.trade_date >= last_trade_date]
-    train_data = data[:]
-    test_data = data[:]
-
+    train_data = data[data.trade_date < last_trade_date]
+    test_data = data[data.trade_date >= last_trade_date]
+    
     x_train = create_input(train_data, encoders)
     y_train = train_data.new_ys
 
@@ -466,16 +467,19 @@ def save_model(model, encoders):
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
     print(f"file time stamp : {file_timestamp}")
 
-    # print("Saving encoders and uploading encoders")
-    # with open(f"encoders.pkl",'wb') as file:
-    #     pickle.dump(encoders,file)    
-    # upload_data(storage_client, 'automated_training', f"encoders.pkl")
+    print("Saving encoders and uploading encoders")
+    with open(f"encoders.pkl",'wb') as file:
+        pickle.dump(encoders,file)    
+    upload_data(storage_client, 'ahmad_data', f"encoders.pkl")
 
     print("Saving and uploading model")
     model.save(f"saved_model_{file_timestamp}")
+    
     shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
+    # shutil.make_archive(f"saved_model_{file_timestamp}", 'zip', f"saved_model_{file_timestamp}")
+    
     upload_data(storage_client, 'ahmad_data', f"model.zip")
-    upload_data(storage_client, 'ahmad_data', f"saved_model_{file_timestamp}")
+    # upload_data(storage_client, 'ahmad_data/yield_spread_models', f"saved_model_{file_timestamp}.zip")
     os.system(f"rm -r saved_model_{file_timestamp}")
 
 
@@ -513,16 +517,16 @@ def main():
     data, last_trade_date = update_data()
     print('Data processed')
 
-    # print('Training model')
-    # model, encoders, mae = train_model(data, last_trade_date)
-    # print('Training done')
+    print('Training model')
+    model, encoders, mae = train_model(data, last_trade_date)
+    print('Training done')
 
-    # print('Saving model')
-    # save_model(model, encoders)
-    # print('Finished Training\n\n')
+    print('Saving model')
+    save_model(model, encoders)
+    print('Finished Training\n\n')
 
-    # print('sending email')
-    # send_results_email(mae, last_trade_date)
+    print('sending email')
+    send_results_email(mae, last_trade_date)
 
 
 if __name__ == '__main__':
