@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-10 23:03:34
+ # @ Modified time: 2023-07-11 21:56:28
  # @ Description:
  '''
 
@@ -295,8 +295,11 @@ def update_data():
 
   with fs.open('automated_training/processed_data.pkl') as f:
       data = pd.read_pickle(f)
+  
   print('Data downloaded')
   
+  #TODO remove this when moving to production
+  data = data[data.trade_date < '2023-07-10']
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
 
   print(f"last trade date : {last_trade_date}")
@@ -321,7 +324,12 @@ def update_data():
                           production_set=False,
                           add_rtrs_in_history=False)
   
-  new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
+  # Restricting the trade history to length 2, at present 2 is the length of trade history
+  # that gives the maximum accuracy
+  print(f"Restricting history to {SEQUENCE_LENGTH} trades")
+  new_data.trade_history = new_data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
+  data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
+
   new_data = replace_ratings_by_standalone_rating(new_data)
   new_data['yield'] = new_data['yield'] * 100
   new_data['last_trade_date'] = new_data['last_trade_datetime'].dt.date
@@ -332,10 +340,22 @@ def update_data():
 
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
 
+  new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
+
+  #### removing missing data
+  new_data['trade_history_sum'] = new_data.trade_history.parallel_apply(lambda x: np.sum(x))
+  new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
+  new_data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
+
+  print("Adding new data to master file")
+  data = pd.concat([new_data, data])
+  data['new_ys'] = data['new_ficc_ycl'] - data['yield']
+
   ####### Adding trade history features to the data ###########
-  temp = new_data[['cusip','trade_history','quantity','trade_type']].parallel_apply(trade_history_derived_features, axis=1)
+  print("Adding features from previous trade history")
+  temp = data[['cusip','trade_history','quantity','trade_type']].parallel_apply(trade_history_derived_features, axis=1)
   YS_COLS = get_trade_history_columns()
-  new_data[YS_COLS] = pd.DataFrame(temp.tolist(), index=new_data.index)
+  data[YS_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
   del temp
   
   for col in YS_COLS:
@@ -347,23 +367,11 @@ def update_data():
         PREDICTORS.append(col)
   #############################################################
 
-  print("Adding new data to master file")
-  data = pd.concat([new_data, data])
-  data['new_ys'] = data['new_ficc_ycl'] - data['yield']
-
-  data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
-  data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
-  data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
-  
   print("Saving data to pickle file")
   data.to_pickle('processed_data.pkl')  
   
-  print('Uploading data')
+  print("Uploading data")
   upload_data(storage_client, 'automated_training', 'processed_data.pkl')
-
-  print(f"Restricting history to {SEQUENCE_LENGTH} trades")
-  data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
-  data.target_attention_features = data.target_attention_features.apply(lambda x:x[:SEQUENCE_LENGTH])
   
   return data, last_trade_date
 
@@ -407,12 +415,13 @@ def fit_encoders(data):
     return encoders, fmax
 
 def train_model(data, last_trade_date):
-    encoders, fmax  = fit_encoders(data)
-
+    
     data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
     data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
     data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
     data = data[data.days_to_maturity < np.log10(30000)]
+    
+    encoders, fmax  = fit_encoders(data)
 
     train_data = data[data.trade_date < last_trade_date]
     test_data = data[data.trade_date >= last_trade_date]
@@ -484,7 +493,7 @@ def save_model(model, encoders):
 
 
 def send_results_email(mae, last_trade_date):
-    receiver_email = ["ahmad@ficc.ai"]#,"gil@ficc.ai","jesse@ficc.ai", "gil@ficc.ai"]
+    receiver_email = ["ahmad@ficc.ai"]
     sender_email = "notifications@ficc.ai"
     
     msg = MIMEMultipart()
@@ -511,12 +520,12 @@ def send_results_email(mae, last_trade_date):
 
 
 def main():
-    print('\n\nFunction starting')
+    print(f'\n\nFunction starting {datetime.now()}')
 
     print('Processing data')
     data, last_trade_date = update_data()
     print('Data processed')
-
+    
     print('Training model')
     model, encoders, mae = train_model(data, last_trade_date)
     print('Training done')
@@ -527,7 +536,8 @@ def main():
 
     print('sending email')
     send_results_email(mae, last_trade_date)
-
+    
+    print(f'Funciton executed {datetime.now()}')
 
 if __name__ == '__main__':
     main()

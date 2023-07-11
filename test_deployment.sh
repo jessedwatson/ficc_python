@@ -11,7 +11,7 @@ echo "Model trained"
  
 #Getting the endpoint ID we want to deploy the model on
 ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='new_attention_model')
-ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='test')
+#ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='test')
 
 #Unzip model and uploading it to automated training bucket
 TIMESTAMP=$(date +%m-%d)
@@ -34,7 +34,7 @@ fi
 
 echo $ENDPOINT_ID
 echo $MODEL_NAME
-echo "Deploying model"
+echo "Uploading model to vertex ai"
 gcloud beta ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-7:latest --artifact-uri=gs://automated_training/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Failed to deploy model on vertex ai exited with code $?"
