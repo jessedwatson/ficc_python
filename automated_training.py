@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-11 21:56:28
+ # @ Modified time: 2023-07-12 04:41:47
  # @ Description:
  '''
 
@@ -298,8 +298,6 @@ def update_data():
   
   print('Data downloaded')
   
-  #TODO remove this when moving to production
-  data = data[data.trade_date < '2023-07-10']
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
 
   print(f"last trade date : {last_trade_date}")
