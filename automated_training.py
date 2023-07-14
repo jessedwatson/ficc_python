@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-12 04:41:47
+ # @ Modified time: 2023-07-14 04:44:16
  # @ Description:
  '''
 
@@ -347,7 +347,7 @@ def update_data():
 
   print("Adding new data to master file")
   data = pd.concat([new_data, data])
-  data['new_ys'] = data['new_ficc_ycl'] - data['yield']
+  data['new_ys'] =  data['yield'] - data['new_ficc_ycl']
 
   ####### Adding trade history features to the data ###########
   print("Adding features from previous trade history")

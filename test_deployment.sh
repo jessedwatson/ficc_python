@@ -2,7 +2,7 @@
 
 Changing directory adn training the model
 echo "Training model"
-/opt/conda/bin/python /home/shayaan/ficc_python/automated_training.py >> /home/shayaan/automated_training_output.txt
+/opt/conda/bin/python /home/shayaan/ficc_python/automated_training.py #>> /home/shayaan/automated_training_output.txt
 if [ $? -ne 0 ]; then
   echo "Python script failed with exit code $?"
   exit 1
