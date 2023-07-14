@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-05-01 15:10:56
+ # @ Modified time: 2023-07-14 17:19:43
  # @ Description: fill in features with the corresponding default values.
  '''
 
@@ -45,12 +45,11 @@ def replace_nan_with_value(df, feature, default_value):
         df[feature].fillna(default_value, inplace=True)
 
 
-def fill_missing_values(df, keep_nan):
+def fill_missing_values(df):
     # df.dropna(subset=['instrument_primary_name'], inplace=True)
-    if not keep_nan:
-        for feature, default_value in FEATURES_AND_DEFAULT_VALUES.items():
-            try:
-                replace_nan_with_value(df, feature, default_value)
-            except Exception as e:
-                print(f"Feature {feature} not in dataframe")
+    for feature, default_value in FEATURES_AND_DEFAULT_VALUES.items():
+        try:
+            replace_nan_with_value(df, feature, default_value)
+        except Exception as e:
+            print(f"Feature {feature} not in dataframe")
     return df

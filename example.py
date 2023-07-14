@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-06-20 10:57:33
+ # @ Modified time: 2023-07-14 17:43:57
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -23,7 +23,8 @@ import time
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/shayaan/ahmad_creds.json"
 
 SEQUENCE_LENGTH = 8
 NUM_FEATURES = 6
@@ -115,7 +116,7 @@ WHERE
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
   AND settlement_date is not null
   ORDER BY trade_datetime desc
-  limit 1
+  limit 1000
 '''
 
 # DATA_QUERY = '''
@@ -137,22 +138,18 @@ bq_client = bigquery.Client()
 if __name__ == "__main__":
     start_time  = time.time()
     trade_data = process_data(DATA_QUERY, 
-                    bq_client,
-                    SEQUENCE_LENGTH,
-                    NUM_FEATURES,
-                    'data.pkl',
-                    'FICC_NEW',
-                    remove_short_maturity=True,
-                    trade_history_delay = 0,
-                    min_trades_in_history = 0,
-                    process_ratings=False,
-                    treasury_spread = True,
-                    add_previous_treasury_rate=True,
-                    add_previous_treasury_difference=True,
-                    add_flags=False,
-                    add_related_trades_bool=False,
-                    production_set=False,
-                    add_rtrs_in_history=False)
+                              bq_client,
+                              SEQUENCE_LENGTH,
+                              NUM_FEATURES,
+                              'data.pkl',
+                              'FICC_NEW',
+                              remove_short_maturity=True,
+                              trade_history_delay = 0,
+                              min_trades_in_history = 0,
+                              treasury_spread = True,
+                              add_flags=False,
+                              add_related_trades_bool=False,
+                              add_rtrs_in_history=False)
     
     end_time = time.time()
 
