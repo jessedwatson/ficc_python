@@ -1,8 +1,8 @@
 '''
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
- # @ Modified by: Mitas Ray
- # @ Modified time: 2023-04-17
+ # @ Modified by: Ahmad Shayaan
+ # @ Modified time: 2023-07-14 17:15:41
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -33,11 +33,9 @@ def convert_dates(df):
 '''
 This function  
 '''
-def process_ratings(df, drop_ratings):
+def process_ratings(df):
     # MR is for missing ratings
     df.sp_long.fillna('MR', inplace=True)
-    if drop_ratings == True:
-        df = df[df.sp_long.isin(['BBB+','A-','A','A+','AA-','AA','AA+','AAA','NR','MR'])] 
     df['rating'] = df['sp_long']
     return df
 

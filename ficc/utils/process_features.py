@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:09:34
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-10 11:22:15
+ # @ Modified time: 2023-07-14 17:19:31
  # @ Description:
  '''
 
@@ -14,16 +14,10 @@ from ficc.utils.days_in_interest_payment import days_in_interest_payment
 from ficc.utils.fill_missing_values import fill_missing_values
 from ficc.utils.auxiliary_functions import calculate_a_over_e
 
-def process_features(df, keep_nan, production_set):
-    # Removing bonds from Puerto Rico
-    # df = df[df.incorporated_state_code != 'PR']
-
+def process_features(df):
     df.interest_payment_frequency.fillna(0, inplace=True)
     df.loc[:,'interest_payment_frequency'] = df.interest_payment_frequency.apply(lambda x: COUPON_FREQUENCY_DICT[x])
     
-    # Processing 
-    if production_set == False:
-        df.loc[:,'quantity'] = np.log10(df.par_traded.astype(np.float32))
     df.coupon = df.coupon.astype(np.float32)
     df.issue_amount = np.log10(1 + df.issue_amount.astype(np.float32))
     df.maturity_amount = np.log10(1.0 + df.maturity_amount.astype(float))
@@ -67,6 +61,6 @@ def process_features(df, keep_nan, production_set):
     df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
     df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360/df['days_in_interest_payment'])
     df.loc[:, 'A/E'] = df.apply(calculate_a_over_e, axis=1)
-    df = fill_missing_values(df, keep_nan)
+    df = fill_missing_values(df)
 
     return df

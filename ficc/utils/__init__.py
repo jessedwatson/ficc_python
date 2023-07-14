@@ -2,7 +2,6 @@ from . import auxiliary_functions
 from . import auxiliary_variables
 from . import days_in_interest_payment
 from . import diff_in_days
-from . import ficc_calc_end_date
 from . import fill_missing_values
 from . import frequency
 from . import globals

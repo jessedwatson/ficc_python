@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-16 09:59:30
+ # @ Modified time: 2023-07-02 14:06:39
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -38,7 +38,7 @@ def trade_dict_to_list(trade_dict: dict,
 
     for feature in ['rtrs_control_number','seconds_ago','settlement_date','par_traded','trade_type','seconds_ago','trade_datetime']:
         if trade_dict[feature] is None:
-            return None
+            return None, None
 
     # Making sure that the most recent trade
     if trade_dict['seconds_ago'] < (trade_history_delay * 60):
@@ -46,9 +46,9 @@ def trade_dict_to_list(trade_dict: dict,
 
     # The ficc yield curve coefficients are only present before 27th July for the old yield curve and 2nd August for the new yield curve
     if globals.YIELD_CURVE_TO_USE.upper() == 'FICC'and trade_dict['trade_datetime'] < datetime(2021,7,27):
-        target_date = datetime(2021,7,27).date()
+        return None, None
     elif globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW' and trade_dict['trade_datetime'] < datetime(2021,8,3):
-        target_date = datetime(2021,8,3).date()
+        return None, None
     elif trade_dict['trade_datetime'] is not None:
         target_date = trade_dict['trade_datetime'].date()
     else:
@@ -82,7 +82,7 @@ def trade_dict_to_list(trade_dict: dict,
             yield_spread = trade_dict['yield'] * 100 - yield_at_that_time
             trade_list.append(yield_spread)
         else:
-            print('Yield is missing, skipping trade')
+            # print(f"Yield is missing, skipping trade {trade_dict['rtrs_control_number']}")
             return None, None
         
     

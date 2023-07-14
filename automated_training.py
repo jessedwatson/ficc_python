@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-04-19 18:56:34
+ # @ Modified time: 2023-07-14 04:44:16
  # @ Description:
  '''
 
@@ -32,11 +32,24 @@ from email.mime.multipart import MIMEMultipart
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
 #os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 
-SEQUENCE_LENGTH = 5
+SEQUENCE_LENGTH = 2
 NUM_FEATURES = 6
-PREDICTORS.append('target_attention_features')
+
 PREDICTORS.append('ficc_treasury_spread')
 NON_CAT_FEATURES.append('ficc_treasury_spread')
+PREDICTORS.append('target_attention_features')
+
+categorical_feature_values = {'purpose_class' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                                                 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
+                                                 47, 48, 49, 50, 51, 52, 53],
+                              'rating' : ['A', 'A+', 'A-', 'AA', 'AA+', 'AA-', 'AAA', 'B', 'B+', 'B-', 'BB', 'BB+', 'BB-',
+                                         'BBB', 'BBB+', 'BBB-', 'CC', 'CCC', 'CCC+', 'CCC-' , 'D', 'NR', 'MR'],
+                              'trade_type' : ['D', 'S', 'P'],
+                              'incorporated_state_code' : ['AK', 'AL', 'AR', 'AS', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'GU',
+                                                         'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME', 'MI', 'MN',
+                                                         'MO', 'MP', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM', 'NV', 'NY', 'OH',
+                                                         'OK', 'OR', 'PA', 'PR', 'RI', 'SC', 'SD', 'TN', 'TX', 'US', 'UT', 'VA', 'VI',
+                                                         'VT', 'WA', 'WI', 'WV', 'WY'] }
 
 storage_client = storage.Client()
 bq_client = bigquery.Client()
@@ -250,18 +263,18 @@ def return_data_query(last_trade_date):
 
 
 def target_trade_processing_for_attention(row):
-  trade_mapping = {'D':[0,0], 'S':[0,1], 'P':[1,0]}
-  target_trade_features = []
-  target_trade_features.append(row['quantity'])
-  target_trade_features = target_trade_features + trade_mapping[row['trade_type']]
-  return np.tile(target_trade_features, (SEQUENCE_LENGTH,1))
+    trade_mapping = {'D':[0,0], 'S':[0,1], 'P':[1,0]}
+    target_trade_features = []
+    target_trade_features.append(row['quantity'])
+    target_trade_features = target_trade_features + trade_mapping[row['trade_type']]
+    return np.tile(target_trade_features, (1,1))
 
 def replace_ratings_by_standalone_rating(data):
-  data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
-  data.rating = data.rating.astype('str')
-  data.sp_stand_alone = data.sp_stand_alone.astype('str')
-  data.loc[(data.sp_stand_alone != 'NR'),'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
-  return data
+    data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
+    data.rating = data.rating.astype('str')
+    data.sp_stand_alone = data.sp_stand_alone.astype('str')
+    data.loc[(data.sp_stand_alone != 'NR'),'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
+    return data
 
 def get_yield_for_last_duration(row):
     if row['last_calc_date'] is None or row['last_trade_date'] is None:
@@ -271,39 +284,50 @@ def get_yield_for_last_duration(row):
     return ycl
 
 def update_data():
+  '''
+  This function updates the master data file that is used to train and 
+  deploy the model. 
+  Input: None
+  Output: dataframe, datetime  
+  '''
   print("Downloading data")
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
 
   with fs.open('automated_training/processed_data.pkl') as f:
       data = pd.read_pickle(f)
-  print('Download data')
+  
+  print('Data downloaded')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
+
   print(f"last trade date : {last_trade_date}")
   DATA_QUERY = return_data_query(last_trade_date)
   file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
   new_data = process_data(DATA_QUERY,
-                      bq_client,
-                      SEQUENCE_LENGTH,NUM_FEATURES,
-                      f"raw_data_{file_timestamp}.pkl",
-                      'FICC_NEW',
-                      estimate_calc_date=False,
-                      remove_short_maturity=True,
-                      remove_non_transaction_based=False,
-                      remove_trade_type = [],
-                      trade_history_delay = 1,
-                      min_trades_in_history = 0,
-                      process_ratings=False,
-                      treasury_spread = True,
-                      add_previous_treasury_rate=True,
-                      add_previous_treasury_difference=True,
-                      add_flags=False,
-                      add_related_trades_bool=False,
-                      production_set=False,
-                      add_rtrs_in_history=False)
+                          bq_client,
+                          5, #incase we want to use more trade in the history, I reduce it later
+                          NUM_FEATURES,
+                          f"raw_data_{file_timestamp}.pkl",
+                          'FICC_NEW',
+                          remove_short_maturity=True,
+                          trade_history_delay = 1,
+                          min_trades_in_history = 0,
+                          process_ratings=False,
+                          treasury_spread = True,
+                          add_previous_treasury_rate=True,
+                          add_previous_treasury_difference=True,
+                          add_flags=False,
+                          add_related_trades_bool=False,
+                          production_set=False,
+                          add_rtrs_in_history=False)
   
-  new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
+  # Restricting the trade history to length 2, at present 2 is the length of trade history
+  # that gives the maximum accuracy
+  print(f"Restricting history to {SEQUENCE_LENGTH} trades")
+  new_data.trade_history = new_data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
+  data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
+
   new_data = replace_ratings_by_standalone_rating(new_data)
   new_data['yield'] = new_data['yield'] * 100
   new_data['last_trade_date'] = new_data['last_trade_datetime'].dt.date
@@ -313,9 +337,20 @@ def update_data():
                                        'last_trade_date']].parallel_apply(get_yield_for_last_duration, axis=1)
 
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
+
+  new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
+
+  #### removing missing data
+  new_data['trade_history_sum'] = new_data.trade_history.parallel_apply(lambda x: np.sum(x))
+  new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
+  new_data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
+
+  print("Adding new data to master file")
   data = pd.concat([new_data, data])
+  data['new_ys'] =  data['yield'] - data['new_ficc_ycl']
 
   ####### Adding trade history features to the data ###########
+  print("Adding features from previous trade history")
   temp = data[['cusip','trade_history','quantity','trade_type']].parallel_apply(trade_history_derived_features, axis=1)
   YS_COLS = get_trade_history_columns()
   data[YS_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
@@ -329,17 +364,13 @@ def update_data():
         NON_CAT_FEATURES.append(col)
         PREDICTORS.append(col)
   #############################################################
-  
-  data['new_ys'] = data['new_ficc_ycl'] - data['yield']
 
-  data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
-  data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
-  data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
-  data.to_pickle('processed_data.pkl')
+  print("Saving data to pickle file")
+  data.to_pickle('processed_data.pkl')  
   
-  print('Uploading data')
+  print("Uploading data")
   upload_data(storage_client, 'automated_training', 'processed_data.pkl')
-
+  
   return data, last_trade_date
 
 def create_input(df, encoders):
@@ -359,93 +390,108 @@ def create_input(df, encoders):
     return datalist
 
 def fit_encoders(data):
-  encoders = {}
-  fmax = {}
-  for f in CATEGORICAL_FEATURES:
-      print(f)
-      fprep = preprocessing.LabelEncoder().fit(data[f].drop_duplicates())
-      fmax[f] = np.max(fprep.transform(fprep.classes_))
-      encoders[f] = fprep
-      
-  with open('encoders.pkl','wb') as file:
-      pickle.dump(encoders,file)
-  return encoders, fmax
+    '''
+    This function fits label encoders to categorical features in the data.
+    For a few of the categorical features, the values don't change for these features
+    we use the pre-defined set of values.
+    
+    Input : data frame
+    Output : Tuple of dictionaries 
+    '''
+    encoders = {}
+    fmax = {}
+    for f in CATEGORICAL_FEATURES:
+        if f in ['rating', 'incorporated_state_code', 'trade_type', 'purpose_class']:
+            fprep = preprocessing.LabelEncoder().fit(categorical_feature_values[f])
+        else:
+            fprep = preprocessing.LabelEncoder().fit(data[f].drop_duplicates())
+        fmax[f] = np.max(fprep.transform(fprep.classes_))
+        encoders[f] = fprep
+    
+    with open('encoders.pkl','wb') as file:
+        pickle.dump(encoders,file)
+    return encoders, fmax
 
 def train_model(data, last_trade_date):
-  encoders, fmax  = fit_encoders(data)
-  
-  data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
-  data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
-  data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
-  data = data[data.days_to_maturity < np.log10(30000)]
-
-  train_data = data[data.trade_date < last_trade_date]
-  test_data = data[data.trade_date >= last_trade_date]
-  
-  
-  x_train = create_input(train_data, encoders)
-  y_train = train_data.new_ys
-  
-  x_test = create_input(test_data, encoders)
-  y_test = test_data.new_ys
-
-  model = yield_spread_model(x_train, 
-                             SEQUENCE_LENGTH, 
-                             NUM_FEATURES, 
-                             PREDICTORS, 
-                             CATEGORICAL_FEATURES, 
-                             NON_CAT_FEATURES, 
-                             BINARY,
-                             fmax)
-  
-  fit_callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss",
-                                                 patience=10,
-                                                 verbose=0,
-                                                 mode="auto",
-                                                 restore_best_weights=True)]
     
-  model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+    data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+    data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+    data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+    data = data[data.days_to_maturity < np.log10(30000)]
+    
+    encoders, fmax  = fit_encoders(data)
+
+    train_data = data[data.trade_date < last_trade_date]
+    test_data = data[data.trade_date >= last_trade_date]
+    
+    x_train = create_input(train_data, encoders)
+    y_train = train_data.new_ys
+
+    x_test = create_input(test_data, encoders)
+    y_test = test_data.new_ys
+
+    model = yield_spread_model(x_train, 
+                               SEQUENCE_LENGTH, 
+                               NUM_FEATURES,
+                               PREDICTORS, 
+                               CATEGORICAL_FEATURES, 
+                               NON_CAT_FEATURES, 
+                               BINARY,
+                               encoders,
+                               fmax)
+
+    fit_callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss",
+                                                    patience=10,
+                                                    verbose=0,
+                                                    mode="auto",
+                                                    restore_best_weights=True)]
+
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
                 loss=keras.losses.MeanAbsoluteError(),
                 metrics=[keras.metrics.MeanAbsoluteError()])
 
-  history = model.fit(x_train, 
-                    y_train, 
-                    epochs=100, 
-                    batch_size=1000, 
-                    verbose=1, 
-                    validation_split=0.1, 
-                    callbacks=fit_callbacks,
-                    use_multiprocessing=True,
-                    workers=8) 
-  
-  _, mae = model.evaluate(x_test, 
-                          y_test, 
-                          verbose=1, 
-                          batch_size = 1000)
-  
+    history = model.fit(x_train, 
+                        y_train, 
+                        epochs=100, 
+                        batch_size=1000,
+                        verbose=1,
+                        validation_split=0.1,
+                        callbacks=fit_callbacks,
+                        use_multiprocessing=True,
+                        workers=8) 
 
-  return model, encoders, mae           
+    _, mae = model.evaluate(x_test, 
+                            y_test, 
+                            verbose=1, 
+                            batch_size = 1000)
+
+
+    return model, encoders, mae           
   
 
 
 def save_model(model, encoders):
-  file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
-  print(f"file time stamp : {file_timestamp}")
+    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
+    print(f"file time stamp : {file_timestamp}")
 
-  print("Saving encoders and uploading encoders")
-  with open(f"encoders.pkl",'wb') as file:
-      pickle.dump(encoders,file)    
-  upload_data(storage_client, 'automated_training', f"encoders.pkl")
+    print("Saving encoders and uploading encoders")
+    with open(f"encoders.pkl",'wb') as file:
+        pickle.dump(encoders,file)    
+    upload_data(storage_client, 'ahmad_data', f"encoders.pkl")
 
-  print("Saving and uploading model")
-  model.save(f"saved_model_{file_timestamp}")
-  shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
-  upload_data(storage_client, 'ahmad_data', f"model.zip")
-  os.system(f"rm -r saved_model_{file_timestamp}")
+    print("Saving and uploading model")
+    model.save(f"saved_model_{file_timestamp}")
+    
+    shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
+    # shutil.make_archive(f"saved_model_{file_timestamp}", 'zip', f"saved_model_{file_timestamp}")
+    
+    upload_data(storage_client, 'ahmad_data', f"model.zip")
+    # upload_data(storage_client, 'ahmad_data/yield_spread_models', f"saved_model_{file_timestamp}.zip")
+    os.system(f"rm -r saved_model_{file_timestamp}")
 
 
 def send_results_email(mae, last_trade_date):
-    receiver_email = ["ahmad@ficc.ai","gil@ficc.ai","jesse@ficc.ai", "gil@ficc.ai"]
+    receiver_email = ["ahmad@ficc.ai"]
     sender_email = "notifications@ficc.ai"
     
     msg = MIMEMultipart()
@@ -472,23 +518,24 @@ def send_results_email(mae, last_trade_date):
 
 
 def main():
-  print('\n\nFunction starting')
-  
-  print('Processing data')
-  data, last_trade_date = update_data()
-  print('Data processed')
-  
-#   print('Training model')
-#   model, encoders, mae = train_model(data, last_trade_date)
-#   print('Training done')
+    print(f'\n\nFunction starting {datetime.now()}')
 
-#   print('Saving model')
-#   save_model(model, encoders)
-#   print('Finished Training\n\n')
+    print('Processing data')
+    data, last_trade_date = update_data()
+    print('Data processed')
+    
+    print('Training model')
+    model, encoders, mae = train_model(data, last_trade_date)
+    print('Training done')
 
-#   print('sending email')
-#   send_results_email(mae, last_trade_date)
+    print('Saving model')
+    save_model(model, encoders)
+    print('Finished Training\n\n')
 
+    print('sending email')
+    send_results_email(mae, last_trade_date)
+    
+    print(f'Funciton executed {datetime.now()}')
 
 if __name__ == '__main__':
     main()

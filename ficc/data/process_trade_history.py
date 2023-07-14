@@ -3,10 +3,11 @@
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
  # @ Modified time: 2023-03-15 10:40:01
- # @ Modified time: 2023-03-16 09:47:32
+ # @ Modified time: 2023-07-14 18:28:42
  # @ Description:
  '''
 
+ 
 import os
 import pandas as pd
 import pickle5 as pickle
@@ -49,9 +50,7 @@ def process_trade_history(query,
                           remove_short_maturity,
                           trade_history_delay, 
                           min_trades_in_history, 
-                          drop_ratings,
                           treasury_spread,
-                          production_set,
                           add_rtrs_in_history):
     
     if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE.upper() == "FICC_NEW":
@@ -66,7 +65,7 @@ def process_trade_history(query,
     
 
     trade_dataframe = fetch_trade_data(query, client, PATH)
-    trade_dataframe = process_ratings(trade_dataframe, drop_ratings)
+    trade_dataframe = process_ratings(trade_dataframe)
     #trade_dataframe = convert_object_to_category(trade_dataframe)
 
     print(f'Raw data contains {len(trade_dataframe)} samples')
@@ -82,7 +81,7 @@ def process_trade_history(query,
     
     temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history','temp_last_features'])
     
-    temp = trade_dataframe.recent.apply(trade_list_to_array, args=([remove_short_maturity,
+    temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
                                                                              treasury_spread,
                                                                              add_rtrs_in_history]))
@@ -112,9 +111,6 @@ def process_trade_history(query,
 
     # trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
     trade_dataframe = trade_dataframe.drop(columns=['temp_last_features','recent'])
-
-    if production_set == True:
-        trade_dataframe['calc_date'] = trade_dataframe.loc[:,'last_calc_date']
 
     print(f"Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades")
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
