@@ -1,6 +1,6 @@
 #!/bin/sh
-
-Changing directory adn training the model
+who
+# Changing directory and training the model
 echo "Training model"
 /opt/conda/bin/python /home/shayaan/ficc_python/automated_training.py #>> /home/shayaan/automated_training_output.txt
 if [ $? -ne 0 ]; then
@@ -8,10 +8,10 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 echo "Model trained"
- 
+
 #Getting the endpoint ID we want to deploy the model on
 ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='new_attention_model')
-#ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='test')
+# ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='test')
 
 #Unzip model and uploading it to automated training bucket
 TIMESTAMP=$(date +%m-%d)
