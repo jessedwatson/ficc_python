@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-02 14:06:39
+ # @ Modified time: 2023-07-18 21:06:39
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -111,8 +111,8 @@ def trade_dict_to_list(trade_dict: dict,
 
     return np.stack(trade_list) , (yield_spread,
                                    yield_at_that_time,
-                                   trade_dict['rtrs_control_number'],
-                                   trade_dict['yield'],
+                                   int(trade_dict['rtrs_control_number']),
+                                   trade_dict['yield'] * 100,
                                    trade_dict['dollar_price'], 
                                    trade_dict['seconds_ago'], 
                                    float(trade_dict['par_traded']),
