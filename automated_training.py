@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-14 04:44:16
+ # @ Modified time: 2023-07-18 22:07:22
  # @ Description:
  '''
 
@@ -295,7 +295,6 @@ def update_data():
 
   with fs.open('automated_training/processed_data.pkl') as f:
       data = pd.read_pickle(f)
-  
   print('Data downloaded')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
