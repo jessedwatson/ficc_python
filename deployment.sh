@@ -1,26 +1,48 @@
 #!/bin/sh
-
-#Changing directory adn training the model
+who
+# Changing directory and training the model
 echo "Training model"
-/opt/conda/bin/python /home/ahmad/ficc_python/automated_training.py > /home/ahmad/output.txt
+/opt/conda/bin/python /home/shayaan/ficc_python/automated_training.py #>> /home/shayaan/automated_training_output.txt
+if [ $? -ne 0 ]; then
+  echo "Python script failed with exit code $?"
+  exit 1
+fi
 echo "Model trained"
 
-# Getting the endpoint ID we want to deploy the model on
+#Getting the endpoint ID we want to deploy the model on
 ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='new_attention_model')
+# ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='test')
 
-# Unzipt model and uploading it to automated training bucket
+#Unzip model and uploading it to automated training bucket
 TIMESTAMP=$(date +%m-%d)
 MODEL_NAME='model'-${TIMESTAMP}
 echo "Unziping model $MODEL_NAME"
-gsutil cp -r gs://ahmad_data/model.zip /home/ahmad/ficc_python/model.zip
-unzip /home/ahmad/ficc_python/model.zip -d /home/ahmad/trained_models/$MODEL_NAME
+gsutil cp -r gs://ahmad_data/model.zip /home/shayaan/ficc_python/model.zip
+unzip /home/shayaan/ficc_python/model.zip -d /home/shayaan/trained_models/$MODEL_NAME
+if [ $? -ne 0 ]; then
+  echo "Unzipping failed with exit code $?"
+  exit 1
+fi
 
 echo "Uploading model to bucket"
-gsutil cp -r /home/ahmad/trained_models/$MODEL_NAME gs://automated_training
+gsutil cp -r /home/shayaan/trained_models/$MODEL_NAME gs://automated_training
+if [ $? -ne 0 ]; then
+  echo "Uploading model failed with exit code $?"
+  exit 1
+fi
+
 
 echo $ENDPOINT_ID
 echo $MODEL_NAME
-echo "Deploying model"
-echo "gcloud beta ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-7:latest --artifact-uri=gs://automated_training/$MODEL_NAME"
-# echo "Deploying endpoint"
-# gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$NAME --machine-type=n1-standard-2 --min-replica-count=1 --max-replica-count=1 --traffic-split=0=100
+echo "Uploading model to vertex ai"
+gcloud beta ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-7:latest --artifact-uri=gs://automated_training/$MODEL_NAME
+if [ $? -ne 0 ]; then
+  echo "Failed to deploy model on vertex ai exited with code $?"
+  exit 1
+fi
+
+NEW_MODEL_ID=$(gcloud ai models list --region=us-east4 --format='value(name)' --filter='displayName'=$MODEL_NAME)
+echo $NEW_MODEL_ID
+echo $MODEL_NAME
+echo "Deploying to endpoint"
+gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2  --accelerator=type=nvidia-tesla-p4,count=1 --min-replica-count=1 --max-replica-count=1

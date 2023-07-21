@@ -3,7 +3,7 @@
  # @ Create Time: 2021-12-17 14:44:20
  # @ Modified by: Ahmad Shayaan
  # @ Modified time: 2023-03-15 10:40:01
- # @ Modified time: 2023-07-14 18:28:42
+ # @ Modified time: 2023-07-18 21:08:08
  # @ Description:
  '''
 
@@ -108,7 +108,6 @@ def process_trade_history(query,
                      'last_settlement_date',
                      'last_trade_type']] = pd.DataFrame(trade_dataframe['temp_last_features'].tolist(), index=trade_dataframe.index)
     
-
     # trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
     trade_dataframe = trade_dataframe.drop(columns=['temp_last_features','recent'])
 

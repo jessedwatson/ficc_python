@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-01-19 16:08:55
+ # @ Modified time: 2023-07-18 21:33:19
  # @ Description:
  '''
 
@@ -155,11 +155,9 @@ NON_CAT_FEATURES = ['quantity',
 
 TRADE_HISTORY = ['trade_history']
 
-TARGET = ['yield_spread']
-
 SPECIAL_CONDITIONS = ['is_non_transaction_based_compensation', 'brokers_broker', 'is_lop_or_takedown', 'is_alternative_trading_system']    # special conditions on trades as reported in EMMA
 
-PREDICTORS = BINARY + CATEGORICAL_FEATURES + NON_CAT_FEATURES + TARGET + TRADE_HISTORY
+PREDICTORS = BINARY + CATEGORICAL_FEATURES + NON_CAT_FEATURES + TRADE_HISTORY
 
 PURPOSE_CLASS_DICT = {1.0: 'Authority', 
                       2.0: 'Bond Anticipation Note', 

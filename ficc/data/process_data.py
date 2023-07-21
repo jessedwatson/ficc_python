@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-14 17:53:15
+ # @ Modified time: 2023-07-18 21:37:19
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -69,7 +69,8 @@ def process_data(query,
         temp = trades_df[['trade_date','calc_date']].parallel_apply(get_ficc_ycl,axis=1)
         trades_df[['ficc_ycl','ficc_ycl_3_month','ficc_ycl_1_month']] = pd.DataFrame(temp.tolist(), index=trades_df.index)
              
-
+    trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
+    trades_df.dropna(subset=['yield_spread'],inplace=True)
     print('Yield spread calculated')
 
     if treasury_spread == True:
