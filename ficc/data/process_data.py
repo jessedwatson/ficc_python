@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 10:04:41
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-18 21:37:19
+ # @ Modified time: 2023-08-01 20:43:31
  # @ Description: Source code to process trade history from BigQuery
  '''
  
@@ -45,6 +45,7 @@ def process_data(query,
                  add_flags=False,
                  add_related_trades_bool=False,
                  add_rtrs_in_history=False,
+                 only_dollar_price_history=False,
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -60,23 +61,24 @@ def process_data(query,
                                       trade_history_delay,  
                                       min_trades_in_history,
                                       treasury_spread,
-                                      add_rtrs_in_history)
+                                      add_rtrs_in_history,
+                                      only_dollar_price_history,)
 
-    
-    if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
-        # Calculating yield spreads using ficc_ycl
-        print("Calculating yield spread using ficc yield curve")
-        temp = trades_df[['trade_date','calc_date']].parallel_apply(get_ficc_ycl,axis=1)
-        trades_df[['ficc_ycl','ficc_ycl_3_month','ficc_ycl_1_month']] = pd.DataFrame(temp.tolist(), index=trades_df.index)
+    if only_dollar_price_history == False:
+        if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
+            # Calculating yield spreads using ficc_ycl
+            print("Calculating yield spread using ficc yield curve")
+            temp = trades_df[['trade_date','calc_date']].parallel_apply(get_ficc_ycl,axis=1)
+            trades_df[['ficc_ycl','ficc_ycl_3_month','ficc_ycl_1_month']] = pd.DataFrame(temp.tolist(), index=trades_df.index)
              
-    trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
-    trades_df.dropna(subset=['yield_spread'],inplace=True)
-    print('Yield spread calculated')
+        trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
+        trades_df.dropna(subset=['yield_spread'],inplace=True)
+        print('Yield spread calculated')
 
-    if treasury_spread == True:
-        trades_df['treasury_rate'] = trades_df[['trade_date','calc_date','settlement_date']].parallel_apply(current_treasury_rate, 
-                                                                                                                        axis=1)
-        trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
+        if treasury_spread == True:
+            trades_df['treasury_rate'] = trades_df[['trade_date','calc_date','settlement_date']].parallel_apply(current_treasury_rate, 
+                                                                                                                            axis=1)
+            trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
     
         
     # Dropping columns which are not used for training
