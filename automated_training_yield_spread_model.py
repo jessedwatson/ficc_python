@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-01 17:24:56
+ # @ Modified time: 2023-08-02 17:51:17
  # @ Description:
  '''
 
@@ -426,8 +426,8 @@ def train_model(data, last_trade_date):
     
     encoders, fmax  = fit_encoders(data)
 
-    train_data = data[data.trade_date < last_trade_date]
-    test_data = data[data.trade_date >= last_trade_date]
+    train_data = data[data.trade_date <= last_trade_date]
+    test_data = data[data.trade_date > last_trade_date]
     
     x_train = create_input(train_data, encoders)
     y_train = train_data.new_ys
