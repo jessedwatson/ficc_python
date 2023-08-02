@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-02 00:44:18
+ # @ Modified time: 2023-08-02 03:37:47
  # @ Description:
  '''
 
@@ -244,7 +244,7 @@ def return_data_query(last_trade_date):
                  AND default_indicator IS FALSE
                  AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
                  AND settlement_date is not null
-               ORDER BY trade_datetime desc'''
+               ORDER BY trade_datetime desc limit 10'''
 
 
 def target_trade_processing_for_attention(row):
@@ -313,11 +313,11 @@ def update_data():
   new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
 
   #### removing missing data
-  data['trade_history_sum'] = new_data.trade_history.parallel_apply(lambda x: np.sum(x))
-  data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
-
   print("Adding new data to master file")
   data = pd.concat([new_data, data])
+
+  data['trade_history_sum'] = data.trade_history.parallel_apply(lambda x: np.sum(x))
+  data.issue_amount = data.issue_amount.replace([np.inf, -np.inf], np.nan)
 
   ####### Adding trade history features to the data ###########
   print("Adding features from previous trade history")
@@ -380,8 +380,8 @@ def train_model(data, last_trade_date):
     
     encoders, fmax  = fit_encoders(data)
 
-    train_data = data[data.trade_date < last_trade_date]
-    test_data = data[data.trade_date >= last_trade_date]
+    train_data = data[data.trade_date <= last_trade_date]
+    test_data = data[data.trade_date > last_trade_date]
     
     x_train = create_input(train_data, encoders)
     y_train = train_data.dollar_price

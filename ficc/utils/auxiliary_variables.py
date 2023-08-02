@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-01 20:30:58
+ # @ Modified time: 2023-08-02 01:30:45
  # @ Description:
  '''
 
@@ -249,7 +249,7 @@ PREDICTORS_DOLLAR_PRICE = ['callable',
                            'accrued_days',
                            'days_in_interest_payment',
                            'A/E',
-                           'trade_history_dollar_price',
+                           'trade_history',
                            'target_attention_features',
                            'max_dp_dp',
                            'max_dp_ttypes',
