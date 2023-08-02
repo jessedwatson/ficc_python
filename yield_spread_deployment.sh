@@ -7,7 +7,7 @@
 who
 # Changing directory and training the model
 echo "Training model"
-/opt/conda/bin/python /home/shayaan/ficc_python/model_deployment_pipeline/automated_training_yield_spread_model.py #>> /home/shayaan/automated_training_output.txt
+/opt/conda/bin/python /home/shayaan/ficc_python/automated_training_yield_spread_model.py #>> /home/shayaan/automated_training_output.txt
 if [ $? -ne 0 ]; then
   echo "Python script failed with exit code $?"
   exit 1
@@ -22,8 +22,8 @@ ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOIN
 TIMESTAMP=$(date +%m-%d)
 MODEL_NAME='model'-${TIMESTAMP}
 echo "Unziping model $MODEL_NAME"
-gsutil cp -r gs://ahmad_data/model.zip /home/shayaan/ficc_python/trained_models/model.zip
-unzip /home/shayaan/ficc_python/trained_models/model.zip -d /home/shayaan/trained_models/$MODEL_NAME
+gsutil cp -r gs://ahmad_data/model.zip /home/shayaan/trained_models/model.zip
+unzip /home/shayaan/trained_models/model.zip -d /home/shayaan/trained_models/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
   exit 1
