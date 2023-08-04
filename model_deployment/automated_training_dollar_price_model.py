@@ -2,9 +2,11 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-03 23:17:09
+ # @ Modified time: 2023-08-04 01:46:34
  # @ Description:
  '''
+import sys
+sys.path.append('/home/shayaan/ficc_python/')
 
 import os
 import gcsfs
@@ -25,7 +27,7 @@ from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime, timedelta
 from dollar_model import dollar_price_model
 
-import smtplib, ssl
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -493,4 +495,5 @@ def main():
     print(f'Funciton executed {datetime.now()}\n\n')
 
 if __name__ == '__main__':
+    print('Using model deployment')
     main()
