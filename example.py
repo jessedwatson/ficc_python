@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-01 20:44:41
+ # @ Modified time: 2023-08-04 10:39:30
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -23,8 +23,8 @@ import time
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
 
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/shayaan/ahmad_creds.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/shayaan/ahmad_creds.json"
 
 SEQUENCE_LENGTH = 8
 NUM_FEATURES = 6
@@ -132,6 +132,18 @@ WHERE
 #   ORDER BY
 #     trade_datetime desc
 # '''
+
+DATA_QUERY = '''
+SELECT
+    * except(most_recent_event)
+  FROM
+    `eng-reactor-287421.auxiliary_views.materialized_trade_history`
+  WHERE
+    msrb_valid_to_date > current_date -- condition to remove cancelled trades
+    AND rtrs_control_number = 2023073100373100
+  ORDER BY
+    trade_datetime desc
+'''
 
 
 bq_client = bigquery.Client()

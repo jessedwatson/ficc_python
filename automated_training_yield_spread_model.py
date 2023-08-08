@@ -427,8 +427,8 @@ def train_model(data, last_trade_date):
     
     encoders, fmax  = fit_encoders(data)
 
-    train_data = data[data.trade_date < last_trade_date]
-    test_data = data[data.trade_date >= last_trade_date]
+    train_data = data[data.trade_date <= last_trade_date]
+    test_data = data[data.trade_date > last_trade_date]
     
     x_train = create_input(train_data, encoders)
     y_train = train_data.new_ys
