@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-02-01 10:38:48
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-10 22:51:26
+ # @ Modified time: 2023-07-26 20:45:17
  # @ Description:
  '''
 
@@ -108,7 +108,7 @@ def model_definition(trade_history_normalizer,
     context_vector = layers.Dot(axes=[1, 1])([features, attention])
     context_vector = layers.Flatten(name='context_vector_flatten')(context_vector)
 
-
+    context_vector = layers.BatchNormalization()(context_vector)
     trade_history_output = layers.Dense(100,activation='relu')(context_vector)
 
     ####################################################
