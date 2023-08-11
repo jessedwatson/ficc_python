@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-03 23:17:09
+ # @ Modified time: 2023-08-11 18:35:57
  # @ Description:
  '''
 
@@ -327,11 +327,11 @@ def update_data():
   #############################################################
   data.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE+['trade_history_sum'])
   
-#   print("Saving data to pickle file")
-#   data.to_pickle('processed_data_dollar_price.pkl')  
+  print("Saving data to pickle file")
+  data.to_pickle('processed_data_dollar_price.pkl')  
   
-#   print("Uploading data")
-#   upload_data(storage_client, 'automated_training', 'processed_data_dollar_price.pkl')
+  print("Uploading data")
+  upload_data(storage_client, 'automated_training', 'processed_data_dollar_price.pkl')
   
   return data, last_trade_date
 

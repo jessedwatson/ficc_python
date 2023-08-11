@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-09 10:34:45
+ # @ Modified time: 2023-08-11 23:11:10
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -111,7 +111,7 @@ def trade_dict_to_list(trade_dict: dict,
             t_spread = (trade_dict['yield'] - t_rate) * 100
             trade_list.append(np.round(t_spread,3))
 
-        trade_list.append(np.float32(trade_dict['dollar_price']))
+        #trade_list.append(np.float32(trade_dict['dollar_price']))
         trade_list.append(np.float32(np.log10(trade_dict['par_traded'])))        
         trade_list += trade_type_mapping[trade_dict['trade_type']]
         trade_list.append(np.log10(1+trade_dict['seconds_ago']))
