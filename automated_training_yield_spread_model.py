@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-21 20:55:05
+ # @ Modified time: 2023-08-24 16:48:44
  # @ Description:
  '''
 
@@ -495,7 +495,7 @@ def save_model(model, encoders):
 
 
 def send_results_email(mae, last_trade_date):
-    receiver_email = ["ahmad@ficc.ai"]
+    receiver_email = ["ahmad@ficc.ai", "isaac@ficc.ai"]
     sender_email = "notifications@ficc.ai"
     
     msg = MIMEMultipart()
