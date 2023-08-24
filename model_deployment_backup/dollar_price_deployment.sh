@@ -1,8 +1,13 @@
+# @ Author: Ahmad Shayaan
+# @ Create Time: 2023-07-28 17:17:38
+# @ Modified by: Ahmad Shayaan
+# @ Modified time: 2023-08-01 16:58:03
+
 #!/bin/sh
 who
 # Changing directory and training the model
 echo "Training model"
-/opt/conda/bin/python /home/shayaan/ficc_python/automated_training.py #>> /home/shayaan/automated_training_output.txt
+/opt/conda/bin/python /home/shayaan/ficc_python/automated_training_dollar_price_model.py #>> /home/shayaan/automated_training_output.txt
 if [ $? -ne 0 ]; then
   echo "Python script failed with exit code $?"
   exit 1
@@ -10,22 +15,22 @@ fi
 echo "Model trained"
 
 #Getting the endpoint ID we want to deploy the model on
-ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='new_attention_model')
+ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
 # ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='test')
 
 #Unzip model and uploading it to automated training bucket
 TIMESTAMP=$(date +%m-%d)
-MODEL_NAME='model'-${TIMESTAMP}
+MODEL_NAME='dollar-model'-${TIMESTAMP}
 echo "Unziping model $MODEL_NAME"
-gsutil cp -r gs://ahmad_data/model.zip /home/shayaan/ficc_python/model.zip
-unzip /home/shayaan/ficc_python/model.zip -d /home/shayaan/trained_models/$MODEL_NAME
+gsutil cp -r gs://ahmad_data/model_dollar_price.zip /home/shayaan/trained_models/dollar_price_models/model_dollar_price.zip
+unzip /home/shayaan/trained_models/dollar_price_models/model_dollar_price.zip -d /home/shayaan/trained_models/dollar_price_models/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
   exit 1
 fi
 
 echo "Uploading model to bucket"
-gsutil cp -r /home/shayaan/trained_models/$MODEL_NAME gs://automated_training
+gsutil cp -r /home/shayaan/trained_models/dollar_price_models/$MODEL_NAME gs://automated_training
 if [ $? -ne 0 ]; then
   echo "Uploading model failed with exit code $?"
   exit 1
@@ -46,3 +51,5 @@ echo $NEW_MODEL_ID
 echo $MODEL_NAME
 echo "Deploying to endpoint"
 gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2  --accelerator=type=nvidia-tesla-p4,count=1 --min-replica-count=1 --max-replica-count=1
+
+sudo shutdown -h now

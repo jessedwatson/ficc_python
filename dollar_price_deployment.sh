@@ -51,3 +51,5 @@ echo $NEW_MODEL_ID
 echo $MODEL_NAME
 echo "Deploying to endpoint"
 gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2  --accelerator=type=nvidia-tesla-p4,count=1 --min-replica-count=1 --max-replica-count=1
+
+sudo shutdown -h now

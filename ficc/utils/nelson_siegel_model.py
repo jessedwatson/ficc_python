@@ -2,7 +2,7 @@
  # @ Author: Issac
  # @ Create Time: 2021-08-23 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-08 15:25:18
+ # @ Modified time: 2023-08-24 11:05:02
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
@@ -64,7 +64,6 @@ def load_model_parameters(target_date, nelson_params, scalar_params, shape_param
     '''
     This function grabs the nelson siegel and standard scalar coefficient from the dataframes 
     '''
-
     target_date = (target_date - BDay(1)).date()
     target_date_shape = copy.deepcopy(target_date)
     

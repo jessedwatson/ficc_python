@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-01 21:50:24
+ # @ Modified time: 2023-08-24 16:48:44
  # @ Description:
  '''
 
@@ -292,11 +292,9 @@ def update_data():
   '''
   print("Downloading data")
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
-
   with fs.open('automated_training/processed_data_new.pkl') as f:
       data = pd.read_pickle(f)
 
-  #data = pd.read_pickle('processed_data_len_5.pkl')
   print('Data downloaded')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
@@ -369,7 +367,7 @@ def update_data():
         
   data.sort_values('trade_datetime',ascending=False,inplace=True)
   #############################################################
-  
+  data.dropna(inplace=True, subset=PREDICTORS)
   
   print("Saving data to pickle file")
   data.to_pickle('processed_data_new.pkl')  
@@ -497,7 +495,7 @@ def save_model(model, encoders):
 
 
 def send_results_email(mae, last_trade_date):
-    receiver_email = ["ahmad@ficc.ai"]
+    receiver_email = ["ahmad@ficc.ai", "isaac@ficc.ai"]
     sender_email = "notifications@ficc.ai"
     
     msg = MIMEMultipart()
@@ -505,7 +503,7 @@ def send_results_email(mae, last_trade_date):
     msg['From'] = sender_email
 
 
-    message = MIMEText(f"The MAE for the model on trades that occurred on {last_trade_date} is {mae}.", 'plain')
+    message = MIMEText(f"The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae,3)}.", 'plain')
     msg.attach(message)
 
     smtp_server = "smtp.gmail.com"

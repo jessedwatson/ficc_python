@@ -1,8 +1,13 @@
+# @ Author: Ahmad Shayaan
+# @ Create Time: 2023-07-28 17:17:38
+# @ Modified by: Ahmad Shayaan
+# @ Modified time: 2023-08-01 16:58:03
+
 #!/bin/sh
 who
 # Changing directory and training the model
 echo "Training model"
-/opt/conda/bin/python /home/shayaan/ficc_python/automated_training.py #>> /home/shayaan/automated_training_output.txt
+/opt/conda/bin/python /home/shayaan/ficc_python/automated_training_yield_spread_model.py #>> /home/shayaan/automated_training_output.txt
 if [ $? -ne 0 ]; then
   echo "Python script failed with exit code $?"
   exit 1
@@ -17,8 +22,8 @@ ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOIN
 TIMESTAMP=$(date +%m-%d)
 MODEL_NAME='model'-${TIMESTAMP}
 echo "Unziping model $MODEL_NAME"
-gsutil cp -r gs://ahmad_data/model.zip /home/shayaan/ficc_python/model.zip
-unzip /home/shayaan/ficc_python/model.zip -d /home/shayaan/trained_models/$MODEL_NAME
+gsutil cp -r gs://ahmad_data/model.zip /home/shayaan/trained_models/model.zip
+unzip /home/shayaan/trained_models/model.zip -d /home/shayaan/trained_models/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
   exit 1
@@ -46,3 +51,5 @@ echo $NEW_MODEL_ID
 echo $MODEL_NAME
 echo "Deploying to endpoint"
 gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2  --accelerator=type=nvidia-tesla-p4,count=1 --min-replica-count=1 --max-replica-count=1
+
+sudo shutdown -h now
