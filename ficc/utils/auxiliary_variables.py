@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-02 01:30:45
+ # @ Modified time: 2023-08-24 14:40:20
  # @ Description:
  '''
 
@@ -151,7 +151,9 @@ NON_CAT_FEATURES = ['quantity',
                     'max_amount_outstanding',
                     'accrued_days',
                     'days_in_interest_payment',
-                    'A/E']
+                    'A/E',
+                    'ficc_treasury_spread',
+                    'target_attention_features']
 
 TRADE_HISTORY = ['trade_history']
 

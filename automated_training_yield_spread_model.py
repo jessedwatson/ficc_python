@@ -503,7 +503,7 @@ def send_results_email(mae, last_trade_date):
     msg['From'] = sender_email
 
 
-    message = MIMEText(f"The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae,3)}.", 'plain')
+    message = MIMEText(f"The MAE for the ensemble model on trades that occurred on {last_trade_date} is {np.round(mae,3)}.", 'plain')
     msg.attach(message)
 
     smtp_server = "smtp.gmail.com"
