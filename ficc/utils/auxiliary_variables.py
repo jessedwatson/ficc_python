@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:07:51
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-24 14:40:20
+ # @ Modified time: 2023-08-29 18:22:18
  # @ Description:
  '''
 
@@ -152,14 +152,13 @@ NON_CAT_FEATURES = ['quantity',
                     'accrued_days',
                     'days_in_interest_payment',
                     'A/E',
-                    'ficc_treasury_spread',
-                    'target_attention_features']
+                    'ficc_treasury_spread']
 
-TRADE_HISTORY = ['trade_history']
+TRADE_HISTORY = ['trade_history', 'target_attention_features']
 
 SPECIAL_CONDITIONS = ['is_non_transaction_based_compensation', 'brokers_broker', 'is_lop_or_takedown', 'is_alternative_trading_system']    # special conditions on trades as reported in EMMA
 
-PREDICTORS = BINARY + CATEGORICAL_FEATURES + NON_CAT_FEATURES + TRADE_HISTORY
+PREDICTORS = BINARY + CATEGORICAL_FEATURES + NON_CAT_FEATURES + TRADE_HISTORY 
 
 NON_CAT_FEATURES_DOLLAR_PRICE = ['quantity',
                                  'days_to_maturity',
