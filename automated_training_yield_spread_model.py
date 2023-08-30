@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-30 18:54:27
+ # @ Modified time: 2023-08-30 21:44:44
  # @ Description:
  '''
 
@@ -418,15 +418,16 @@ def fit_encoders(data):
 
 def train_model(data, last_trade_date):
     
-    data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
-    data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
-    data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
-    data = data[data.days_to_maturity < np.log10(30000)]
-    
     encoders, fmax  = fit_encoders(data)
 
     train_data = data[data.trade_date <= last_trade_date]
+    
     test_data = data[data.trade_date > last_trade_date]
+    
+    test_data = test_data[(test_data.days_to_call == 0) | (test_data.days_to_call > np.log10(400))]
+    test_data = test_data[(test_data.days_to_refund == 0) | (test_data.days_to_refund > np.log10(400))]
+    test_data = test_data[(test_data.days_to_maturity == 0) | (test_data.days_to_maturity > np.log10(400))]
+    test_data = test_data[test_data.days_to_maturity < np.log10(30000)]
     
     x_train = create_input(train_data, encoders)
     y_train = train_data.new_ys
