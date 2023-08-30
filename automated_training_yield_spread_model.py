@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-30 18:36:42
+ # @ Modified time: 2023-08-30 18:54:27
  # @ Description:
  '''
 
@@ -503,7 +503,7 @@ def send_results_email(mae, last_trade_date):
     msg['From'] = sender_email
 
 
-    message = MIMEText(f"The MAE for the ensemble model on trades that occurred on {last_trade_date} is {np.round(mae,3)}.", 'plain')
+    message = MIMEText(f"The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae,3)}.", 'plain')
     msg.attach(message)
 
     smtp_server = "smtp.gmail.com"
