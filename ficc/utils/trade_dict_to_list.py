@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-09-29 16:28:59
+ # @ Modified time: 2023-10-03 20:35:42
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -37,7 +37,7 @@ def trade_dict_to_list(trade_dict: dict,
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
-    for feature in ['rtrs_control_number','seconds_ago','settlement_date','par_traded','trade_type','seconds_ago','trade_datetime']:
+    for feature in ['rtrs_control_number','seconds_ago','settlement_date','par_traded','trade_type','seconds_ago','trade_datetime','dollar_price']:
         if trade_dict[feature] is None:
             return None, None
 

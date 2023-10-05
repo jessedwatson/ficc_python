@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-30 21:44:44
+ # @ Modified time: 2023-10-05 17:07:43
  # @ Description:
  '''
 
@@ -277,8 +277,11 @@ def replace_ratings_by_standalone_rating(data):
     return data
 
 def get_yield_for_last_duration(row):
-    if row['last_calc_date'] is None or row['last_trade_date'] is None:
-        return None
+    if pd.isnull(row['last_calc_date'])or pd.isnull(row['last_trade_date']):
+        #if there is no last trade, we use the duration of the current bond
+        duration =  diff_in_days_two_dates(row['maturity_date'],row['trade_date'])/NUM_OF_DAYS_IN_YEAR
+        ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter)/100
+        return ycl
     duration =  diff_in_days_two_dates(row['last_calc_date'],row['last_trade_date'])/NUM_OF_DAYS_IN_YEAR
     ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter)/100
     return ycl
@@ -292,8 +295,11 @@ def update_data():
   '''
   print("Downloading data")
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
-  with fs.open('automated_training/processed_data_new.pkl') as f:
+  with fs.open('automated_training/processed_data_test.pkl') as f:
       data = pd.read_pickle(f)
+  data = data[data.trade_date < '2023-10-01']
+#   with fs.open('automated_training/processed_data_new.pkl') as f:
+#       data = pd.read_pickle(f)
       
   print('Data downloaded')
   
@@ -334,7 +340,8 @@ def update_data():
   new_data['new_ficc_ycl'] = new_data[['last_calc_date',
                                        'last_settlement_date',
                                        'trade_date',
-                                       'last_trade_date']].parallel_apply(get_yield_for_last_duration, axis=1)
+                                       'last_trade_date',
+                                       'maturity_date']].parallel_apply(get_yield_for_last_duration, axis=1)
 
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
 
@@ -368,12 +375,18 @@ def update_data():
   data.sort_values('trade_datetime',ascending=False,inplace=True)
   #############################################################
   data.dropna(inplace=True, subset=PREDICTORS)
-  
+
   print("Saving data to pickle file")
-  data.to_pickle('processed_data_new.pkl')  
+  data.to_pickle('processed_data_test.pkl')  
   
   print("Uploading data")
-  upload_data(storage_client, 'automated_training', 'processed_data_new.pkl')
+  upload_data(storage_client, 'automated_training', 'processed_data_test.pkl')
+
+#   print("Saving data to pickle file")
+#   data.to_pickle('processed_data_new.pkl')  
+  
+#   print("Uploading data")
+#   upload_data(storage_client, 'automated_training', 'processed_data_new.pkl')
   
   return data, last_trade_date
 
@@ -416,6 +429,33 @@ def fit_encoders(data):
         pickle.dump(encoders,file)
     return encoders, fmax
 
+
+def segment_results(data):
+    data['delta'] = np.abs(data.predicted_ys - data.new_ys)
+
+    investment_grade = ['AAA','AA+','AA','AA-','A+','A','A-','BBB+','BBB','BBB-']
+
+    total_mae, total_count = np.mean(data.delta), data.shape[0] 
+
+    dd_mae, dd_count = np.mean(data['delta'][data.trade_type == 'D']), data[data.trade_type == 'D'].shape[0]
+    dp_mae, dp_count = np.mean(data['delta'][data.trade_type == 'P']), data[data.trade_type == 'P'].shape[0]
+    ds_mae, ds_count = np.mean(data['delta'][data.trade_type == 'S']), data[data.trade_type == 'S'].shape[0]
+
+    AAA_mae, AAA_count = np.mean(data['delta'][data.rating == 'AAA']), data[data.rating == 'AAA'].shape[0]
+    investment_grade_mae, investment_grade_count = np.mean(data['delta'][data.rating.isin(investment_grade)]), data[data.rating.isin(investment_grade)].shape[0]
+    hundred_k_mae, hundred_k_count = np.mean(data['delta'][data.par_traded >= 1e5]), data[data.par_traded >= 1e5].shape[0]
+
+    result_df = pd.DataFrame(data=[[total_mae,total_count],
+                                   [dd_mae,dd_count],
+                                   [dp_mae,dp_count],
+                                   [ds_mae,ds_count], 
+                                   [AAA_mae, AAA_count], 
+                                   [investment_grade_mae,investment_grade_count],
+                                   [hundred_k_mae,hundred_k_count]],
+                            columns=['Mean absolute Error','Trade count'],
+                            index = ['Entire set','Dealer-Dealer','Dealer-Purchase','Dealer-Sell','AAA','Investment Grade','Trade size > 100k'])
+    return result_df
+
 def train_model(data, last_trade_date):
     
     encoders, fmax  = fit_encoders(data)
@@ -428,6 +468,7 @@ def train_model(data, last_trade_date):
     test_data = test_data[(test_data.days_to_refund == 0) | (test_data.days_to_refund > np.log10(400))]
     test_data = test_data[(test_data.days_to_maturity == 0) | (test_data.days_to_maturity > np.log10(400))]
     test_data = test_data[test_data.days_to_maturity < np.log10(30000)]
+    test_data = test_data[~test_data.last_calc_date.isna()]
     
     x_train = create_input(train_data, encoders)
     y_train = train_data.new_ys
@@ -469,9 +510,14 @@ def train_model(data, last_trade_date):
                             y_test, 
                             verbose=1, 
                             batch_size = 1000)
+    try:
+        test_data['predicted_ys'] = model.predict(x_test, batch_size=1000)
+        result_df = segment_results(test_data)
+    except Exception as e:
+        print(e)
+        result_df = pd.DataFrame()
 
-
-    return model, encoders, mae           
+    return model, encoders, mae, result_df           
   
 
 
@@ -494,6 +540,33 @@ def save_model(model, encoders):
     # upload_data(storage_client, 'ahmad_data/yield_spread_models', f"saved_model_{file_timestamp}.zip")
     os.system(f"rm -r saved_model_{file_timestamp}")
 
+
+
+def send_results_email_table(result_df, last_trade_date):
+    receiver_email = ["ahmad@ficc.ai","isaac@ficc.ai","jesse@ficc.ai","gil@ficc.ai","mitas@ficc.ai"]
+    sender_email = "notifications@ficc.ai"
+    
+    msg = MIMEMultipart()
+    msg['Subject'] = f"Mae for model trained till {last_trade_date}"
+    msg['From'] = sender_email
+
+    html_table = result_df.to_html(index=True)
+    body = MIMEText(html_table, 'html')
+    msg.attach(body)
+
+    smtp_server = "smtp.gmail.com"
+    port = 587
+
+    with smtplib.SMTP(smtp_server,port) as server:
+        try:
+            server.starttls()
+            server.login(sender_email, 'ztwbwrzdqsucetbg')
+            for receiver in receiver_email:
+                server.sendmail(sender_email, receiver, msg.as_string())
+        except Exception as e:
+            print(e)
+        finally:
+            server.quit() 
 
 def send_results_email(mae, last_trade_date):
     receiver_email = ["ahmad@ficc.ai", "isaac@ficc.ai"]
@@ -530,7 +603,7 @@ def main():
     print('Data processed')
     
     print('Training model')
-    model, encoders, mae = train_model(data, last_trade_date)
+    model, encoders, mae, result_df = train_model(data, last_trade_date)
     print('Training done')
 
     print('Saving model')
@@ -538,7 +611,12 @@ def main():
     print('Finished Training\n\n')
 
     print('sending email')
-    send_results_email(mae, last_trade_date)
+    # send_results_email(mae, last_trade_date)
+
+    try:
+        send_results_email_table(result_df, last_trade_date)
+    except Exception as e:
+        print(e)
     
     print(f'Funciton executed {datetime.now()}')
 
