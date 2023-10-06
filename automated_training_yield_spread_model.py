@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-10-05 17:07:43
+ # @ Modified time: 2023-10-06 17:07:54
  # @ Description:
  '''
 
@@ -297,7 +297,6 @@ def update_data():
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
   with fs.open('automated_training/processed_data_test.pkl') as f:
       data = pd.read_pickle(f)
-  data = data[data.trade_date < '2023-10-01']
 #   with fs.open('automated_training/processed_data_new.pkl') as f:
 #       data = pd.read_pickle(f)
       
