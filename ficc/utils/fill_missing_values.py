@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 12:32:03
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-14 17:19:43
+ # @ Modified time: 2023-10-03 14:39:26
  # @ Description: fill in features with the corresponding default values.
  '''
 
@@ -35,7 +35,11 @@ FEATURES_AND_DEFAULT_VALUES = {'purpose_class': 0,    # unknown
                                'days_to_call': 0, 
                                'days_to_refund': 0, 
                                'days_to_par': 0, 
-                               'call_to_maturity': 0}
+                               'call_to_maturity': 0,
+                               'last_seconds_ago': 0, 
+                               'last_yield_spread': 0.0, 
+                               'last_dollar_price': 0.0, 
+                               'days_in_interest_payment': 180}
 
 
 def replace_nan_with_value(df, feature, default_value):
