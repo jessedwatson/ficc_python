@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-24 17:10:15
+ # @ Modified time: 2023-10-03 20:37:58
  # @ Description:
  '''
 
@@ -11,6 +11,7 @@ import gcsfs
 import shutil
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from tensorflow import keras
 from google.cloud import bigquery
 from google.cloud import storage
@@ -28,6 +29,11 @@ from dollar_model import dollar_price_model
 import smtplib, ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
 #os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
