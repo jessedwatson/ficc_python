@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 13:58:58
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-11 23:25:26
+ # @ Modified time: 2023-10-11 17:32:54
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -37,7 +37,7 @@ def trade_dict_to_list(trade_dict: dict,
     trade_type_mapping = {'D':[0,0],'S': [0,1],'P': [1,0]}
     trade_list = []
 
-    for feature in ['rtrs_control_number','seconds_ago','settlement_date','par_traded','trade_type','seconds_ago','trade_datetime']:
+    for feature in ['rtrs_control_number','seconds_ago','settlement_date','par_traded','trade_type','seconds_ago','trade_datetime','dollar_price']:
         if trade_dict[feature] is None:
             return None, None
 
@@ -56,11 +56,7 @@ def trade_dict_to_list(trade_dict: dict,
     
     else:    
         # The ficc yield curve coefficients are only present before 27th July for the old yield curve and 2nd August for the new yield curve
-        if globals.YIELD_CURVE_TO_USE.upper() == 'FICC'and trade_dict['trade_datetime'] < datetime(2021,7,27):
-            return None, None
-        elif globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW' and trade_dict['trade_datetime'] < datetime(2021,8,3):
-            return None, None
-        elif trade_dict['trade_datetime'] is not None:
+        if trade_dict['trade_datetime'] is not None:
             target_date = trade_dict['trade_datetime'].date()
         else:
             return None, None
@@ -123,7 +119,7 @@ def trade_dict_to_list(trade_dict: dict,
     return np.stack(trade_list) , (yield_spread,
                                    yield_at_that_time,
                                    int(trade_dict['rtrs_control_number']),
-                                   trade_dict['yield'] * 100,
+                                   trade_dict['yield'] * 100 if trade_dict['yield'] is not None else None,
                                    trade_dict['dollar_price'], 
                                    trade_dict['seconds_ago'], 
                                    float(trade_dict['par_traded']),

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-24 16:48:44
+ # @ Modified time: 2023-11-08 22:21:07
  # @ Description:
  '''
 
@@ -11,6 +11,7 @@ import gcsfs
 import shutil
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from tensorflow import keras
 from google.cloud import bigquery
 from google.cloud import storage
@@ -32,12 +33,24 @@ from email.mime.multipart import MIMEMultipart
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
 #os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 
+if tf.test.is_gpu_available():
+    print('***********************')
+    print('****** USING GPU ******')
+    print('***********************')
+else:
+    print('***********************')
+    print('****** NO GPU AVAILABLE ******')
+    print('***********************')
+
+
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
 
-PREDICTORS.append('ficc_treasury_spread')
-NON_CAT_FEATURES.append('ficc_treasury_spread')
-PREDICTORS.append('target_attention_features')
+if 'ficc_treasury_spread' not in PREDICTORS: PREDICTORS.append('ficc_treasury_spread')
+if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc_treasury_spread')
+if 'target_attention_features' not in PREDICTORS: PREDICTORS.append('target_attention_features')
+
+HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
 
 categorical_feature_values = {'purpose_class' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
                                                  25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
@@ -77,6 +90,44 @@ ys_feats = ["_ys", "_ttypes", "_ago", "_qdiff"]
 D_prev = dict()
 P_prev = dict()
 S_prev = dict()
+
+def getTableSchema():
+    '''
+    This function returns the schema required for the bigquery table storing the nelson siegel coefficients. 
+    '''
+
+    schema = [
+        bigquery.SchemaField("rtrs_control_number", "INTEGER", "REQUIRED"),
+        bigquery.SchemaField("cusip","STRING", "REQUIRED"),
+        bigquery.SchemaField("trade_date","DATE", "REQUIRED"),
+        bigquery.SchemaField("dollar_price","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("yield","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("new_ficc_ycl","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("new_ys","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("new_ys_prediction","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("prediction_datetime","DATETIME", "REQUIRED")
+        ] 
+    return schema
+
+def uploadPredictions(data):
+    '''
+    This function upload the coefficient and scalar dataframe
+    to BigQuery.
+    
+    Parameters
+    df:pd.DataFrame
+    TABLE_ID:str path of the bigquery table to upload to
+    '''
+    client = bigquery.Client()    
+    job_config = bigquery.LoadJobConfig(schema = getTableSchema(), write_disposition="WRITE_APPEND")
+    job = client.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE,job_config=job_config)
+
+    try:
+        job.result()
+        print("Upload Successful")
+    except Exception as e:
+        print("Failed to Upload")
+        raise e
 
 def get_trade_history_columns():
     '''
@@ -277,8 +328,11 @@ def replace_ratings_by_standalone_rating(data):
     return data
 
 def get_yield_for_last_duration(row):
-    if row['last_calc_date'] is None or row['last_trade_date'] is None:
-        return None
+    if pd.isnull(row['last_calc_date'])or pd.isnull(row['last_trade_date']):
+        #if there is no last trade, we use the duration of the current bond
+        duration =  diff_in_days_two_dates(row['maturity_date'],row['trade_date'])/NUM_OF_DAYS_IN_YEAR
+        ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter)/100
+        return ycl
     duration =  diff_in_days_two_dates(row['last_calc_date'],row['last_trade_date'])/NUM_OF_DAYS_IN_YEAR
     ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter)/100
     return ycl
@@ -292,9 +346,8 @@ def update_data():
   '''
   print("Downloading data")
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
-  with fs.open('automated_training/processed_data_new.pkl') as f:
+  with fs.open('automated_training/processed_data_test.pkl') as f:
       data = pd.read_pickle(f)
-
   print('Data downloaded')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
@@ -334,7 +387,8 @@ def update_data():
   new_data['new_ficc_ycl'] = new_data[['last_calc_date',
                                        'last_settlement_date',
                                        'trade_date',
-                                       'last_trade_date']].parallel_apply(get_yield_for_last_duration, axis=1)
+                                       'last_trade_date',
+                                       'maturity_date']].parallel_apply(get_yield_for_last_duration, axis=1)
 
   new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
 
@@ -368,12 +422,12 @@ def update_data():
   data.sort_values('trade_datetime',ascending=False,inplace=True)
   #############################################################
   data.dropna(inplace=True, subset=PREDICTORS)
-  
+
   print("Saving data to pickle file")
-  data.to_pickle('processed_data_new.pkl')  
+  data.to_pickle('processed_data_test.pkl')  
   
   print("Uploading data")
-  upload_data(storage_client, 'automated_training', 'processed_data_new.pkl')
+  upload_data(storage_client, 'automated_training', 'processed_data_test.pkl')
   
   return data, last_trade_date
 
@@ -416,17 +470,48 @@ def fit_encoders(data):
         pickle.dump(encoders,file)
     return encoders, fmax
 
+
+def segment_results(data):
+    data['delta'] = np.abs(data.predicted_ys - data.new_ys)
+
+    investment_grade = ['AAA','AA+','AA','AA-','A+','A','A-','BBB+','BBB','BBB-']
+
+    total_mae, total_count = np.mean(data.delta), data.shape[0] 
+
+    dd_mae, dd_count = np.mean(data['delta'][data.trade_type == 'D']), data[data.trade_type == 'D'].shape[0]
+    dp_mae, dp_count = np.mean(data['delta'][data.trade_type == 'P']), data[data.trade_type == 'P'].shape[0]
+    ds_mae, ds_count = np.mean(data['delta'][data.trade_type == 'S']), data[data.trade_type == 'S'].shape[0]
+
+    AAA_mae, AAA_count = np.mean(data['delta'][data.rating == 'AAA']), data[data.rating == 'AAA'].shape[0]
+    investment_grade_mae, investment_grade_count = np.mean(data['delta'][data.rating.isin(investment_grade)]), data[data.rating.isin(investment_grade)].shape[0]
+    hundred_k_mae, hundred_k_count = np.mean(data['delta'][data.par_traded >= 1e5]), data[data.par_traded >= 1e5].shape[0]
+
+    result_df = pd.DataFrame(data=[[total_mae,total_count],
+                                   [dd_mae,dd_count],
+                                   [dp_mae,dp_count],
+                                   [ds_mae,ds_count], 
+                                   [AAA_mae, AAA_count], 
+                                   [investment_grade_mae,investment_grade_count],
+                                   [hundred_k_mae,hundred_k_count]],
+                            columns=['Mean absolute Error','Trade count'],
+                            index = ['Entire set','Dealer-Dealer','Dealer-Purchase','Dealer-Sell','AAA','Investment Grade','Trade size > 100k'])
+    return result_df
+
 def train_model(data, last_trade_date):
-    
-    data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
-    data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
-    data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
-    data = data[data.days_to_maturity < np.log10(30000)]
     
     encoders, fmax  = fit_encoders(data)
 
     train_data = data[data.trade_date <= last_trade_date]
+    
     test_data = data[data.trade_date > last_trade_date]
+
+    prediction_data  = test_data[:]
+    
+    test_data = test_data[(test_data.days_to_call == 0) | (test_data.days_to_call > np.log10(400))]
+    test_data = test_data[(test_data.days_to_refund == 0) | (test_data.days_to_refund > np.log10(400))]
+    test_data = test_data[(test_data.days_to_maturity == 0) | (test_data.days_to_maturity > np.log10(400))]
+    test_data = test_data[test_data.days_to_maturity < np.log10(30000)]
+    test_data = test_data[~test_data.last_calc_date.isna()]
     
     x_train = create_input(train_data, encoders)
     y_train = train_data.new_ys
@@ -469,8 +554,27 @@ def train_model(data, last_trade_date):
                             verbose=1, 
                             batch_size = 1000)
 
+    ## Creating table to send over email    
+    try:
+        test_data['predicted_ys'] = model.predict(x_test, batch_size=1000)
+        result_df = segment_results(test_data)
+    except Exception as e:
+        print(e)
+        result_df = pd.DataFrame()
 
-    return model, encoders, mae           
+    ## Uploading prediction to BQ
+    try:
+        prediction_data_x_test = create_input(prediction_data, encoders)
+        prediction_data['new_ys_prediction'] = model.predict(prediction_data_x_test, batch_size=1000)
+        prediction_data = prediction_data[['rtrs_control_number','cusip','trade_date','dollar_price','yield','new_ficc_ycl','new_ys','new_ys_prediction']]
+        prediction_data['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
+        prediction_data['trade_date'] = pd.to_datetime(prediction_data['trade_date']).dt.date
+        uploadPredictions(prediction_data)
+    except Exception as e:
+        print('Failed to upload predictions to BigQuery')
+        print(e)
+
+    return model, encoders, mae, result_df           
   
 
 
@@ -493,6 +597,33 @@ def save_model(model, encoders):
     # upload_data(storage_client, 'ahmad_data/yield_spread_models', f"saved_model_{file_timestamp}.zip")
     os.system(f"rm -r saved_model_{file_timestamp}")
 
+
+
+def send_results_email_table(result_df, last_trade_date):
+    receiver_email = ["ahmad@ficc.ai","isaac@ficc.ai","jesse@ficc.ai","gil@ficc.ai","mitas@ficc.ai","myles@ficc.ai"]
+    sender_email = "notifications@ficc.ai"
+    
+    msg = MIMEMultipart()
+    msg['Subject'] = f"Mae for model trained till {last_trade_date}"
+    msg['From'] = sender_email
+
+    html_table = result_df.to_html(index=True)
+    body = MIMEText(html_table, 'html')
+    msg.attach(body)
+
+    smtp_server = "smtp.gmail.com"
+    port = 587
+
+    with smtplib.SMTP(smtp_server,port) as server:
+        try:
+            server.starttls()
+            server.login(sender_email, 'ztwbwrzdqsucetbg')
+            for receiver in receiver_email:
+                server.sendmail(sender_email, receiver, msg.as_string())
+        except Exception as e:
+            print(e)
+        finally:
+            server.quit() 
 
 def send_results_email(mae, last_trade_date):
     receiver_email = ["ahmad@ficc.ai", "isaac@ficc.ai"]
@@ -529,7 +660,7 @@ def main():
     print('Data processed')
     
     print('Training model')
-    model, encoders, mae = train_model(data, last_trade_date)
+    model, encoders, mae, result_df = train_model(data, last_trade_date)
     print('Training done')
 
     print('Saving model')
@@ -537,7 +668,12 @@ def main():
     print('Finished Training\n\n')
 
     print('sending email')
-    send_results_email(mae, last_trade_date)
+    # send_results_email(mae, last_trade_date)
+
+    try:
+        send_results_email_table(result_df, last_trade_date)
+    except Exception as e:
+        print(e)
     
     print(f'Funciton executed {datetime.now()}')
 

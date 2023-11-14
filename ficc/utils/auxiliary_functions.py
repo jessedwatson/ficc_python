@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-14 17:15:41
+ # @ Modified time: 2023-10-26 13:01:18
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -26,7 +26,13 @@ def sqltodf(sql, bq_client):
 def convert_dates(df):
     date_cols = [col for col in list(df.columns) if 'DATE' in col.upper()]
     for col in date_cols:
-        df[col] = pd.to_datetime(df[col])
+        try:
+            df[col] = pd.to_datetime(df[col])
+        except Exception as e:
+            print('************ ERROR ************')
+            print(f'Failed to convert date for {col}')
+            print('*******************************')
+            continue
     
     return df
 
