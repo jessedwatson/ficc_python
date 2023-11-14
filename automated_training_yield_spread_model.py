@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-10-27 20:28:07
+ # @ Modified time: 2023-11-08 22:21:07
  # @ Description:
  '''
 
@@ -348,7 +348,6 @@ def update_data():
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
   with fs.open('automated_training/processed_data_test.pkl') as f:
       data = pd.read_pickle(f)
-  
   print('Data downloaded')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
