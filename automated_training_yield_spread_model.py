@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-10-06 17:07:54
+ # @ Modified time: 2023-11-08 22:21:07
  # @ Description:
  '''
 
@@ -11,6 +11,7 @@ import gcsfs
 import shutil
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from tensorflow import keras
 from google.cloud import bigquery
 from google.cloud import storage
@@ -32,12 +33,24 @@ from email.mime.multipart import MIMEMultipart
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
 #os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
 
+if tf.test.is_gpu_available():
+    print('***********************')
+    print('****** USING GPU ******')
+    print('***********************')
+else:
+    print('***********************')
+    print('****** NO GPU AVAILABLE ******')
+    print('***********************')
+
+
 SEQUENCE_LENGTH = 5
 NUM_FEATURES = 6
 
 if 'ficc_treasury_spread' not in PREDICTORS: PREDICTORS.append('ficc_treasury_spread')
 if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc_treasury_spread')
 if 'target_attention_features' not in PREDICTORS: PREDICTORS.append('target_attention_features')
+
+HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
 
 categorical_feature_values = {'purpose_class' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
                                                  25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
@@ -77,6 +90,44 @@ ys_feats = ["_ys", "_ttypes", "_ago", "_qdiff"]
 D_prev = dict()
 P_prev = dict()
 S_prev = dict()
+
+def getTableSchema():
+    '''
+    This function returns the schema required for the bigquery table storing the nelson siegel coefficients. 
+    '''
+
+    schema = [
+        bigquery.SchemaField("rtrs_control_number", "INTEGER", "REQUIRED"),
+        bigquery.SchemaField("cusip","STRING", "REQUIRED"),
+        bigquery.SchemaField("trade_date","DATE", "REQUIRED"),
+        bigquery.SchemaField("dollar_price","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("yield","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("new_ficc_ycl","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("new_ys","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("new_ys_prediction","FLOAT", "REQUIRED"),
+        bigquery.SchemaField("prediction_datetime","DATETIME", "REQUIRED")
+        ] 
+    return schema
+
+def uploadPredictions(data):
+    '''
+    This function upload the coefficient and scalar dataframe
+    to BigQuery.
+    
+    Parameters
+    df:pd.DataFrame
+    TABLE_ID:str path of the bigquery table to upload to
+    '''
+    client = bigquery.Client()    
+    job_config = bigquery.LoadJobConfig(schema = getTableSchema(), write_disposition="WRITE_APPEND")
+    job = client.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE,job_config=job_config)
+
+    try:
+        job.result()
+        print("Upload Successful")
+    except Exception as e:
+        print("Failed to Upload")
+        raise e
 
 def get_trade_history_columns():
     '''
@@ -297,9 +348,6 @@ def update_data():
   fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
   with fs.open('automated_training/processed_data_test.pkl') as f:
       data = pd.read_pickle(f)
-#   with fs.open('automated_training/processed_data_new.pkl') as f:
-#       data = pd.read_pickle(f)
-      
   print('Data downloaded')
   
   last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
@@ -380,12 +428,6 @@ def update_data():
   
   print("Uploading data")
   upload_data(storage_client, 'automated_training', 'processed_data_test.pkl')
-
-#   print("Saving data to pickle file")
-#   data.to_pickle('processed_data_new.pkl')  
-  
-#   print("Uploading data")
-#   upload_data(storage_client, 'automated_training', 'processed_data_new.pkl')
   
   return data, last_trade_date
 
@@ -462,6 +504,8 @@ def train_model(data, last_trade_date):
     train_data = data[data.trade_date <= last_trade_date]
     
     test_data = data[data.trade_date > last_trade_date]
+
+    prediction_data  = test_data[:]
     
     test_data = test_data[(test_data.days_to_call == 0) | (test_data.days_to_call > np.log10(400))]
     test_data = test_data[(test_data.days_to_refund == 0) | (test_data.days_to_refund > np.log10(400))]
@@ -509,12 +553,26 @@ def train_model(data, last_trade_date):
                             y_test, 
                             verbose=1, 
                             batch_size = 1000)
+
+    ## Creating table to send over email    
     try:
         test_data['predicted_ys'] = model.predict(x_test, batch_size=1000)
         result_df = segment_results(test_data)
     except Exception as e:
         print(e)
         result_df = pd.DataFrame()
+
+    ## Uploading prediction to BQ
+    try:
+        prediction_data_x_test = create_input(prediction_data, encoders)
+        prediction_data['new_ys_prediction'] = model.predict(prediction_data_x_test, batch_size=1000)
+        prediction_data = prediction_data[['rtrs_control_number','cusip','trade_date','dollar_price','yield','new_ficc_ycl','new_ys','new_ys_prediction']]
+        prediction_data['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
+        prediction_data['trade_date'] = pd.to_datetime(prediction_data['trade_date']).dt.date
+        uploadPredictions(prediction_data)
+    except Exception as e:
+        print('Failed to upload predictions to BigQuery')
+        print(e)
 
     return model, encoders, mae, result_df           
   
@@ -542,7 +600,7 @@ def save_model(model, encoders):
 
 
 def send_results_email_table(result_df, last_trade_date):
-    receiver_email = ["ahmad@ficc.ai","isaac@ficc.ai","jesse@ficc.ai","gil@ficc.ai","mitas@ficc.ai"]
+    receiver_email = ["ahmad@ficc.ai","isaac@ficc.ai","jesse@ficc.ai","gil@ficc.ai","mitas@ficc.ai","myles@ficc.ai"]
     sender_email = "notifications@ficc.ai"
     
     msg = MIMEMultipart()
