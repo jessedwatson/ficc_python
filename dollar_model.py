@@ -129,9 +129,8 @@ def dollar_price_model(x_train,
                        NON_CAT_FEATURES, 
                        BINARY,
                        fmax):
-    
     trade_history_normalizer = Normalization(name='Trade_history_normalizer')
-    trade_history_normalizer.adapt(x_train[0],batch_size=BATCH_SIZE)
+    trade_history_normalizer.adapt(x_train[0], batch_size=BATCH_SIZE)
 
     noncat_binary_normalizer = Normalization(name='Numerical_binary_normalizer')
     noncat_binary_normalizer.adapt(x_train[2], batch_size = BATCH_SIZE)

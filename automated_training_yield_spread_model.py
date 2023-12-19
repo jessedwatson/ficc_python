@@ -1,50 +1,51 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-11-08 22:21:07
- # @ Description:
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2023-12-19
  '''
-
 import os
-import gcsfs
-import shutil
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from tensorflow import keras
 from google.cloud import bigquery
 from google.cloud import storage
-from sklearn import preprocessing
-from pickle5 import pickle
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_functions import sqltodf
 from ficc.utils.diff_in_days import diff_in_days_two_dates
-from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, IDENTIFIERS, NUM_OF_DAYS_IN_YEAR
+from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, NUM_OF_DAYS_IN_YEAR
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.gcp_storage_functions import upload_data
-from datetime import datetime, timedelta
+from datetime import datetime
 from yield_model import yield_spread_model
 
-import smtplib, ssl
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/ahmad/ahmad_creds.json"
-#os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shayaan/ficc/ahmad_creds.json"
+from automated_training_auxiliary_functions import NUM_FEATURES, \
+                                                   SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
+                                                   TTYPE_DICT, \
+                                                   YS_VARIANTS, \
+                                                   get_trade_history_columns, \
+                                                   target_trade_processing_for_attention, \
+                                                   replace_ratings_by_standalone_rating, \
+                                                   create_input, \
+                                                   get_data_and_last_trade_date, \
+                                                   fit_encoders, \
+                                                   train_and_evaluate_model, \
+                                                   save_model
 
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'
+# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/shayaan/ficc/ahmad_creds.json'
+
+print('***********************')
 if tf.test.is_gpu_available():
-    print('***********************')
     print('****** USING GPU ******')
-    print('***********************')
 else:
-    print('***********************')
-    print('****** NO GPU AVAILABLE ******')
-    print('***********************')
+    print('** NO GPU AVAILABLE ***')
+print('***********************')
 
-
-SEQUENCE_LENGTH = 5
-NUM_FEATURES = 6
 
 if 'ficc_treasury_spread' not in PREDICTORS: PREDICTORS.append('ficc_treasury_spread')
 if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc_treasury_spread')
@@ -52,177 +53,147 @@ if 'target_attention_features' not in PREDICTORS: PREDICTORS.append('target_atte
 
 HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
 
-categorical_feature_values = {'purpose_class' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-                                                 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
-                                                 47, 48, 49, 50, 51, 52, 53],
-                              'rating' : ['A', 'A+', 'A-', 'AA', 'AA+', 'AA-', 'AAA', 'B', 'B+', 'B-', 'BB', 'BB+', 'BB-',
-                                         'BBB', 'BBB+', 'BBB-', 'CC', 'CCC', 'CCC+', 'CCC-' , 'D', 'NR', 'MR'],
-                              'trade_type' : ['D', 'S', 'P'],
-                              'incorporated_state_code' : ['AK', 'AL', 'AR', 'AS', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'GU',
-                                                         'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME', 'MI', 'MN',
-                                                         'MO', 'MP', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM', 'NV', 'NY', 'OH',
-                                                         'OK', 'OR', 'PA', 'PR', 'RI', 'SC', 'SD', 'TN', 'TX', 'US', 'UT', 'VA', 'VI',
-                                                         'VT', 'WA', 'WI', 'WV', 'WY'] }
-
 storage_client = storage.Client()
 bq_client = bigquery.Client()
 
-
-nelson_params = sqltodf("select * from `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc", bq_client)
-nelson_params.set_index("date", drop=True, inplace=True)
+nelson_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc', bq_client)
+nelson_params.set_index('date', drop=True, inplace=True)
 nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
 nelson_params = nelson_params.transpose().to_dict()
 
-scalar_params = sqltodf("select * from`eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc", bq_client)
-scalar_params.set_index("date", drop=True, inplace=True)
+scalar_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc', bq_client)
+scalar_params.set_index('date', drop=True, inplace=True)
 scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
 scalar_params = scalar_params.transpose().to_dict()
 
-shape_parameter  = sqltodf("SELECT *  FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc", bq_client)
-shape_parameter.set_index("Date", drop=True, inplace=True)
+shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', bq_client)
+shape_parameter.set_index('Date', drop=True, inplace=True)
 shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
 shape_parameter = shape_parameter.transpose().to_dict()
 
-ttype_dict = { (0,0):'D', (0,1):'S', (1,0):'P' }
-
-ys_variants = ["max_ys", "min_ys", "max_qty", "min_ago", "D_min_ago", "P_min_ago", "S_min_ago"]
-ys_feats = ["_ys", "_ttypes", "_ago", "_qdiff"]
 D_prev = dict()
 P_prev = dict()
 S_prev = dict()
 
-def getTableSchema():
-    '''
-    This function returns the schema required for the bigquery table storing the nelson siegel coefficients. 
-    '''
 
+def get_table_schema():
+    '''Returns the schema required for the bigquery table storing the nelson siegel coefficients.'''
     schema = [
-        bigquery.SchemaField("rtrs_control_number", "INTEGER", "REQUIRED"),
-        bigquery.SchemaField("cusip","STRING", "REQUIRED"),
-        bigquery.SchemaField("trade_date","DATE", "REQUIRED"),
-        bigquery.SchemaField("dollar_price","FLOAT", "REQUIRED"),
-        bigquery.SchemaField("yield","FLOAT", "REQUIRED"),
-        bigquery.SchemaField("new_ficc_ycl","FLOAT", "REQUIRED"),
-        bigquery.SchemaField("new_ys","FLOAT", "REQUIRED"),
-        bigquery.SchemaField("new_ys_prediction","FLOAT", "REQUIRED"),
-        bigquery.SchemaField("prediction_datetime","DATETIME", "REQUIRED")
-        ] 
+        bigquery.SchemaField('rtrs_control_number', 'INTEGER', 'REQUIRED'),
+        bigquery.SchemaField('cusip', 'STRING', 'REQUIRED'),
+        bigquery.SchemaField('trade_date', 'DATE', 'REQUIRED'),
+        bigquery.SchemaField('dollar_price', 'FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('yield','FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('new_ficc_ycl', 'FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('new_ys', 'FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('new_ys_prediction', 'FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('prediction_datetime', 'DATETIME', 'REQUIRED')
+    ] 
     return schema
 
-def uploadPredictions(data):
-    '''
-    This function upload the coefficient and scalar dataframe
-    to BigQuery.
-    
-    Parameters
-    df:pd.DataFrame
-    TABLE_ID:str path of the bigquery table to upload to
-    '''
-    client = bigquery.Client()    
-    job_config = bigquery.LoadJobConfig(schema = getTableSchema(), write_disposition="WRITE_APPEND")
-    job = client.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE,job_config=job_config)
 
+def upload_predictions(data:pd.DataFrame):
+    '''Upload the coefficient and scalar dataframeto BigQuery.'''
+    client = bigquery.Client()    
+    job_config = bigquery.LoadJobConfig(schema=get_table_schema(), write_disposition='WRITE_APPEND')
+    job = client.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE, job_config=job_config)
     try:
         job.result()
-        print("Upload Successful")
+        print('Upload Successful')
     except Exception as e:
-        print("Failed to Upload")
+        print('Failed to Upload')
         raise e
 
-def get_trade_history_columns():
-    '''
-    This function is used to create a list of columns
-    '''
-    global ys_variants
-    global ys_feats
-    YS_COLS = []
-    for prefix in ys_variants:
-        for suffix in ys_feats:
-            YS_COLS.append(prefix + suffix)
-    return YS_COLS
 
 def extract_feature_from_trade(row, name, trade):
-    global ttype_dict
+    # global TTYPE_DICT
     yield_spread = trade[0]
-    ttypes = ttype_dict[(trade[3],trade[4])] + row.trade_type
+    ttypes = TTYPE_DICT[(trade[3], trade[4])] + row.trade_type
     seconds_ago = trade[5]
     quantity_diff = np.log10(1 + np.abs(10**trade[2] - 10**row.quantity))
-    return [yield_spread, ttypes,  seconds_ago, quantity_diff]
+    return [yield_spread, ttypes, seconds_ago, quantity_diff]
+
 
 def trade_history_derived_features(row):
-    global ttype_dict
+    # global TTYPE_DICT
     global D_prev
     global S_prev
     global P_prev
-    global ys_feats
-    global ys_variants
+    # global YS_FEATS
+    # global YS_VARIANTS
     
     trade_history = row.trade_history
     trade = trade_history[0]
     
-    D_min_ago_t = D_prev.get(row.cusip,trade)
+    D_min_ago_t = D_prev.get(row.cusip, trade)
     D_min_ago = 9        
 
-    P_min_ago_t = P_prev.get(row.cusip,trade)
+    P_min_ago_t = P_prev.get(row.cusip, trade)
     P_min_ago = 9
     
-    S_min_ago_t = S_prev.get(row.cusip,trade)
+    S_min_ago_t = S_prev.get(row.cusip, trade)
     S_min_ago = 9
     
-    max_ys_t = trade; max_ys = trade[0]
-    min_ys_t = trade; min_ys = trade[0]
-    max_qty_t = trade; max_qty = trade[2]
-    min_ago_t = trade; min_ago = trade[5]
+    max_ys_t = trade
+    max_ys = trade[0]
+    min_ys_t = trade
+    min_ys = trade[0]
+    max_qty_t = trade
+    max_qty = trade[2]
+    min_ago_t = trade
+    min_ago = trade[5]
     
     for trade in trade_history[0:]:
-        #Checking if the first trade in the history is from the same block
-        if trade[5] == 0: 
-            continue
+        # Checking if the first trade in the history is from the same block
+        if trade[5] == 0: continue
  
         if trade[0] > max_ys: 
             max_ys_t = trade
             max_ys = trade[0]
         elif trade[0] < min_ys: 
-            min_ys_t = trade; 
+            min_ys_t = trade
             min_ys = trade[0]
 
         if trade[2] > max_qty: 
             max_qty_t = trade 
             max_qty = trade[2]
         if trade[5] < min_ago: 
-            min_ago_t = trade; 
+            min_ago_t = trade
             min_ago = trade[5]
             
-        side = ttype_dict[(trade[3],trade[4])]
-        if side == "D":
+        side = TTYPE_DICT[(trade[3], trade[4])]
+        if side == 'D':
             if trade[5] < D_min_ago: 
-                D_min_ago_t = trade; D_min_ago = trade[5]
+                D_min_ago_t = trade
+                D_min_ago = trade[5]
                 D_prev[row.cusip] = trade
-        elif side == "P":
+        elif side == 'P':
             if trade[5] < P_min_ago: 
-                P_min_ago_t = trade; P_min_ago = trade[5]
+                P_min_ago_t = trade
+                P_min_ago = trade[5]
                 P_prev[row.cusip] = trade
-        elif side == "S":
+        elif side == 'S':
             if trade[5] < S_min_ago: 
-                S_min_ago_t = trade; S_min_ago = trade[5]
+                S_min_ago_t = trade
+                S_min_ago = trade[5]
                 S_prev[row.cusip] = trade
         else: 
-            print("invalid side", trade)
+            print('invalid side', trade)
     
-    trade_history_dict = {"max_ys":max_ys_t,
-                          "min_ys":min_ys_t,
-                          "max_qty":max_qty_t,
-                          "min_ago":min_ago_t,
-                          "D_min_ago":D_min_ago_t,
-                          "P_min_ago":P_min_ago_t,
-                          "S_min_ago":S_min_ago_t}
+    trade_history_dict = {'max_ys': max_ys_t,
+                          'min_ys': min_ys_t,
+                          'max_qty': max_qty_t,
+                          'min_ago': min_ago_t,
+                          'D_min_ago': D_min_ago_t,
+                          'P_min_ago': P_min_ago_t,
+                          'S_min_ago': S_min_ago_t}
 
     return_list = []
-    for variant in ys_variants:
-        feature_list = extract_feature_from_trade(row,variant,trade_history_dict[variant])
+    for variant in YS_VARIANTS:
+        feature_list = extract_feature_from_trade(row, variant, trade_history_dict[variant])
         return_list += feature_list
-    
     return return_list
+
 
 def return_data_query(last_trade_date):
     return f'''SELECT
@@ -313,168 +284,97 @@ def return_data_query(last_trade_date):
                ORDER BY trade_datetime desc'''
 
 
-def target_trade_processing_for_attention(row):
-    trade_mapping = {'D':[0,0], 'S':[0,1], 'P':[1,0]}
-    target_trade_features = []
-    target_trade_features.append(row['quantity'])
-    target_trade_features = target_trade_features + trade_mapping[row['trade_type']]
-    return np.tile(target_trade_features, (1,1))
-
-def replace_ratings_by_standalone_rating(data):
-    data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
-    data.rating = data.rating.astype('str')
-    data.sp_stand_alone = data.sp_stand_alone.astype('str')
-    data.loc[(data.sp_stand_alone != 'NR'),'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
-    return data
-
 def get_yield_for_last_duration(row):
     if pd.isnull(row['last_calc_date'])or pd.isnull(row['last_trade_date']):
-        #if there is no last trade, we use the duration of the current bond
-        duration =  diff_in_days_two_dates(row['maturity_date'],row['trade_date'])/NUM_OF_DAYS_IN_YEAR
-        ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter)/100
+        # if there is no last trade, we use the duration of the current bond
+        duration =  diff_in_days_two_dates(row['maturity_date'], row['trade_date']) / NUM_OF_DAYS_IN_YEAR
+        ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
         return ycl
-    duration =  diff_in_days_two_dates(row['last_calc_date'],row['last_trade_date'])/NUM_OF_DAYS_IN_YEAR
-    ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter)/100
+    duration =  diff_in_days_two_dates(row['last_calc_date'], row['last_trade_date']) / NUM_OF_DAYS_IN_YEAR
+    ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
     return ycl
 
-def update_data():
-  '''
-  This function updates the master data file that is used to train and 
-  deploy the model. 
-  Input: None
-  Output: dataframe, datetime  
-  '''
-  print("Downloading data")
-  fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
-  with fs.open('automated_training/processed_data_test.pkl') as f:
-      data = pd.read_pickle(f)
-  print('Data downloaded')
-  
-  last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
 
-  print(f"last trade date : {last_trade_date}")
-  DATA_QUERY = return_data_query(last_trade_date)
-  file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
+def update_data() -> (pd.DataFrame, datetime.datetime):
+    '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
+    `process_data(...)` or `SEQUENCE_LENGTH_YIELD_SPREAD_MODEL` are changed, then we need to rebuild the entire `processed_data_test.pkl` 
+    since that data is will have the old preferences; an easy way to do that is to manually set `last_trade_date` to a 
+    date way in the past (the desired start date of the data).'''
+    bucket_name = 'automated_training'
+    file_name = 'processed_data_test.pkl'
 
-  new_data = process_data(DATA_QUERY,
-                          bq_client,
-                          SEQUENCE_LENGTH,
-                          NUM_FEATURES,
-                          f"raw_data_{file_timestamp}.pkl",
-                          'FICC_NEW',
-                          remove_short_maturity=True,
-                          trade_history_delay = 0.2,
-                          min_trades_in_history = 0,
-                          process_ratings=False,
-                          treasury_spread = True,
-                          add_previous_treasury_rate=True,
-                          add_previous_treasury_difference=True,
-                          add_flags=False,
-                          add_related_trades_bool=False,
-                          production_set=False,
-                          add_rtrs_in_history=False,
-                          only_dollar_price_history=False,)
-  
-  # Restricting the trade history to length 2, at present 2 is the length of trade history
-  # that gives the maximum accuracy
-  print(f"Restricting history to {SEQUENCE_LENGTH} trades")
-  new_data.trade_history = new_data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
-  data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
+    data, last_trade_date = get_data_and_last_trade_date(bucket_name, file_name)
+    print(f'last trade date: {last_trade_date}')
+    DATA_QUERY = return_data_query(last_trade_date)
+    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
-  new_data = replace_ratings_by_standalone_rating(new_data)
-  new_data['yield'] = new_data['yield'] * 100
-  new_data['last_trade_date'] = new_data['last_trade_datetime'].dt.date
-  new_data['new_ficc_ycl'] = new_data[['last_calc_date',
-                                       'last_settlement_date',
-                                       'trade_date',
-                                       'last_trade_date',
-                                       'maturity_date']].parallel_apply(get_yield_for_last_duration, axis=1)
-
-  new_data['new_ficc_ycl'] = new_data['new_ficc_ycl'] * 100
-
-  new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis = 1)
-
-  #### removing missing data
-  new_data['trade_history_sum'] = new_data.trade_history.parallel_apply(lambda x: np.sum(x))
-  new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
-  new_data.dropna(inplace=True, subset=PREDICTORS+['trade_history_sum'])
-
-  print("Adding new data to master file")
-  data = pd.concat([new_data, data])
-  data['new_ys'] =  data['yield'] - data['new_ficc_ycl']
-
-  ####### Adding trade history features to the data ###########
-  print("Adding features from previous trade history")
-  data.sort_values('trade_datetime', inplace=True)
-  temp = data[['cusip','trade_history','quantity','trade_type']].parallel_apply(trade_history_derived_features, axis=1)
-  YS_COLS = get_trade_history_columns()
-  data[YS_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
-  del temp
-  
-  for col in YS_COLS:
-    if 'ttypes' in col and col not in PREDICTORS:
-        PREDICTORS.append(col)
-        CATEGORICAL_FEATURES.append(col)
-    elif col not in PREDICTORS:
-        NON_CAT_FEATURES.append(col)
-        PREDICTORS.append(col)
-        
-  data.sort_values('trade_datetime',ascending=False,inplace=True)
-  #############################################################
-  data.dropna(inplace=True, subset=PREDICTORS)
-
-  print("Saving data to pickle file")
-  data.to_pickle('processed_data_test.pkl')  
-  
-  print("Uploading data")
-  upload_data(storage_client, 'automated_training', 'processed_data_test.pkl')
-  
-  return data, last_trade_date
-
-def create_input(df, encoders):
-    datalist = []
-    datalist.append(np.stack(df['trade_history'].to_numpy()))
-    datalist.append(np.stack(df['target_attention_features'].to_numpy()))
-
-    noncat_and_binary = []
-    for f in NON_CAT_FEATURES + BINARY:
-        noncat_and_binary.append(np.expand_dims(df[f].to_numpy().astype('float32'), axis=1))
-    datalist.append(np.concatenate(noncat_and_binary, axis=-1))
+    data_from_last_trade_date = process_data(DATA_QUERY,
+                                             bq_client,
+                                             SEQUENCE_LENGTH_YIELD_SPREAD_MODEL,
+                                             NUM_FEATURES,
+                                             f'raw_data_{file_timestamp}.pkl',
+                                             'FICC_NEW',
+                                             remove_short_maturity=True,
+                                             trade_history_delay=0.2,
+                                             min_trades_in_history=0,
+                                             process_ratings=False,
+                                             treasury_spread=True,
+                                             add_previous_treasury_rate=True,
+                                             add_previous_treasury_difference=True,
+                                             add_flags=False,
+                                             add_related_trades_bool=False,
+                                             production_set=False,
+                                             add_rtrs_in_history=False,
+                                             only_dollar_price_history=False)
     
-    for f in CATEGORICAL_FEATURES:
-        encoded = encoders[f].transform(df[f])
-        datalist.append(encoded.astype('float32'))
-    
-    return datalist
+    print(f'Restricting history to {SEQUENCE_LENGTH_YIELD_SPREAD_MODEL} trades')
+    data_from_last_trade_date.trade_history = data_from_last_trade_date.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_YIELD_SPREAD_MODEL])
+    data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_YIELD_SPREAD_MODEL])
 
-def fit_encoders(data):
-    '''
-    This function fits label encoders to categorical features in the data.
-    For a few of the categorical features, the values don't change for these features
-    we use the pre-defined set of values.
-    
-    Input : data frame
-    Output : Tuple of dictionaries 
-    '''
-    encoders = {}
-    fmax = {}
-    for f in CATEGORICAL_FEATURES:
-        if f in ['rating', 'incorporated_state_code', 'trade_type', 'purpose_class']:
-            fprep = preprocessing.LabelEncoder().fit(categorical_feature_values[f])
-        else:
-            fprep = preprocessing.LabelEncoder().fit(data[f].drop_duplicates())
-        fmax[f] = np.max(fprep.transform(fprep.classes_))
-        encoders[f] = fprep
-    
-    with open('encoders.pkl','wb') as file:
-        pickle.dump(encoders,file)
-    return encoders, fmax
+    data_from_last_trade_date = replace_ratings_by_standalone_rating(data_from_last_trade_date)
+    data_from_last_trade_date['yield'] = data_from_last_trade_date['yield'] * 100
+    data_from_last_trade_date['last_trade_date'] = data_from_last_trade_date['last_trade_datetime'].dt.date
+    data_from_last_trade_date['new_ficc_ycl'] = data_from_last_trade_date[['last_calc_date',
+                                                                           'last_settlement_date',
+                                                                           'trade_date',
+                                                                           'last_trade_date',
+                                                                           'maturity_date']].parallel_apply(get_yield_for_last_duration, axis=1)
+
+    data_from_last_trade_date['new_ficc_ycl'] = data_from_last_trade_date['new_ficc_ycl'] * 100
+    data_from_last_trade_date['target_attention_features'] = data_from_last_trade_date.parallel_apply(target_trade_processing_for_attention, axis=1)
+
+    #### removing missing data
+    data_from_last_trade_date['trade_history_sum'] = data_from_last_trade_date.trade_history.parallel_apply(lambda x: np.sum(x))
+    data_from_last_trade_date.issue_amount = data_from_last_trade_date.issue_amount.replace([np.inf, -np.inf], np.nan)
+    data_from_last_trade_date.dropna(inplace=True, subset=PREDICTORS + ['trade_history_sum'])
+
+    print('Adding new data to master file')
+    data = pd.concat([data_from_last_trade_date, data])    # concatenating `data_from_last_trade_date` to the original `data` dataframe
+    data['new_ys'] =  data['yield'] - data['new_ficc_ycl']
+
+    ####### Adding trade history features to the data ###########
+    print('Adding features from previous trade history')
+    data.sort_values('trade_datetime', inplace=True)
+    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
+    YS_COLS = get_trade_history_columns('yield_spread')
+    data[YS_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
+    del temp
+            
+    data.sort_values('trade_datetime', ascending=False, inplace=True)
+    #############################################################
+    data.dropna(inplace=True, subset=PREDICTORS)
+
+    print(f'Saving data to pickle file with name {file_name}')
+    data.to_pickle(file_name)  
+    print(f'Uploading data to {bucket_name}/{file_name}')
+    upload_data(storage_client, bucket_name, file_name)
+    return data, last_trade_date
 
 
 def segment_results(data):
     data['delta'] = np.abs(data.predicted_ys - data.new_ys)
 
-    investment_grade = ['AAA','AA+','AA','AA-','A+','A','A-','BBB+','BBB','BBB-']
+    investment_grade = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-']
 
     total_mae, total_count = np.mean(data.delta), data.shape[0] 
 
@@ -486,26 +386,24 @@ def segment_results(data):
     investment_grade_mae, investment_grade_count = np.mean(data['delta'][data.rating.isin(investment_grade)]), data[data.rating.isin(investment_grade)].shape[0]
     hundred_k_mae, hundred_k_count = np.mean(data['delta'][data.par_traded >= 1e5]), data[data.par_traded >= 1e5].shape[0]
 
-    result_df = pd.DataFrame(data=[[total_mae,total_count],
-                                   [dd_mae,dd_count],
-                                   [dp_mae,dp_count],
-                                   [ds_mae,ds_count], 
+    result_df = pd.DataFrame(data=[[total_mae, total_count],
+                                   [dd_mae, dd_count],
+                                   [dp_mae, dp_count],
+                                   [ds_mae, ds_count], 
                                    [AAA_mae, AAA_count], 
-                                   [investment_grade_mae,investment_grade_count],
-                                   [hundred_k_mae,hundred_k_count]],
-                            columns=['Mean absolute Error','Trade count'],
-                            index = ['Entire set','Dealer-Dealer','Dealer-Purchase','Dealer-Sell','AAA','Investment Grade','Trade size > 100k'])
+                                   [investment_grade_mae, investment_grade_count],
+                                   [hundred_k_mae, hundred_k_count]],
+                             columns=['Mean absolute Error', 'Trade count'],
+                             index=['Entire set', 'Dealer-Dealer', 'Dealer-Purchase', 'Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size > 100k'])
     return result_df
 
+
 def train_model(data, last_trade_date):
-    
-    encoders, fmax  = fit_encoders(data)
+    encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, 'yield_spread')
 
     train_data = data[data.trade_date <= last_trade_date]
-    
     test_data = data[data.trade_date > last_trade_date]
-
-    prediction_data  = test_data[:]
+    prediction_data = test_data[:]    # `test_data` before exclusions applied
     
     test_data = test_data[(test_data.days_to_call == 0) | (test_data.days_to_call > np.log10(400))]
     test_data = test_data[(test_data.days_to_refund == 0) | (test_data.days_to_refund > np.log10(400))]
@@ -513,46 +411,21 @@ def train_model(data, last_trade_date):
     test_data = test_data[test_data.days_to_maturity < np.log10(30000)]
     test_data = test_data[~test_data.last_calc_date.isna()]
     
-    x_train = create_input(train_data, encoders)
+    x_train = create_input(train_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
     y_train = train_data.new_ys
 
-    x_test = create_input(test_data, encoders)
+    x_test = create_input(test_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
     y_test = test_data.new_ys
 
     model = yield_spread_model(x_train, 
-                               SEQUENCE_LENGTH, 
+                               SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, 
                                NUM_FEATURES,
-                               PREDICTORS, 
                                CATEGORICAL_FEATURES, 
                                NON_CAT_FEATURES, 
-                               BINARY,
-                               encoders,
+                               BINARY, 
                                fmax)
 
-    fit_callbacks = [keras.callbacks.EarlyStopping(monitor="val_loss",
-                                                    patience=20,
-                                                    verbose=0,
-                                                    mode="auto",
-                                                    restore_best_weights=True)]
-
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
-                loss=keras.losses.MeanAbsoluteError(),
-                metrics=[keras.metrics.MeanAbsoluteError()])
-
-    history = model.fit(x_train, 
-                        y_train, 
-                        epochs=100, 
-                        batch_size=1000,
-                        verbose=1,
-                        validation_split=0.1,
-                        callbacks=fit_callbacks,
-                        use_multiprocessing=True,
-                        workers=8) 
-
-    _, mae = model.evaluate(x_test, 
-                            y_test, 
-                            verbose=1, 
-                            batch_size = 1000)
+    model, mae, history = train_and_evaluate_model(model, x_train, y_train, x_test, y_test)
 
     ## Creating table to send over email    
     try:
@@ -564,54 +437,31 @@ def train_model(data, last_trade_date):
 
     ## Uploading prediction to BQ
     try:
-        prediction_data_x_test = create_input(prediction_data, encoders)
+        prediction_data_x_test = create_input(prediction_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
         prediction_data['new_ys_prediction'] = model.predict(prediction_data_x_test, batch_size=1000)
         prediction_data = prediction_data[['rtrs_control_number','cusip','trade_date','dollar_price','yield','new_ficc_ycl','new_ys','new_ys_prediction']]
         prediction_data['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
         prediction_data['trade_date'] = pd.to_datetime(prediction_data['trade_date']).dt.date
-        uploadPredictions(prediction_data)
+        upload_predictions(prediction_data)
     except Exception as e:
         print('Failed to upload predictions to BigQuery')
         print(e)
-
     return model, encoders, mae, result_df           
-  
-
-
-def save_model(model, encoders):
-    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
-    print(f"file time stamp : {file_timestamp}")
-
-    print("Saving encoders and uploading encoders")
-    with open(f"encoders.pkl",'wb') as file:
-        pickle.dump(encoders,file)    
-    upload_data(storage_client, 'ahmad_data', f"encoders.pkl")
-
-    print("Saving and uploading model")
-    model.save(f"saved_model_{file_timestamp}")
-    
-    shutil.make_archive(f"model", 'zip', f"saved_model_{file_timestamp}")
-    # shutil.make_archive(f"saved_model_{file_timestamp}", 'zip', f"saved_model_{file_timestamp}")
-    
-    upload_data(storage_client, 'ahmad_data', f"model.zip")
-    # upload_data(storage_client, 'ahmad_data/yield_spread_models', f"saved_model_{file_timestamp}.zip")
-    os.system(f"rm -r saved_model_{file_timestamp}")
-
 
 
 def send_results_email_table(result_df, last_trade_date):
-    receiver_email = ["ahmad@ficc.ai","isaac@ficc.ai","jesse@ficc.ai","gil@ficc.ai","mitas@ficc.ai","myles@ficc.ai"]
-    sender_email = "notifications@ficc.ai"
+    receiver_email = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai']
+    sender_email = 'notifications@ficc.ai'
     
     msg = MIMEMultipart()
-    msg['Subject'] = f"Mae for model trained till {last_trade_date}"
+    msg['Subject'] = f'Mae for model trained till {last_trade_date}'
     msg['From'] = sender_email
 
     html_table = result_df.to_html(index=True)
     body = MIMEText(html_table, 'html')
     msg.attach(body)
 
-    smtp_server = "smtp.gmail.com"
+    smtp_server = 'smtp.gmail.com'
     port = 587
 
     with smtplib.SMTP(smtp_server,port) as server:
@@ -623,33 +473,7 @@ def send_results_email_table(result_df, last_trade_date):
         except Exception as e:
             print(e)
         finally:
-            server.quit() 
-
-def send_results_email(mae, last_trade_date):
-    receiver_email = ["ahmad@ficc.ai", "isaac@ficc.ai"]
-    sender_email = "notifications@ficc.ai"
-    
-    msg = MIMEMultipart()
-    msg['Subject'] = f"Mae for model trained till {last_trade_date}"
-    msg['From'] = sender_email
-
-
-    message = MIMEText(f"The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae,3)}.", 'plain')
-    msg.attach(message)
-
-    smtp_server = "smtp.gmail.com"
-    port = 587
-
-    with smtplib.SMTP(smtp_server,port) as server:
-        try:
-            server.starttls()
-            server.login(sender_email, 'ztwbwrzdqsucetbg')
-            for receiver in receiver_email:
-                server.sendmail(sender_email, receiver, msg.as_string())
-        except Exception as e:
-            print(e)
-        finally:
-            server.quit() 
+            server.quit()
 
 
 def main():
@@ -664,18 +488,17 @@ def main():
     print('Training done')
 
     print('Saving model')
-    save_model(model, encoders)
+    save_model(model, encoders, storage_client, dollar_price_model=False)
     print('Finished Training\n\n')
 
     print('sending email')
     # send_results_email(mae, last_trade_date)
-
     try:
         send_results_email_table(result_df, last_trade_date)
     except Exception as e:
         print(e)
-    
-    print(f'Funciton executed {datetime.now()}')
+    print(f'Function executed {datetime.now()}')
+
 
 if __name__ == '__main__':
     main()

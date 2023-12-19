@@ -53,7 +53,6 @@ def model_definition(trade_history_normalizer,
                      CATEGORICAL_FEATURES, 
                      NON_CAT_FEATURES, 
                      BINARY,
-                     encoders,
                      fmax):
     inputs = []
     layer = []
@@ -156,11 +155,9 @@ def model_definition(trade_history_normalizer,
 def yield_spread_model(x_train, 
                        SEQUENCE_LENGTH, 
                        NUM_FEATURES, 
-                       PREDICTORS, 
                        CATEGORICAL_FEATURES, 
                        NON_CAT_FEATURES, 
                        BINARY,
-                       encoders,
                        fmax):
     
     trade_history_normalizer = Normalization(name='Trade_history_normalizer')
@@ -176,7 +173,6 @@ def yield_spread_model(x_train,
                              CATEGORICAL_FEATURES, 
                              NON_CAT_FEATURES, 
                              BINARY,
-                             encoders,
                              fmax)
     
     return model
