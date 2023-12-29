@@ -28,6 +28,23 @@ SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model wil
 
 EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai']    # recieve an email following a successful run of the training script; set to only your email if testing
 
+
+def get_creds():
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'
+    # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/shayaan/ficc/ahmad_creds.json'
+    return None
+
+
+def get_storage_client():
+    get_creds()
+    return storage.Client()
+
+
+def get_bq_client():
+    get_creds()
+    return bigquery.Client()
+
+
 SEQUENCE_LENGTH_YIELD_SPREAD_MODEL = 5
 SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL = 2
 NUM_FEATURES = 6
@@ -50,22 +67,6 @@ DP_VARIANTS = ['max_dp', 'min_dp'] + _VARIANTS
 _FEATS = ['_ttypes', '_ago', '_qdiff']
 YS_FEATS = ['_ys'] + _FEATS
 DP_FEATS = ['_dp'] + _FEATS
-
-
-def get_creds():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'
-    # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/shayaan/ficc/ahmad_creds.json'
-    return None
-
-
-def get_storage_client():
-    get_creds()
-    return storage.Client()
-
-
-def get_bq_client():
-    get_creds()
-    return bigquery.Client()
 
 
 def get_trade_history_columns(model):
