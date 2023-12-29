@@ -1,13 +1,10 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-17 14:44:20
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-03-15 10:40:01
- # @ Modified time: 2023-08-01 20:41:52
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2023-12-29
  # @ Description:
  '''
-
- 
 import os
 import pandas as pd
 import pickle5 as pickle
@@ -21,26 +18,24 @@ from ficc.utils.get_treasury_rate import get_treasury_rate
 
 
 def fetch_trade_data(query, client, PATH='data.pkl'):
-
     if os.path.isfile(PATH):
-        print(f"Data file {PATH} found, reading data from it")
+        print(f'Data file {PATH} found, reading data from it')
         with open(PATH, 'rb') as f: 
             (q, trade_dataframe) = pickle.load(f)
         if q == query:
             return trade_dataframe
         else:
-            raise Exception (f"Saved query is incorrect:\n{q}")
+            raise Exception (f'Saved query is incorrect:\n{q}')
     
     print(f'Grabbing data from BigQuery')
     trade_dataframe = sqltodf(query,client)
-    print(f"Saving query and data to {PATH}")
+    print(f'Saving query and data to {PATH}')
     
     ds = (query, trade_dataframe)
-    
     with open(PATH, 'wb') as f: 
         pickle.dump(ds, f)
-    
     return trade_dataframe
+
 
 def process_trade_history(query,
                           client, 
@@ -54,8 +49,8 @@ def process_trade_history(query,
                           add_rtrs_in_history,
                           only_dollar_price_history,):
     
-    if globals.YIELD_CURVE_TO_USE.upper() == "FICC" or globals.YIELD_CURVE_TO_USE.upper() == "FICC_NEW":
-        print("Grabbing yield curve params")
+    if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' or globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW':
+        print('Grabbing yield curve params')
         try:
             yield_curve_params(client, globals.YIELD_CURVE_TO_USE.upper())
         except Exception as e:
@@ -63,9 +58,11 @@ def process_trade_history(query,
     
     if treasury_spread == True:
         get_treasury_rate(client)
-    
 
     trade_dataframe = fetch_trade_data(query, client, PATH)
+    print(f'Raw data contains {len(trade_dataframe)} samples')
+    if len(trade_dataframe) == 0: return None
+    
     trade_dataframe = process_ratings(trade_dataframe)
     #trade_dataframe = convert_object_to_category(trade_dataframe)
 
@@ -76,7 +73,7 @@ def process_trade_history(query,
 
     print('Creating trade history')
     if remove_short_maturity == True:
-        print("Removing trades with shorter maturity")
+        print('Removing trades with shorter maturity')
 
     print(f'Removing trades less than {trade_history_delay} minutes in the history')
     
@@ -113,11 +110,11 @@ def process_trade_history(query,
     # trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
     trade_dataframe = trade_dataframe.drop(columns=['temp_last_features','recent'])
 
-    print(f"Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades")
+    print(f'Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades')
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
 
-    print("Padding history")
-    print(f"Minimum number of trades required in the history {min_trades_in_history}")
+    print('Padding history')
+    print(f'Minimum number of trades required in the history {min_trades_in_history}')
     if only_dollar_price_history == False:
         trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, 
                                                                                                               NUM_FEATURES,
@@ -126,7 +123,7 @@ def process_trade_history(query,
         trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, 
                                                                                                               NUM_FEATURES - 1, 
                                                                                                               min_trades_in_history])
-    print("Padding completed")
+    print('Padding completed')
      
     trade_dataframe.dropna(subset=['trade_history'], inplace=True)
     print(f'Processed trade history contain {len(trade_dataframe)} samples')

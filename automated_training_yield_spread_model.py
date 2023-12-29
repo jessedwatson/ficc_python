@@ -329,31 +329,32 @@ def update_data() -> (pd.DataFrame, datetime):
                                              production_set=False,
                                              add_rtrs_in_history=False,
                                              only_dollar_price_history=False)
-    
-    print(f'Restricting history to {SEQUENCE_LENGTH_YIELD_SPREAD_MODEL} trades')
-    data_from_last_trade_date.trade_history = data_from_last_trade_date.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_YIELD_SPREAD_MODEL])
-    data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_YIELD_SPREAD_MODEL])
 
-    data_from_last_trade_date = replace_ratings_by_standalone_rating(data_from_last_trade_date)
-    data_from_last_trade_date['yield'] = data_from_last_trade_date['yield'] * 100
-    data_from_last_trade_date['last_trade_date'] = data_from_last_trade_date['last_trade_datetime'].dt.date
-    data_from_last_trade_date['new_ficc_ycl'] = data_from_last_trade_date[['last_calc_date',
-                                                                           'last_settlement_date',
-                                                                           'trade_date',
-                                                                           'last_trade_date',
-                                                                           'maturity_date']].parallel_apply(get_yield_for_last_duration, axis=1)
+    if data_from_last_trade_date is not None:    # there is new data since `last_trade_date`
+        print(f'Restricting history to {SEQUENCE_LENGTH_YIELD_SPREAD_MODEL} trades')
+        data_from_last_trade_date.trade_history = data_from_last_trade_date.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_YIELD_SPREAD_MODEL])
+        data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_YIELD_SPREAD_MODEL])
 
-    data_from_last_trade_date['new_ficc_ycl'] = data_from_last_trade_date['new_ficc_ycl'] * 100
-    data_from_last_trade_date['target_attention_features'] = data_from_last_trade_date.parallel_apply(target_trade_processing_for_attention, axis=1)
+        data_from_last_trade_date = replace_ratings_by_standalone_rating(data_from_last_trade_date)
+        data_from_last_trade_date['yield'] = data_from_last_trade_date['yield'] * 100
+        data_from_last_trade_date['last_trade_date'] = data_from_last_trade_date['last_trade_datetime'].dt.date
+        data_from_last_trade_date['new_ficc_ycl'] = data_from_last_trade_date[['last_calc_date',
+                                                                            'last_settlement_date',
+                                                                            'trade_date',
+                                                                            'last_trade_date',
+                                                                            'maturity_date']].parallel_apply(get_yield_for_last_duration, axis=1)
 
-    #### removing missing data
-    data_from_last_trade_date['trade_history_sum'] = data_from_last_trade_date.trade_history.parallel_apply(lambda x: np.sum(x))
-    data_from_last_trade_date.issue_amount = data_from_last_trade_date.issue_amount.replace([np.inf, -np.inf], np.nan)
-    data_from_last_trade_date.dropna(inplace=True, subset=PREDICTORS + ['trade_history_sum'])
+        data_from_last_trade_date['new_ficc_ycl'] = data_from_last_trade_date['new_ficc_ycl'] * 100
+        data_from_last_trade_date['target_attention_features'] = data_from_last_trade_date.parallel_apply(target_trade_processing_for_attention, axis=1)
 
-    print('Adding new data to master file')
-    data = pd.concat([data_from_last_trade_date, data])    # concatenating `data_from_last_trade_date` to the original `data` dataframe
-    data['new_ys'] =  data['yield'] - data['new_ficc_ycl']
+        #### removing missing data
+        data_from_last_trade_date['trade_history_sum'] = data_from_last_trade_date.trade_history.parallel_apply(lambda x: np.sum(x))
+        data_from_last_trade_date.issue_amount = data_from_last_trade_date.issue_amount.replace([np.inf, -np.inf], np.nan)
+        data_from_last_trade_date.dropna(inplace=True, subset=PREDICTORS + ['trade_history_sum'])
+
+        print('Adding new data to master file')
+        data = pd.concat([data_from_last_trade_date, data])    # concatenating `data_from_last_trade_date` to the original `data` dataframe
+        data['new_ys'] =  data['yield'] - data['new_ficc_ycl']
 
     ####### Adding trade history features to the data ###########
     print('Adding features from previous trade history')

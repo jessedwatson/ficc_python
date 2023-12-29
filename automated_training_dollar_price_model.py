@@ -255,21 +255,22 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
                                              add_rtrs_in_history=False,
                                              only_dollar_price_history=True)
     
-    print(f'Restricting history to {SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL} trades')
-    data_from_last_trade_date.trade_history = data_from_last_trade_date.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL])
-    data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL])
+    if data_from_last_trade_date is not None:    # there is new data since `last_trade_date`
+        print(f'Restricting history to {SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL} trades')
+        data_from_last_trade_date.trade_history = data_from_last_trade_date.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL])
+        data.trade_history = data.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL])
 
-    data_from_last_trade_date = replace_ratings_by_standalone_rating(data_from_last_trade_date)
-    data_from_last_trade_date['yield'] = data_from_last_trade_date['yield'] * 100
-    data_from_last_trade_date['target_attention_features'] = data_from_last_trade_date.parallel_apply(target_trade_processing_for_attention, axis=1)
+        data_from_last_trade_date = replace_ratings_by_standalone_rating(data_from_last_trade_date)
+        data_from_last_trade_date['yield'] = data_from_last_trade_date['yield'] * 100
+        data_from_last_trade_date['target_attention_features'] = data_from_last_trade_date.parallel_apply(target_trade_processing_for_attention, axis=1)
 
-    #### removing missing data
-    data_from_last_trade_date['trade_history_sum'] = data_from_last_trade_date.trade_history.parallel_apply(lambda x: np.sum(x))
-    data_from_last_trade_date.issue_amount = data_from_last_trade_date.issue_amount.replace([np.inf, -np.inf], np.nan)
-    data_from_last_trade_date.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE + ['trade_history_sum'])
+        #### removing missing data
+        data_from_last_trade_date['trade_history_sum'] = data_from_last_trade_date.trade_history.parallel_apply(lambda x: np.sum(x))
+        data_from_last_trade_date.issue_amount = data_from_last_trade_date.issue_amount.replace([np.inf, -np.inf], np.nan)
+        data_from_last_trade_date.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE + ['trade_history_sum'])
 
-    print('Adding new data to master file')
-    data = pd.concat([data_from_last_trade_date, data])    # concatenating `data_from_last_trade_date` to the original `data` dataframe
+        print('Adding new data to master file')
+        data = pd.concat([data_from_last_trade_date, data])    # concatenating `data_from_last_trade_date` to the original `data` dataframe
 
     ####### Adding trade history features to the data ###########
     print('Adding features from previous trade history')

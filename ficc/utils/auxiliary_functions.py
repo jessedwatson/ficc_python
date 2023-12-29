@@ -1,8 +1,8 @@
 '''
  # @ Author: Anis Ahmad 
  # @ Create Time: 2021-12-15 13:59:54
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-10-26 13:01:18
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2023-12-29
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -23,6 +23,7 @@ def sqltodf(sql, bq_client):
     bqr = bq_client.query(sql).result()
     return bqr.to_dataframe()
 
+
 def convert_dates(df):
     date_cols = [col for col in list(df.columns) if 'DATE' in col.upper()]
     for col in date_cols:
@@ -36,9 +37,7 @@ def convert_dates(df):
     
     return df
 
-'''
-This function  
-'''
+
 def process_ratings(df):
     # MR is for missing ratings
     df.sp_long.fillna('MR', inplace=True)
@@ -46,33 +45,27 @@ def process_ratings(df):
     return df
 
 
-'''
-Converts an object, either of type pd.Timestamp or datetime.datetime to a 
-datetime.date object.
-'''
 def convert_to_date(date):
+    '''Converts an object, either of type pd.Timestamp or datetime.datetime to a 
+    datetime.date object.'''
     if isinstance(date, pd.Timestamp): date = date.to_pydatetime()
     if isinstance(date, datetime.datetime): date = date.date()
     return date    # assumes the type is datetime.date
 
-'''
-This function compares two date objects whether they are in Timestamp or datetime.date. 
-The different types are causing a future warning. If date1 occurs after date2, return 1. 
-If date1 equals date2, return 0. Otherwise, return -1.
-'''
+
 def compare_dates(date1, date2):
+    '''Compares two date objects whether they are in Timestamp or datetime.date. 
+    The different types are causing a future warning. If date1 occurs after date2, return 1. 
+    If date1 equals date2, return 0. Otherwise, return -1.'''
     return (convert_to_date(date1) - convert_to_date(date2)).total_seconds()
 
-'''
-This function directly calls `compare_dates` to check if two dates are equal.
-'''
+
 def dates_are_equal(date1, date2):
+    '''Directly calls `compare_dates` to check if two dates are equal.'''
     return compare_dates(date1, date2) == 0
 
-'''
-This function converts the columns with object datatypes to category data types
-'''
 def convert_object_to_category(df):
+    '''Converts the columns with object datatypes to category data types'''
     print("Converting object data type to categorical data type")
     for col_name in df.columns:
         if col_name.endswith("event") or col_name.endswith("redemption") or col_name.endswith("history") or col_name.endswith("date") or col_name.endswith("issue"):
@@ -82,6 +75,7 @@ def convert_object_to_category(df):
             df[col_name] = df[col_name].astype("category")
     return df
 
+
 def calculate_a_over_e(df):
     if not pd.isnull(df.previous_coupon_payment_date):
         A = (df.settlement_date - df.previous_coupon_payment_date).days
@@ -89,11 +83,9 @@ def calculate_a_over_e(df):
     else:
         return df['accrued_days']/NUM_OF_DAYS_IN_YEAR
 
-'''
-This function converts calc date to calc date category
-these labels are used to train the calc date model
-'''
+
 def convert_calc_date_to_category(row):
+    '''Converts calc date to calc date category these labels are used to train the calc date model.'''
     if row.last_calc_date == row.next_call_date:
         calc_date_selection = 0
     elif row.last_calc_date == row.par_call_date:
@@ -107,9 +99,9 @@ def convert_calc_date_to_category(row):
     return calc_date_selection
 
 
-'''Computes the dollar error from the predicted yield spreads and MSRB data. 
-Assumes that the predicted yield spreads are in basis points.'''
 def calculate_dollar_error(df, predicted_ys):
+    '''Computes the dollar error from the predicted yield spreads and MSRB data. 
+    Assumes that the predicted yield spreads are in basis points.'''
     assert len(predicted_ys) == len(df), 'There must be a predicted yield spread for each of the trades in the passed in dataframe'
     columns_set = set(df.columns)
     assert 'quantity' in columns_set    # assumes that the quantity is log10 transformed

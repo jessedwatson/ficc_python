@@ -63,6 +63,8 @@ def process_data(query,
                                       treasury_spread,
                                       add_rtrs_in_history,
                                       only_dollar_price_history,)
+    
+    if trades_df is None: return None    # no new trades
 
     if only_dollar_price_history == False:
         if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
