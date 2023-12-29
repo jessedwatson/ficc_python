@@ -54,6 +54,7 @@ def extract_feature_from_trade(row, name, trade):
     quantity_diff = np.log10(1 + np.abs(10**trade[1] - 10**row.quantity))
     return [dollar_price, ttypes,  seconds_ago, quantity_diff]
 
+
 def trade_history_derived_features(row):
     # global TTYPE_DICT
     global D_prev
@@ -132,6 +133,7 @@ def trade_history_derived_features(row):
         feature_list = extract_feature_from_trade(row, variant, trade_history_dict[variant])
         return_list += feature_list
     return return_list
+
 
 def return_data_query(last_trade_date):
     return f'''SELECT
