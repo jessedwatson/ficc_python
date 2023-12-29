@@ -25,7 +25,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
                                                    TTYPE_DICT, \
                                                    YS_VARIANTS, \
-                                                   SAVE_MODEL, \
+                                                   SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
                                                    get_bq_client, \
@@ -298,7 +298,7 @@ def get_yield_for_last_duration(row):
     return ycl
 
 
-def update_data() -> (pd.DataFrame, datetime.datetime):
+def update_data() -> (pd.DataFrame, datetime):
     '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
     `process_data(...)` or `SEQUENCE_LENGTH_YIELD_SPREAD_MODEL` are changed, then we need to rebuild the entire `processed_data_test.pkl` 
     since that data is will have the old preferences; an easy way to do that is to manually set `last_trade_date` to a 
@@ -367,10 +367,11 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
     #############################################################
     data.dropna(inplace=True, subset=PREDICTORS)
 
-    print(f'Saving data to pickle file with name {file_name}')
-    data.to_pickle(file_name)  
-    print(f'Uploading data to {bucket_name}/{file_name}')
-    upload_data(STORAGE_CLIENT, bucket_name, file_name)
+    if SAVE_MODEL_AND_DATA:
+        print(f'Saving data to pickle file with name {file_name}')
+        data.to_pickle(file_name)  
+        print(f'Uploading data to {bucket_name}/{file_name}')
+        upload_data(STORAGE_CLIENT, bucket_name, file_name)
     return data, last_trade_date
 
 
@@ -439,16 +440,17 @@ def train_model(data, last_trade_date):
         result_df = pd.DataFrame()
 
     ## Uploading prediction to BQ
-    try:
-        prediction_data_x_test = create_input(prediction_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
-        prediction_data['new_ys_prediction'] = model.predict(prediction_data_x_test, batch_size=1000)
-        prediction_data = prediction_data[['rtrs_control_number','cusip','trade_date','dollar_price','yield','new_ficc_ycl','new_ys','new_ys_prediction']]
-        prediction_data['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
-        prediction_data['trade_date'] = pd.to_datetime(prediction_data['trade_date']).dt.date
-        upload_predictions(prediction_data)
-    except Exception as e:
-        print('Failed to upload predictions to BigQuery')
-        print(e)
+    if SAVE_MODEL_AND_DATA:
+        try:
+            prediction_data_x_test = create_input(prediction_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
+            prediction_data['new_ys_prediction'] = model.predict(prediction_data_x_test, batch_size=1000)
+            prediction_data = prediction_data[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
+            prediction_data['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
+            prediction_data['trade_date'] = pd.to_datetime(prediction_data['trade_date']).dt.date
+            upload_predictions(prediction_data)
+        except Exception as e:
+            print('Failed to upload predictions to BigQuery')
+            print(e)
     return model, encoders, mae, result_df           
 
 
@@ -489,7 +491,7 @@ def main():
     model, encoders, mae, result_df = train_model(data, last_trade_date)
     print('Training done')
 
-    if SAVE_MODEL:
+    if SAVE_MODEL_AND_DATA:
         print('Saving model')
         save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
         print('Finished saving the model\n\n')

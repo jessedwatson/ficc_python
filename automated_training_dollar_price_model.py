@@ -17,7 +17,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, \
                                                    TTYPE_DICT, \
                                                    DP_VARIANTS, \
-                                                   SAVE_MODEL, \
+                                                   SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
                                                    get_bq_client, \
@@ -282,10 +282,11 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
     #############################################################
     data.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE)
     
-    print(f'Saving data to pickle file with name {file_name}')
-    data.to_pickle(file_name)  
-    print(f'Uploading data to {bucket_name}/{file_name}')
-    upload_data(STORAGE_CLIENT, bucket_name, file_name)
+    if SAVE_MODEL_AND_DATA:
+        print(f'Saving data to pickle file with name {file_name}')
+        data.to_pickle(file_name)  
+        print(f'Uploading data to {bucket_name}/{file_name}')
+        upload_data(STORAGE_CLIENT, bucket_name, file_name)
     return data, last_trade_date
 
 
@@ -324,7 +325,7 @@ def main():
     model, encoders, mae = train_model(data, last_trade_date)
     print('Training done')
 
-    if SAVE_MODEL:
+    if SAVE_MODEL_AND_DATA:
         print('Saving model')
         save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
         print('Finished saving the model\n\n')
