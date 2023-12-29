@@ -17,6 +17,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, \
                                                    TTYPE_DICT, \
                                                    DP_VARIANTS, \
+                                                   SAVE_MODEL, \
                                                    get_storage_client, \
                                                    get_bq_client, \
                                                    get_trade_history_columns, \
@@ -322,9 +323,10 @@ def main():
     model, encoders, mae = train_model(data, last_trade_date)
     print('Training done')
 
-    print('Saving model')
-    save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
-    print('Finished saving the model\n\n')
+    if SAVE_MODEL:
+        print('Saving model')
+        save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
+        print('Finished saving the model\n\n')
 
     print('sending email')
     send_results_email(mae, last_trade_date, ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai'])

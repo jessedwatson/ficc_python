@@ -25,6 +25,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
                                                    TTYPE_DICT, \
                                                    YS_VARIANTS, \
+                                                   SAVE_MODEL, \
                                                    get_storage_client, \
                                                    get_bq_client, \
                                                    get_trade_history_columns, \
@@ -488,9 +489,10 @@ def main():
     model, encoders, mae, result_df = train_model(data, last_trade_date)
     print('Training done')
 
-    print('Saving model')
-    save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
-    print('Finished saving the model\n\n')
+    if SAVE_MODEL:
+        print('Saving model')
+        save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
+        print('Finished saving the model\n\n')
 
     print('sending email')
     # send_results_email(mae, last_trade_date)
