@@ -2,14 +2,11 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Mitas Ray
- # @ Modified time: 2023-12-19
+ # @ Modified time: 2023-12-29
  '''
-import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from google.cloud import bigquery
-from google.cloud import storage
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
 from ficc.utils.gcp_storage_functions import upload_data
@@ -20,6 +17,8 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, \
                                                    TTYPE_DICT, \
                                                    DP_VARIANTS, \
+                                                   get_storage_client, \
+                                                   get_bq_client, \
                                                    get_trade_history_columns, \
                                                    target_trade_processing_for_attention, \
                                                    replace_ratings_by_standalone_rating, \
@@ -35,11 +34,10 @@ gpus = tf.config.experimental.list_physical_devices('GPU')
 for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'
-# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/shayaan/ficc/ahmad_creds.json'
 
-storage_client = storage.Client()
-bq_client = bigquery.Client()
+STORAGE_CLIENT = get_storage_client()
+BQ_CLIENT = get_bq_client()
+
 
 D_prev = dict()
 P_prev = dict()
@@ -239,7 +237,7 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
     data_from_last_trade_date = process_data(DATA_QUERY,
-                                             bq_client,
+                                             BQ_CLIENT,
                                              SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL,
                                              NUM_FEATURES,
                                              f'raw_data_{file_timestamp}.pkl',
@@ -285,7 +283,7 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
     print(f'Saving data to pickle file with name {file_name}')
     data.to_pickle(file_name)  
     print(f'Uploading data to {bucket_name}/{file_name}')
-    upload_data(storage_client, bucket_name, file_name)
+    upload_data(STORAGE_CLIENT, bucket_name, file_name)
     return data, last_trade_date
 
 
@@ -325,8 +323,8 @@ def main():
     print('Training done')
 
     print('Saving model')
-    save_model(model, encoders, storage_client, dollar_price_model=True)
-    print('Finished Training\n\n')
+    save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
+    print('Finished saving the model\n\n')
 
     print('sending email')
     send_results_email(mae, last_trade_date, ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai'])

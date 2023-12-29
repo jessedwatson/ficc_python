@@ -2,14 +2,12 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
  # @ Modified by: Mitas Ray
- # @ Modified time: 2023-12-19
+ # @ Modified time: 2023-12-29
  '''
-import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from google.cloud import bigquery
-from google.cloud import storage
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_functions import sqltodf
 from ficc.utils.diff_in_days import diff_in_days_two_dates
@@ -27,6 +25,8 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
                                                    TTYPE_DICT, \
                                                    YS_VARIANTS, \
+                                                   get_storage_client, \
+                                                   get_bq_client, \
                                                    get_trade_history_columns, \
                                                    target_trade_processing_for_attention, \
                                                    replace_ratings_by_standalone_rating, \
@@ -36,8 +36,6 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    train_and_evaluate_model, \
                                                    save_model
 
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'
-# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/shayaan/ficc/ahmad_creds.json'
 
 print('***********************')
 if tf.test.is_gpu_available():
@@ -47,29 +45,33 @@ else:
 print('***********************')
 
 
+STORAGE_CLIENT = get_storage_client()
+BQ_CLIENT = get_bq_client()
+
+
 if 'ficc_treasury_spread' not in PREDICTORS: PREDICTORS.append('ficc_treasury_spread')
 if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc_treasury_spread')
 if 'target_attention_features' not in PREDICTORS: PREDICTORS.append('target_attention_features')
 
+
 HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
 
-storage_client = storage.Client()
-bq_client = bigquery.Client()
 
-nelson_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc', bq_client)
+nelson_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc', BQ_CLIENT)
 nelson_params.set_index('date', drop=True, inplace=True)
 nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
 nelson_params = nelson_params.transpose().to_dict()
 
-scalar_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc', bq_client)
+scalar_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc', BQ_CLIENT)
 scalar_params.set_index('date', drop=True, inplace=True)
 scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
 scalar_params = scalar_params.transpose().to_dict()
 
-shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', bq_client)
+shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', BQ_CLIENT)
 shape_parameter.set_index('Date', drop=True, inplace=True)
 shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
 shape_parameter = shape_parameter.transpose().to_dict()
+
 
 D_prev = dict()
 P_prev = dict()
@@ -94,9 +96,8 @@ def get_table_schema():
 
 def upload_predictions(data:pd.DataFrame):
     '''Upload the coefficient and scalar dataframeto BigQuery.'''
-    client = bigquery.Client()    
     job_config = bigquery.LoadJobConfig(schema=get_table_schema(), write_disposition='WRITE_APPEND')
-    job = client.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE, job_config=job_config)
+    job = BQ_CLIENT.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE, job_config=job_config)
     try:
         job.result()
         print('Upload Successful')
@@ -309,7 +310,7 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
     data_from_last_trade_date = process_data(DATA_QUERY,
-                                             bq_client,
+                                             BQ_CLIENT,
                                              SEQUENCE_LENGTH_YIELD_SPREAD_MODEL,
                                              NUM_FEATURES,
                                              f'raw_data_{file_timestamp}.pkl',
@@ -367,7 +368,7 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
     print(f'Saving data to pickle file with name {file_name}')
     data.to_pickle(file_name)  
     print(f'Uploading data to {bucket_name}/{file_name}')
-    upload_data(storage_client, bucket_name, file_name)
+    upload_data(STORAGE_CLIENT, bucket_name, file_name)
     return data, last_trade_date
 
 
@@ -488,8 +489,8 @@ def main():
     print('Training done')
 
     print('Saving model')
-    save_model(model, encoders, storage_client, dollar_price_model=False)
-    print('Finished Training\n\n')
+    save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
+    print('Finished saving the model\n\n')
 
     print('sending email')
     # send_results_email(mae, last_trade_date)

@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
- # @ Create Time: 2023-12-18
+ # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified time: 2023-12-19
+ # @ Modified date: 2023-12-19
  '''
 import os
 import gcsfs
@@ -14,12 +14,17 @@ from pickle5 import pickle
 from tensorflow import keras
 from datetime import datetime
 
+from google.cloud import bigquery
+from google.cloud import storage
+
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from ficc.utils.gcp_storage_functions import upload_data
 
+
+SAVE_MODEL = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
 
 SEQUENCE_LENGTH_YIELD_SPREAD_MODEL = 5
 SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL = 2
@@ -43,6 +48,22 @@ DP_VARIANTS = ['max_dp', 'min_dp'] + _VARIANTS
 _FEATS = ['_ttypes', '_ago', '_qdiff']
 YS_FEATS = ['_ys'] + _FEATS
 DP_FEATS = ['_dp'] + _FEATS
+
+
+def get_creds():
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'
+    # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/shayaan/ficc/ahmad_creds.json'
+    return None
+
+
+def get_storage_client():
+    get_creds()
+    return storage.Client()
+
+
+def get_bq_client():
+    get_creds()
+    return bigquery.Client()
 
 
 def get_trade_history_columns(model):
@@ -167,7 +188,7 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     suffix_wo_underscore = 'dollar_price' if dollar_price_model else ''    # need this variable as well since the model naming is missing an underscore
 
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
-    print(f'file time stamp : {file_timestamp}')
+    print(f'file time stamp: {file_timestamp}')
 
     print('Saving encoders and uploading encoders')
     encoders_filename = f'encoders{suffix}.pkl'
