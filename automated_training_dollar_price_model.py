@@ -18,6 +18,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    TTYPE_DICT, \
                                                    DP_VARIANTS, \
                                                    SAVE_MODEL, \
+                                                   EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
                                                    get_bq_client, \
                                                    get_trade_history_columns, \
@@ -329,7 +330,7 @@ def main():
         print('Finished saving the model\n\n')
 
     print('sending email')
-    send_results_email(mae, last_trade_date, ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai'])
+    send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS)
     print(f'Function executed {datetime.now()}\n\n')
 
 

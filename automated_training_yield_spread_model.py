@@ -26,6 +26,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    TTYPE_DICT, \
                                                    YS_VARIANTS, \
                                                    SAVE_MODEL, \
+                                                   EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
                                                    get_bq_client, \
                                                    get_trade_history_columns, \
@@ -452,7 +453,6 @@ def train_model(data, last_trade_date):
 
 
 def send_results_email_table(result_df, last_trade_date):
-    receiver_email = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai']
     sender_email = 'notifications@ficc.ai'
     
     msg = MIMEMultipart()
@@ -470,7 +470,7 @@ def send_results_email_table(result_df, last_trade_date):
         try:
             server.starttls()
             server.login(sender_email, 'ztwbwrzdqsucetbg')
-            for receiver in receiver_email:
+            for receiver in EMAIL_RECIPIENTS:
                 server.sendmail(sender_email, receiver, msg.as_string())
         except Exception as e:
             print(e)

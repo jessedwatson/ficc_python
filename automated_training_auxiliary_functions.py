@@ -26,6 +26,8 @@ from ficc.utils.gcp_storage_functions import upload_data
 
 SAVE_MODEL = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
 
+EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai']    # recieve an email following a successful run of the training script; set to only your email if testing
+
 SEQUENCE_LENGTH_YIELD_SPREAD_MODEL = 5
 SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL = 2
 NUM_FEATURES = 6
