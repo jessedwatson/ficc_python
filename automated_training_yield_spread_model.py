@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2023-01-23 12:12:16
+ # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified time: 2023-12-29
+ # @ Modified date: 2024-01-08
  '''
 import numpy as np
 import pandas as pd
@@ -311,23 +311,12 @@ def update_data() -> (pd.DataFrame, datetime):
     DATA_QUERY = return_data_query(last_trade_date)
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
-    data_from_last_trade_date = process_data(DATA_QUERY,
-                                             BQ_CLIENT,
-                                             SEQUENCE_LENGTH_YIELD_SPREAD_MODEL,
-                                             NUM_FEATURES,
-                                             f'raw_data_{file_timestamp}.pkl',
-                                             'FICC_NEW',
-                                             remove_short_maturity=True,
-                                             trade_history_delay=0.2,
-                                             min_trades_in_history=0,
-                                             process_ratings=False,
-                                             treasury_spread=True,
-                                             add_previous_treasury_rate=True,
-                                             add_previous_treasury_difference=True,
-                                             add_flags=False,
-                                             add_related_trades_bool=False,
-                                             production_set=False,
-                                             add_rtrs_in_history=False,
+    data_from_last_trade_date = process_data(DATA_QUERY, 
+                                             BQ_CLIENT, 
+                                             SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, 
+                                             NUM_FEATURES, 
+                                             f'raw_data_{file_timestamp}.pkl', 
+                                             treasury_spread=True, 
                                              only_dollar_price_history=False)
 
     if data_from_last_trade_date is not None:    # there is new data since `last_trade_date`

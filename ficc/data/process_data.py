@@ -1,11 +1,10 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-16 10:04:41
+ # @ Create date: 2021-12-16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-10-19 10:53:50
+ # @ Modified date: 2024-01-08
  # @ Description: Source code to process trade history from BigQuery
  '''
- 
 import pandas as pd
 from pandas.tseries.offsets import BDay
 import numpy as np
@@ -32,20 +31,21 @@ from ficc.utils.get_treasury_rate import current_treasury_rate
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_replica_count_flag, add_same_day_flag, add_ntbc_precursor_flag
 from ficc.utils.related_trade import add_related_trades
 
+
 def process_data(query, 
                  client, 
                  SEQUENCE_LENGTH, 
                  NUM_FEATURES, 
                  PATH, 
-                 YIELD_CURVE="FICC_NEW", 
+                 YIELD_CURVE='FICC_NEW', 
                  remove_short_maturity=False, 
-                 trade_history_delay=1, 
-                 min_trades_in_history=1, 
-                 treasury_spread=False,
-                 add_flags=False,
-                 add_related_trades_bool=False,
-                 add_rtrs_in_history=False,
-                 only_dollar_price_history=False,
+                 trade_history_delay=0.2, 
+                 min_trades_in_history=0, 
+                 treasury_spread=False, 
+                 add_flags=False, 
+                 add_related_trades_bool=False, 
+                 add_rtrs_in_history=False, 
+                 only_dollar_price_history=False, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -67,9 +67,9 @@ def process_data(query,
     if trades_df is None: return None    # no new trades
 
     if only_dollar_price_history == False:
-        if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
+        if YIELD_CURVE.upper() == 'FICC' or YIELD_CURVE.upper() == 'FICC_NEW':
             # Calculating yield spreads using ficc_ycl
-            print("Calculating yield spread using ficc yield curve")
+            print('Calculating yield spread using ficc yield curve')
             trades_df['ficc_ycl'] = trades_df[['trade_date','calc_date']].parallel_apply(get_ficc_ycl,axis=1)
             
              
@@ -87,7 +87,7 @@ def process_data(query,
     # trades_df = drop_extra_columns(trades_df)
     trades_df = convert_dates(trades_df)
 
-    print("Processing features")
+    print('Processing features')
     trades_df = process_features(trades_df)
 
     if remove_short_maturity == True:
@@ -112,6 +112,6 @@ def process_data(query,
                                        CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE)
     
 
-    print(f"Numbers of samples {len(trades_df)}")
+    print(f'Numbers of samples {len(trades_df)}')
     
     return trades_df
