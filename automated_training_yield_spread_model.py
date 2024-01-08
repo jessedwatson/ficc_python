@@ -25,6 +25,10 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
                                                    TTYPE_DICT, \
                                                    YS_VARIANTS, \
+                                                   QUERY_FEATURES, \
+                                                   QUERY_CONDITIONS, \
+                                                   ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
+                                                   BUCKET_NAME, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
@@ -34,6 +38,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    replace_ratings_by_standalone_rating, \
                                                    create_input, \
                                                    get_data_and_last_trade_date, \
+                                                   return_data_query, \
                                                    fit_encoders, \
                                                    trade_history_derived_features_yield_spread, \
                                                    train_and_evaluate_model, \
@@ -116,95 +121,6 @@ def extract_feature_from_trade(row, name, trade):
     return [yield_spread, ttypes, seconds_ago, quantity_diff]
 
 
-def return_data_query(last_trade_date):
-    return f'''SELECT
-                 rtrs_control_number,
-                 cusip,
-                 yield,
-                 is_callable,
-                 refund_date,
-                 accrual_date,
-                 dated_date,
-                 next_sink_date,
-                 coupon,
-                 delivery_date,
-                 trade_date,
-                 trade_datetime,
-                 par_call_date,
-                 interest_payment_frequency,
-                 is_called,
-                 is_non_transaction_based_compensation,
-                 is_general_obligation,
-                 callable_at_cav,
-                 extraordinary_make_whole_call,
-                 make_whole_call,
-                 has_unexpired_lines_of_credit,
-                 escrow_exists,
-                 incorporated_state_code,
-                 trade_type,
-                 par_traded,
-                 maturity_date,
-                 settlement_date,
-                 next_call_date,
-                 issue_amount,
-                 maturity_amount,
-                 issue_price,
-                 orig_principal_amount,
-                 max_amount_outstanding,
-                 recent,
-                 dollar_price,
-                 calc_date,
-                 purpose_sub_class,
-                 called_redemption_type,
-                 calc_day_cat,
-                 previous_coupon_payment_date,
-                 instrument_primary_name,
-                 purpose_class,
-                 call_timing,
-                 call_timing_in_part,
-                 sink_frequency,
-                 sink_amount_type,
-                 issue_text,
-                 state_tax_status,
-                 series_name,
-                 transaction_type,
-                 next_call_price,
-                 par_call_price,
-                 when_issued,
-                 min_amount_outstanding,
-                 original_yield,
-                 par_price,
-                 default_indicator,
-                 sp_stand_alone,
-                 sp_long,
-                 moodys_long,
-                 coupon_type,
-                 federal_tax_status,
-                 use_of_proceeds,
-                 muni_security_type,
-                 muni_issue_type,
-                 capital_type,
-                 other_enhancement_type,
-                 next_coupon_payment_date,
-                 first_coupon_date,
-                 last_period_accrues_from_date,
-               FROM
-                 `eng-reactor-287421.auxiliary_views.materialized_trade_history`
-               WHERE
-                 yield IS NOT NULL
-                 AND yield > 0
-                 AND par_traded >= 10000
-                 AND trade_date > '{last_trade_date}'
-                 AND coupon_type in (8, 4, 10, 17)
-                 AND capital_type <> 10
-                 AND default_exists <> TRUE
-                 AND most_recent_default_event IS NULL
-                 AND default_indicator IS FALSE
-                 AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
-                 AND settlement_date is not null
-               ORDER BY trade_datetime desc'''
-
-
 def get_yield_for_last_duration(row):
     if pd.isnull(row['last_calc_date'])or pd.isnull(row['last_trade_date']):
         # if there is no last trade, we use the duration of the current bond
@@ -221,12 +137,11 @@ def update_data() -> (pd.DataFrame, datetime):
     `process_data(...)` or `SEQUENCE_LENGTH_YIELD_SPREAD_MODEL` are changed, then we need to rebuild the entire `processed_data_test.pkl` 
     since that data is will have the old preferences; an easy way to do that is to manually set `last_trade_date` to a 
     date way in the past (the desired start date of the data).'''
-    bucket_name = 'automated_training'
     file_name = 'processed_data_test.pkl'
 
-    data, last_trade_date = get_data_and_last_trade_date(bucket_name, file_name)
+    data, last_trade_date = get_data_and_last_trade_date(BUCKET_NAME, file_name)
     print(f'last trade date: {last_trade_date}')
-    DATA_QUERY = return_data_query(last_trade_date)
+    DATA_QUERY = return_data_query(last_trade_date, QUERY_FEATURES, ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL + QUERY_CONDITIONS)
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
     data_from_last_trade_date = process_data(DATA_QUERY, 
@@ -277,8 +192,8 @@ def update_data() -> (pd.DataFrame, datetime):
     if SAVE_MODEL_AND_DATA:
         print(f'Saving data to pickle file with name {file_name}')
         data.to_pickle(file_name)  
-        print(f'Uploading data to {bucket_name}/{file_name}')
-        upload_data(STORAGE_CLIENT, bucket_name, file_name)
+        print(f'Uploading data to {BUCKET_NAME}/{file_name}')
+        upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name)
     return data, last_trade_date
 
 
