@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2023-01-23 12:12:16
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-11-08 22:21:07
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2024-01-08
  # @ Description:
  '''
 
@@ -362,7 +362,7 @@ def update_data():
                           NUM_FEATURES,
                           f"raw_data_{file_timestamp}.pkl",
                           'FICC_NEW',
-                          remove_short_maturity=True,
+                          remove_short_maturity=False,
                           trade_history_delay = 0.2,
                           min_trades_in_history = 0,
                           process_ratings=False,
