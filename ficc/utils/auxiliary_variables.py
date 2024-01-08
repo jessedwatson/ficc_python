@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-17 12:07:51
+ # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified time: 2023-12-19
+ # @ Modified date: 2024-01-08
  '''
 
 NUM_OF_DAYS_IN_YEAR = 360
@@ -54,6 +54,11 @@ related_trade_features = lambda features: flatten([[get_appended_feature_name(id
 RELATED_TRADE_BINARY_FEATURES = related_trade_features(RELATED_TRADE_BINARY_FEATURES)
 RELATED_TRADE_CATEGORICAL_FEATURES = related_trade_features(RELATED_TRADE_CATEGORICAL_FEATURES) + related_trade_features(CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE) + related_trade_features(['trade_type'])
 RELATED_TRADE_NON_CAT_FEATURES = related_trade_features(RELATED_TRADE_NON_CAT_FEATURES)
+
+
+BASE_TRADE_HISTORY_FEATURES = ['par_traded', 'trade_type1', 'trade_type2', 'seconds_ago']
+YS_BASE_TRADE_HISTORY_FEATURES = ['yield_spread'] + BASE_TRADE_HISTORY_FEATURES
+DP_BASE_TRADE_HISTORY_FEATURES = ['dollar_price'] + BASE_TRADE_HISTORY_FEATURES
 
 
 COUPON_FREQUENCY_DICT = {0: 'Unknown',

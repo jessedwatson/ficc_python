@@ -35,6 +35,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    create_input, \
                                                    get_data_and_last_trade_date, \
                                                    fit_encoders, \
+                                                   trade_history_derived_features_yield_spread, \
                                                    train_and_evaluate_model, \
                                                    save_model
 
@@ -49,6 +50,9 @@ print('***********************')
 
 STORAGE_CLIENT = get_storage_client()
 BQ_CLIENT = get_bq_client()
+
+OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'treasury_spread': True, 
+                                       'only_dollar_price_history': False}
 
 
 if 'ficc_treasury_spread' not in PREDICTORS: PREDICTORS.append('ficc_treasury_spread')
@@ -73,11 +77,6 @@ shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_pa
 shape_parameter.set_index('Date', drop=True, inplace=True)
 shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
 shape_parameter = shape_parameter.transpose().to_dict()
-
-
-D_prev = dict()
-P_prev = dict()
-S_prev = dict()
 
 
 def get_table_schema():
@@ -115,87 +114,6 @@ def extract_feature_from_trade(row, name, trade):
     seconds_ago = trade[5]
     quantity_diff = np.log10(1 + np.abs(10**trade[2] - 10**row.quantity))
     return [yield_spread, ttypes, seconds_ago, quantity_diff]
-
-
-def trade_history_derived_features(row):
-    # global TTYPE_DICT
-    global D_prev
-    global S_prev
-    global P_prev
-    # global YS_FEATS
-    # global YS_VARIANTS
-    
-    trade_history = row.trade_history
-    trade = trade_history[0]
-    
-    D_min_ago_t = D_prev.get(row.cusip, trade)
-    D_min_ago = 9        
-
-    P_min_ago_t = P_prev.get(row.cusip, trade)
-    P_min_ago = 9
-    
-    S_min_ago_t = S_prev.get(row.cusip, trade)
-    S_min_ago = 9
-    
-    max_ys_t = trade
-    max_ys = trade[0]
-    min_ys_t = trade
-    min_ys = trade[0]
-    max_qty_t = trade
-    max_qty = trade[2]
-    min_ago_t = trade
-    min_ago = trade[5]
-    
-    for trade in trade_history[0:]:
-        # Checking if the first trade in the history is from the same block
-        if trade[5] == 0: continue
- 
-        if trade[0] > max_ys: 
-            max_ys_t = trade
-            max_ys = trade[0]
-        elif trade[0] < min_ys: 
-            min_ys_t = trade
-            min_ys = trade[0]
-
-        if trade[2] > max_qty: 
-            max_qty_t = trade 
-            max_qty = trade[2]
-        if trade[5] < min_ago: 
-            min_ago_t = trade
-            min_ago = trade[5]
-            
-        side = TTYPE_DICT[(trade[3], trade[4])]
-        if side == 'D':
-            if trade[5] < D_min_ago: 
-                D_min_ago_t = trade
-                D_min_ago = trade[5]
-                D_prev[row.cusip] = trade
-        elif side == 'P':
-            if trade[5] < P_min_ago: 
-                P_min_ago_t = trade
-                P_min_ago = trade[5]
-                P_prev[row.cusip] = trade
-        elif side == 'S':
-            if trade[5] < S_min_ago: 
-                S_min_ago_t = trade
-                S_min_ago = trade[5]
-                S_prev[row.cusip] = trade
-        else: 
-            print('invalid side', trade)
-    
-    trade_history_dict = {'max_ys': max_ys_t,
-                          'min_ys': min_ys_t,
-                          'max_qty': max_qty_t,
-                          'min_ago': min_ago_t,
-                          'D_min_ago': D_min_ago_t,
-                          'P_min_ago': P_min_ago_t,
-                          'S_min_ago': S_min_ago_t}
-
-    return_list = []
-    for variant in YS_VARIANTS:
-        feature_list = extract_feature_from_trade(row, variant, trade_history_dict[variant])
-        return_list += feature_list
-    return return_list
 
 
 def return_data_query(last_trade_date):
@@ -316,8 +234,7 @@ def update_data() -> (pd.DataFrame, datetime):
                                              SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, 
                                              NUM_FEATURES, 
                                              f'raw_data_{file_timestamp}.pkl', 
-                                             treasury_spread=True, 
-                                             only_dollar_price_history=False)
+                                             **OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
 
     if data_from_last_trade_date is not None:    # there is new data since `last_trade_date`
         print(f'Restricting history to {SEQUENCE_LENGTH_YIELD_SPREAD_MODEL} trades')
@@ -348,7 +265,7 @@ def update_data() -> (pd.DataFrame, datetime):
     ####### Adding trade history features to the data ###########
     print('Adding features from previous trade history')
     data.sort_values('trade_datetime', inplace=True)
-    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
+    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features_yield_spread, axis=1)
     YS_COLS = get_trade_history_columns('yield_spread')
     data[YS_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
     del temp

@@ -1,15 +1,15 @@
 '''
  # @ Author: Anis Ahmad 
- # @ Create Time: 2021-12-15 13:59:54
+ # @ Create date: 2021-12-15
  # @ Modified by: Mitas Ray
- # @ Modified time: 2023-12-29
+ # @ Modified date: 2024-01-08
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
 import datetime
 import pandas as pd
 
-from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, YS_BASE_TRADE_HISTORY_FEATURES, DP_BASE_TRADE_HISTORY_FEATURES
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 
 
@@ -113,3 +113,10 @@ def calculate_dollar_error(df, predicted_ys):
     return ytw_error * (10 ** df['quantity']) * years_to_calc_date    # dollar error = duration * quantity * ytw error; duration = calc_date - settlement_date [in years]
 
 
+def get_ys_trade_history_features(treasury_spread=False):
+    if treasury_spread: features = YS_BASE_TRADE_HISTORY_FEATURES[:1] + ['treasury_spread'] + YS_BASE_TRADE_HISTORY_FEATURES[1:]
+    return features
+
+
+def get_dp_trade_history_features():
+    return DP_BASE_TRADE_HISTORY_FEATURES

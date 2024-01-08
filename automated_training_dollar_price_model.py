@@ -28,6 +28,7 @@ from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    get_data_and_last_trade_date, \
                                                    fit_encoders, \
                                                    train_and_evaluate_model, \
+                                                   trade_history_derived_features_dollar_price, \
                                                    save_model, \
                                                    send_results_email
 
@@ -39,6 +40,9 @@ for gpu in gpus:
 
 STORAGE_CLIENT = get_storage_client()
 BQ_CLIENT = get_bq_client()
+
+OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'treasury_spread': False, 
+                                       'only_dollar_price_history': True}
 
 
 D_prev = dict()
@@ -53,86 +57,6 @@ def extract_feature_from_trade(row, name, trade):
     seconds_ago = trade[4]
     quantity_diff = np.log10(1 + np.abs(10**trade[1] - 10**row.quantity))
     return [dollar_price, ttypes,  seconds_ago, quantity_diff]
-
-
-def trade_history_derived_features(row):
-    # global TTYPE_DICT
-    global D_prev
-    global S_prev
-    global P_prev
-    # global DP_FEATS
-    # global DP_VARIANTS
-    trade_history = row.trade_history
-    trade = trade_history[0]
-    
-    D_min_ago_t = D_prev.get(row.cusip, trade)
-    D_min_ago = 9        
-
-    P_min_ago_t = P_prev.get(row.cusip, trade)
-    P_min_ago = 9
-    
-    S_min_ago_t = S_prev.get(row.cusip, trade)
-    S_min_ago = 9
-    
-    max_dp_t = trade
-    max_dp = trade[0]
-    min_dp_t = trade
-    min_dp = trade[0]
-    max_qty_t = trade
-    max_qty = trade[1]
-    min_ago_t = trade
-    min_ago = trade[4]
-    
-    for trade in trade_history[0:]:
-        # Checking if the first trade in the history is from the same block
-        if trade[4] <= 0: continue    # TODO: this is `==` in `automated_training_yield_spread_model.py`
- 
-        if trade[0] > max_dp: 
-            max_dp_t = trade
-            max_dp = trade[0]
-        elif trade[0] < min_dp: 
-            min_dp_t = trade; 
-            min_dp = trade[0]
-
-        if trade[1] > max_qty: 
-            max_qty_t = trade 
-            max_qty = trade[1]
-        if trade[4] < min_ago: 
-            min_ago_t = trade; 
-            min_ago = trade[4]
-            
-        side = TTYPE_DICT[(trade[2], trade[3])]
-        if side == 'D':
-            if trade[4] < D_min_ago: 
-                D_min_ago_t = trade
-                D_min_ago = trade[4]
-                D_prev[row.cusip] = trade
-        elif side == 'P':
-            if trade[4] < P_min_ago: 
-                P_min_ago_t = trade
-                P_min_ago = trade[4]
-                P_prev[row.cusip] = trade
-        elif side == 'S':
-            if trade[4] < S_min_ago: 
-                S_min_ago_t = trade
-                S_min_ago = trade[4]
-                S_prev[row.cusip] = trade
-        else: 
-            print('invalid side', trade)
-    
-    trade_history_dict = {'max_dp': max_dp_t,
-                          'min_dp': min_dp_t,
-                          'max_qty': max_qty_t,
-                          'min_ago': min_ago_t,
-                          'D_min_ago': D_min_ago_t,
-                          'P_min_ago': P_min_ago_t,
-                          'S_min_ago': S_min_ago_t}
-
-    return_list = []
-    for variant in DP_VARIANTS:
-        feature_list = extract_feature_from_trade(row, variant, trade_history_dict[variant])
-        return_list += feature_list
-    return return_list
 
 
 def return_data_query(last_trade_date):
@@ -242,9 +166,8 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
                                              BQ_CLIENT, 
                                              SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, 
                                              NUM_FEATURES, 
-                                             f'raw_data_{file_timestamp}.pkl',
-                                             treasury_spread=False, 
-                                             only_dollar_price_history=True)
+                                             f'raw_data_{file_timestamp}.pkl', 
+                                             **OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     
     if data_from_last_trade_date is not None:    # there is new data since `last_trade_date`
         print(f'Restricting history to {SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL} trades')
@@ -265,7 +188,7 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
 
     ####### Adding trade history features to the data ###########
     print('Adding features from previous trade history')
-    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
+    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features_dollar_price, axis=1)
     DP_COLS = get_trade_history_columns('dollar_price')
     data[DP_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
     del temp

@@ -70,7 +70,7 @@ def process_data(query,
         if YIELD_CURVE.upper() == 'FICC' or YIELD_CURVE.upper() == 'FICC_NEW':
             # Calculating yield spreads using ficc_ycl
             print('Calculating yield spread using ficc yield curve')
-            trades_df['ficc_ycl'] = trades_df[['trade_date','calc_date']].parallel_apply(get_ficc_ycl,axis=1)
+            trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(get_ficc_ycl, axis=1)
             
              
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']

@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2023-12-19
+ # @ Modified date: 2024-01-08
  '''
 import os
 import gcsfs
@@ -59,7 +59,7 @@ CATEGORICAL_FEATURES_VALUES = {'purpose_class' : list(range(53 + 1)),    # possi
                                                             'OK', 'OR', 'PA', 'PR', 'RI', 'SC', 'SD', 'TN', 'TX', 'US', 'UT', 'VA', 'VI',
                                                             'VT', 'WA', 'WI', 'WV', 'WY'] }
 
-TTYPE_DICT = { (0,0):'D', (0,1):'S', (1,0):'P' }
+TTYPE_DICT = {(0, 0): 'D', (0, 1): 'S', (1, 0): 'P'}
 
 _VARIANTS = ['max_qty', 'min_ago', 'D_min_ago', 'P_min_ago', 'S_min_ago']
 YS_VARIANTS = ['max_ys', 'min_ys'] + _VARIANTS
@@ -67,6 +67,12 @@ DP_VARIANTS = ['max_dp', 'min_dp'] + _VARIANTS
 _FEATS = ['_ttypes', '_ago', '_qdiff']
 YS_FEATS = ['_ys'] + _FEATS
 DP_FEATS = ['_dp'] + _FEATS
+
+LONG_TIME_AGO_IN_NUM_SECONDS = 9    # default `num_seconds_ago` value to signify that the trade was a long time ago (9 is a large value since the `num_seconds_ago` is log10 transformed)
+
+D_prev = dict()
+P_prev = dict()
+S_prev = dict()
 
 
 def get_trade_history_columns(model):
@@ -155,6 +161,110 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
     with open(filename, 'wb') as file:
         pickle.dump(encoders, file)
     return encoders, fmax
+
+
+def _trade_history_derived_features(row, yield_spread_or_dollar_price):
+    assert yield_spread_or_dollar_price in ('yield_spread', 'dollar_price'), f'Invalid value for yield_spread_or_dollar_price: {yield_spread_or_dollar_price}'
+    if yield_spread_or_dollar_price == 'yield_spread':
+        variants = YS_VARIANTS
+        trade_history_features = get_ys_trade_history_features()
+    else:
+        variants = DP_VARIANTS
+        trade_history_features = get_dp_trade_history_features()
+
+    ys_or_dp_idx = trade_history_features.index(yield_spread_or_dollar_price)
+    par_traded_idx = trade_history_features.index('par_traded')
+    trade_type1_idx = trade_history_features.index('trade_type1')
+    trade_type2_idx = trade_history_features.index('trade_type2')
+    seconds_ago_idx = trade_history_features.index('seconds_ago')
+
+    global D_prev
+    global S_prev
+    global P_prev
+    
+    trade_history = row.trade_history
+    most_recent_trade = trade_history[0]
+    
+    D_min_ago_t = D_prev.get(row.cusip, trade)
+    D_min_ago = LONG_TIME_AGO_IN_NUM_SECONDS        
+
+    P_min_ago_t = P_prev.get(row.cusip, trade)
+    P_min_ago = LONG_TIME_AGO_IN_NUM_SECONDS
+    
+    S_min_ago_t = S_prev.get(row.cusip, trade)
+    S_min_ago = LONG_TIME_AGO_IN_NUM_SECONDS
+    
+    max_ys_or_dp_t = most_recent_trade
+    max_ys_or_dp = most_recent_trade[ys_or_dp_idx]
+    min_ys_or_dp_t = most_recent_trade
+    min_ys_or_dp = most_recent_trade[ys_or_dp_idx]
+    max_qty_t = most_recent_trade
+    max_qty = most_recent_trade[par_traded_idx]
+    min_ago_t = most_recent_trade
+    min_ago = most_recent_trade[seconds_ago_idx]
+    
+    for trade in trade_history:
+        seconds_ago = trade[seconds_ago_idx]
+        # Checking if the first trade in the history is from the same block; TODO: shouldn't this be checked for every trade?
+        if seconds_ago == 0: continue
+
+        ys_or_dp = trade[ys_or_dp_idx]
+        if ys_or_dp > max_ys_or_dp: 
+            max_ys_or_dp_t = trade
+            max_ys_or_dp =ys_or_dp
+        elif ys_or_dp < min_ys_or_dp: 
+            min_ys_or_dp_t = trade
+            min_ys_or_dp = ys_or_dp
+
+        par_traded = trade[par_traded_idx]
+        if par_traded > max_qty: 
+            max_qty_t = trade 
+            max_qty = par_traded
+
+        if seconds_ago < min_ago:    # TODO: isn't this just the most recent trade not in the same block, and isn't this initialized above already?
+            min_ago_t = trade
+            min_ago = seconds_ago
+            
+        side = TTYPE_DICT[(trade[trade_type1_idx], trade[trade_type2_idx])]
+        if side == 'D':
+            if seconds_ago < D_min_ago: 
+                D_min_ago_t = trade
+                D_min_ago = seconds_ago
+                D_prev[row.cusip] = trade
+        elif side == 'P':
+            if seconds_ago < P_min_ago: 
+                P_min_ago_t = trade
+                P_min_ago = seconds_ago
+                P_prev[row.cusip] = trade
+        elif side == 'S':
+            if seconds_ago < S_min_ago: 
+                S_min_ago_t = trade
+                S_min_ago = seconds_ago
+                S_prev[row.cusip] = trade
+        else: 
+            print('invalid side', trade)
+    
+    suffix = 'ys' if yield_spread_or_dollar_price == 'yield_spread' else 'dp'
+    trade_history_dict = dict(zip(variants, [max_ys_or_dp_t, min_ys_or_dp_t, max_qty_t, min_ago_t, D_min_ago_t, P_min_ago_t, S_min_ago_t]))
+    trade_history_dict = {f'max_{suffix}': max_ys_or_dp_t,
+                          f'min_{suffix}': min_ys_or_dp_t,
+                          'max_qty': max_qty_t,
+                          'min_ago': min_ago_t,
+                          'D_min_ago': D_min_ago_t,
+                          'P_min_ago': P_min_ago_t,
+                          'S_min_ago': S_min_ago_t}
+
+    return_list = []
+    for variant in variants:
+        feature_list = extract_feature_from_trade(row, variant, trade_history_dict[variant])
+        return_list += feature_list
+    return return_list
+
+
+def trade_history_derived_features_yield_spread(row):
+    return _trade_history_derived_features(row, 'yield_spread')
+def trade_history_derived_features_dollar_price(row):
+    return _trade_history_derived_features(row, 'dollar_price')
 
 
 def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
