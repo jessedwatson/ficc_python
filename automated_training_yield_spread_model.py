@@ -9,7 +9,7 @@ import pandas as pd
 import tensorflow as tf
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_functions import sqltodf, get_ys_trade_history_features
+from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, NUM_OF_DAYS_IN_YEAR
 from ficc.utils.nelson_siegel_model import yield_curve_level
@@ -120,6 +120,7 @@ def get_yield_for_last_duration(row):
     return ycl
 
 
+@function_timer
 def update_data() -> (pd.DataFrame, datetime, int):
     '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
     `process_data(...)` or `SEQUENCE_LENGTH_YIELD_SPREAD_MODEL` are changed, then we need to rebuild the entire `processed_data_test.pkl` 
@@ -214,6 +215,7 @@ def segment_results(data):
     return result_df
 
 
+@function_timer
 def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, 'yield_spread')
 

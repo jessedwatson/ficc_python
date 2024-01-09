@@ -6,7 +6,9 @@
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
-import datetime
+import time
+from datetime import datetime, timedelta
+from functools import wraps
 import pandas as pd
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, YS_BASE_TRADE_HISTORY_FEATURES, DP_BASE_TRADE_HISTORY_FEATURES
@@ -17,6 +19,19 @@ from ficc.utils.diff_in_days import diff_in_days_two_dates
 function is used to put string arguments into formatted string expressions and 
 maintain the quotation.'''
 double_quote_a_string = lambda potential_string: f'"{str(potential_string)}"' if type(potential_string) == str else potential_string
+
+
+def function_timer(function_to_time):
+    '''This function is to be used as a decorator. It will print out the execution time of `function_to_time`.'''
+    @wraps(function_to_time)    # used to ensure that the function name is still the same after applying the decorator when running tests: https://stackoverflow.com/questions/6312167/python-unittest-cant-call-decorated-test
+    def wrapper(*args, **kwargs):    # using the same formatting from https://docs.python.org/3/library/functools.html
+        print(f'BEGIN {function_to_time.__name__}')
+        start_time = time.time()
+        result = function_to_time(*args, **kwargs)
+        end_time = time.time()
+        print(f'END {function_to_time.__name__}. Execution time: {timedelta(seconds=end_time - start_time)}')
+        return result
+    return wrapper
 
 
 def sqltodf(sql, bq_client):
@@ -49,7 +64,7 @@ def convert_to_date(date):
     '''Converts an object, either of type pd.Timestamp or datetime.datetime to a 
     datetime.date object.'''
     if isinstance(date, pd.Timestamp): date = date.to_pydatetime()
-    if isinstance(date, datetime.datetime): date = date.date()
+    if isinstance(date, datetime): date = date.date()
     return date    # assumes the type is datetime.date
 
 
@@ -66,13 +81,13 @@ def dates_are_equal(date1, date2):
 
 def convert_object_to_category(df):
     '''Converts the columns with object datatypes to category data types'''
-    print("Converting object data type to categorical data type")
+    print('Converting object data type to categorical data type')
     for col_name in df.columns:
-        if col_name.endswith("event") or col_name.endswith("redemption") or col_name.endswith("history") or col_name.endswith("date") or col_name.endswith("issue"):
+        if col_name.endswith('event') or col_name.endswith('redemption') or col_name.endswith('history') or col_name.endswith('date') or col_name.endswith('issue'):
             continue
 
-        if df[col_name].dtype == "object" and col_name not in ['organization_primary_name','security_description','recent','issue_text','series_name','recent_trades_by_series','recent_trades_same_calc_day']:
-            df[col_name] = df[col_name].astype("category")
+        if df[col_name].dtype == 'object' and col_name not in ['organization_primary_name','security_description','recent','issue_text','series_name','recent_trades_by_series','recent_trades_same_calc_day']:
+            df[col_name] = df[col_name].astype('category')
     return df
 
 

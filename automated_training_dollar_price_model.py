@@ -9,7 +9,7 @@ import pandas as pd
 import tensorflow as tf
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
-from ficc.utils.auxiliary_functions import get_dp_trade_history_features
+from ficc.utils.auxiliary_functions import function_timer, get_dp_trade_history_features
 from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime
 from dollar_model import dollar_price_model
@@ -48,6 +48,7 @@ OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'treasury_spread': False,
                                        'only_dollar_price_history': True}
 
 
+@function_timer
 def update_data() -> (pd.DataFrame, datetime.datetime, int):
     '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
     `process_data(...)` or `SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL` are changed, then we need to rebuild the entire 
@@ -105,6 +106,7 @@ def update_data() -> (pd.DataFrame, datetime.datetime, int):
     return data, last_trade_date, num_features_for_each_trade_in_history
 
 
+@function_timer
 def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
 

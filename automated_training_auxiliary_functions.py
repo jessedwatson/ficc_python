@@ -389,6 +389,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
                             batch_size=1000)
     return model, mae, history
 
+
 def save_model(model, encoders, storage_client, dollar_price_model):
     '''`dollar_price_model` is a boolean flag that indicates whether we are 
     working with the dollar price model instead of hte yield spread model.'''
