@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-08
+ # @ Modified date: 2024-01-09
  '''
 import os
 import gcsfs
@@ -153,6 +153,17 @@ QUERY_CONDITIONS = ['par_traded >= 10000',
                     'msrb_valid_to_date > current_date',    # condition to remove cancelled trades
                     'settlement_date IS NOT NULL']
 ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL = ['yield IS NOT NULL', 'yield > 0']
+
+NUM_EPOCHS = 100
+BATCH_SIZE = 1000
+DROPOUT = 0.01
+
+TESTING = False
+if TESTING:
+    SAVE_MODEL_AND_DATA = False
+    print('Check get_creds(...) to make sure the credentials are correct for the local machine')
+    NUM_EPOCHS = 10
+
 
 D_prev = dict()
 P_prev = dict()
@@ -374,8 +385,8 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
 
     history = model.fit(x_train, 
                         y_train, 
-                        epochs=100, 
-                        batch_size=1000,
+                        epochs=NUM_EPOCHS, 
+                        batch_size=BATCH_SIZE,
                         verbose=1,
                         validation_split=0.1,
                         callbacks=fit_callbacks,
@@ -385,7 +396,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
     _, mae = model.evaluate(x_test, 
                             y_test, 
                             verbose=1, 
-                            batch_size=1000)
+                            batch_size=BATCH_SIZE)
     return model, mae, history
 
 
