@@ -129,8 +129,9 @@ def calculate_dollar_error(df, predicted_ys):
 
 
 def get_ys_trade_history_features(treasury_spread=False):
-    if treasury_spread: features = YS_BASE_TRADE_HISTORY_FEATURES[:1] + ['treasury_spread'] + YS_BASE_TRADE_HISTORY_FEATURES[1:]
-    return features
+    if treasury_spread:
+        return YS_BASE_TRADE_HISTORY_FEATURES[:1] + ['treasury_spread'] + YS_BASE_TRADE_HISTORY_FEATURES[1:]
+    return YS_BASE_TRADE_HISTORY_FEATURES
 
 
 def get_dp_trade_history_features():

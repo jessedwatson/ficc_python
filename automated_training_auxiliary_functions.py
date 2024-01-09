@@ -278,11 +278,11 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
     return encoders, fmax
 
 
-def _trade_history_derived_features(row, yield_spread_or_dollar_price):
+def _trade_history_derived_features(row, yield_spread_or_dollar_price, using_treasury_spread):
     assert yield_spread_or_dollar_price in ('yield_spread', 'dollar_price'), f'Invalid value for yield_spread_or_dollar_price: {yield_spread_or_dollar_price}'
     if yield_spread_or_dollar_price == 'yield_spread':
         variants = YS_VARIANTS
-        trade_history_features = get_ys_trade_history_features()
+        trade_history_features = get_ys_trade_history_features(using_treasury_spread)
     else:
         variants = DP_VARIANTS
         trade_history_features = get_dp_trade_history_features()
@@ -376,8 +376,8 @@ def _trade_history_derived_features(row, yield_spread_or_dollar_price):
     return variant_trade_list
 
 
-def trade_history_derived_features_yield_spread(row):
-    return _trade_history_derived_features(row, 'yield_spread')
+def trade_history_derived_features_yield_spread(using_treasury_spread):
+    return lambda row: _trade_history_derived_features(row, 'yield_spread', using_treasury_spread)
 def trade_history_derived_features_dollar_price(row):
     return _trade_history_derived_features(row, 'dollar_price')
 

@@ -128,7 +128,8 @@ def update_data() -> (pd.DataFrame, datetime, int):
     DATA_QUERY = return_data_query(last_trade_date, QUERY_FEATURES, ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL + QUERY_CONDITIONS)
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
-    ys_trade_history_features = get_ys_trade_history_features(OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA.get('treasury_spread', False))
+    using_treasury_spread = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA.get('treasury_spread', False)
+    ys_trade_history_features = get_ys_trade_history_features(using_treasury_spread)
     num_features_for_each_trade_in_history = len(ys_trade_history_features)
     data_from_last_trade_date = process_data(DATA_QUERY, 
                                              BQ_CLIENT, 
@@ -147,10 +148,10 @@ def update_data() -> (pd.DataFrame, datetime, int):
         data_from_last_trade_date['yield'] = data_from_last_trade_date['yield'] * 100
         data_from_last_trade_date['last_trade_date'] = data_from_last_trade_date['last_trade_datetime'].dt.date
         data_from_last_trade_date['new_ficc_ycl'] = data_from_last_trade_date[['last_calc_date',
-                                                                            'last_settlement_date',
-                                                                            'trade_date',
-                                                                            'last_trade_date',
-                                                                            'maturity_date']].parallel_apply(get_yield_for_last_duration, axis=1)
+                                                                               'last_settlement_date',
+                                                                               'trade_date',
+                                                                               'last_trade_date',
+                                                                               'maturity_date']].parallel_apply(get_yield_for_last_duration, axis=1)
 
         data_from_last_trade_date['new_ficc_ycl'] = data_from_last_trade_date['new_ficc_ycl'] * 100
         data_from_last_trade_date['target_attention_features'] = data_from_last_trade_date.parallel_apply(target_trade_processing_for_attention, axis=1)
@@ -167,7 +168,7 @@ def update_data() -> (pd.DataFrame, datetime, int):
     ####### Adding trade history features to the data ###########
     print('Adding features from previous trade history')
     data.sort_values('trade_datetime', inplace=True)
-    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features_yield_spread, axis=1)
+    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features_yield_spread(using_treasury_spread), axis=1)
     YS_COLS = get_trade_history_columns('yield_spread')
     data[YS_COLS] = pd.DataFrame(temp.tolist(), index=data.index)
     del temp
