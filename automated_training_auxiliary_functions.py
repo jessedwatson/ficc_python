@@ -50,7 +50,6 @@ def get_bq_client():
 
 SEQUENCE_LENGTH_YIELD_SPREAD_MODEL = 5
 SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL = 2
-NUM_FEATURES = 6
 
 CATEGORICAL_FEATURES_VALUES = {'purpose_class' : list(range(53 + 1)),    # possible values for `purpose_class` are 0 through 53
                                'rating' : ['A', 'A+', 'A-', 'AA', 'AA+', 'AA-', 'AAA', 'B', 'B+', 'B-', 'BB', 'BB+', 'BB-',
