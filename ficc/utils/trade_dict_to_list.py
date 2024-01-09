@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-16 13:58:58
+ # @ Create date: 2021-12-16
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-10-11 17:32:54
+ # @ Modified date: 2024-01-08
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -11,21 +11,16 @@
  # Taking the log of the size of the trade to reduce the absolute scale 
  # Taking the log of the number of seconds between the historical trade and the latest trade
  '''
-
-from time import time
 import numpy as np
-from datetime import datetime
-import pandas as pd
 
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.yield_curve import yield_curve_level
 import ficc.utils.globals as globals
-from pandas.tseries.offsets import BDay
-
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
 
 def trade_dict_to_list(trade_dict: dict, 
                        remove_short_maturity, 
@@ -42,7 +37,7 @@ def trade_dict_to_list(trade_dict: dict,
             return None, None
 
     # Making sure that the most recent trade
-    if trade_dict['seconds_ago'] < (trade_history_delay * 60):
+    if trade_dict['seconds_ago'] < trade_history_delay:
         return None, None
 
     

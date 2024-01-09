@@ -5,16 +5,10 @@
  # @ Modified date: 2024-01-08
  # @ Description: Source code to process trade history from BigQuery
  '''
-import pandas as pd
-from pandas.tseries.offsets import BDay
 import numpy as np
-from pytz import timezone
-pacific = timezone('US/Pacific')
-
 # Pandaralled is a python package that is 
 # used to multi-thread df apply
 from pandarallel import pandarallel
-from datetime import datetime, timedelta
 
 import os
 
@@ -39,7 +33,7 @@ def process_data(query,
                  PATH, 
                  YIELD_CURVE='FICC_NEW', 
                  remove_short_maturity=False, 
-                 trade_history_delay=0.2, 
+                 trade_history_delay=12, 
                  min_trades_in_history=0, 
                  treasury_spread=False, 
                  add_flags=False, 
@@ -50,7 +44,7 @@ def process_data(query,
     
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
-    print(f'Running with\n remove_short_maturity:{remove_short_maturity}\n trade_history_delay:{trade_history_delay}\n min_trades_in_hist:{min_trades_in_history}\n add_flags:{add_flags}')
+    print(f'Running with\n remove_short_maturity: {remove_short_maturity}\n trade_history_delay: {trade_history_delay}\n min_trades_in_hist: {min_trades_in_history}\n add_flags: {add_flags}')
     
     trades_df = process_trade_history(query,
                                       client, 

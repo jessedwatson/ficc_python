@@ -279,7 +279,7 @@ def send_results_email_table(result_df, last_trade_date):
     smtp_server = 'smtp.gmail.com'
     port = 587
 
-    with smtplib.SMTP(smtp_server,port) as server:
+    with smtplib.SMTP(smtp_server, port) as server:
         try:
             server.starttls()
             server.login(sender_email, 'ztwbwrzdqsucetbg')
