@@ -24,7 +24,6 @@ from email.mime.multipart import MIMEMultipart
 from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
                                                    TTYPE_DICT, \
-                                                   YS_VARIANTS, \
                                                    QUERY_FEATURES, \
                                                    QUERY_CONDITIONS, \
                                                    ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \

@@ -16,7 +16,6 @@ from dollar_model import dollar_price_model
 from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, \
                                                    TTYPE_DICT, \
-                                                   DP_VARIANTS, \
                                                    QUERY_FEATURES, \
                                                    QUERY_CONDITIONS, \
                                                    ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
@@ -56,7 +55,7 @@ def extract_feature_from_trade(row, name, trade):
     ttypes = TTYPE_DICT[(trade[2],trade[3])] + row.trade_type
     seconds_ago = trade[4]
     quantity_diff = np.log10(1 + np.abs(10**trade[1] - 10**row.quantity))
-    return [dollar_price, ttypes,  seconds_ago, quantity_diff]
+    return [dollar_price, ttypes, seconds_ago, quantity_diff]
 
 
 def update_data() -> (pd.DataFrame, datetime.datetime):

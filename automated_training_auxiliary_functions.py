@@ -22,6 +22,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from ficc.utils.gcp_storage_functions import upload_data
+from ficc.utils.auxiliary_functions import get_ys_trade_history_features, get_dp_trade_history_features
 
 
 SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
@@ -272,6 +273,15 @@ def _trade_history_derived_features(row, yield_spread_or_dollar_price):
     trade_type2_idx = trade_history_features.index('trade_type2')
     seconds_ago_idx = trade_history_features.index('seconds_ago')
 
+
+    def extract_feature_from_trade(row, name, trade):    # `name` is used solely for debugging
+        ys_or_dp = trade[ys_or_dp_idx]
+        ttypes = TTYPE_DICT[(trade[trade_type1_idx], trade[trade_type2_idx])] + row.trade_type
+        seconds_ago = trade[seconds_ago_idx]
+        quantity_diff = np.log10(1 + np.abs(10**trade[par_traded_idx] - 10**row.quantity))
+        return [ys_or_dp, ttypes, seconds_ago, quantity_diff]
+
+
     global D_prev
     global S_prev
     global P_prev
@@ -338,21 +348,12 @@ def _trade_history_derived_features(row, yield_spread_or_dollar_price):
         else: 
             print('invalid side', trade)
     
-    suffix = 'ys' if yield_spread_or_dollar_price == 'yield_spread' else 'dp'
-    trade_history_dict = dict(zip(variants, [max_ys_or_dp_t, min_ys_or_dp_t, max_qty_t, min_ago_t, D_min_ago_t, P_min_ago_t, S_min_ago_t]))
-    trade_history_dict = {f'max_{suffix}': max_ys_or_dp_t,
-                          f'min_{suffix}': min_ys_or_dp_t,
-                          'max_qty': max_qty_t,
-                          'min_ago': min_ago_t,
-                          'D_min_ago': D_min_ago_t,
-                          'P_min_ago': P_min_ago_t,
-                          'S_min_ago': S_min_ago_t}
-
-    return_list = []
-    for variant in variants:
-        feature_list = extract_feature_from_trade(row, variant, trade_history_dict[variant])
-        return_list += feature_list
-    return return_list
+    variant_trade_dict = dict(zip(variants, [max_ys_or_dp_t, min_ys_or_dp_t, max_qty_t, min_ago_t, D_min_ago_t, P_min_ago_t, S_min_ago_t]))
+    variant_trade_list = []
+    for variant_name, variant_trade in variant_trade_dict.items():
+        feature_list = extract_feature_from_trade(row, variant_name, variant_trade)
+        variant_trade_list += feature_list
+    return variant_trade_list
 
 
 def trade_history_derived_features_yield_spread(row):
