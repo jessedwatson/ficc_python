@@ -125,11 +125,11 @@ def model_definition(trade_history_normalizer,
     reference_hidden = layers.BatchNormalization()(reference_hidden)
     reference_hidden = layers.Dropout(DROPOUT)(reference_hidden)
 
-    reference_hidden2 = layers.Dense(200,activation='relu', name='reference_hidden_2')(reference_hidden)
+    reference_hidden2 = layers.Dense(200, activation='relu', name='reference_hidden_2')(reference_hidden)
     reference_hidden2 = layers.BatchNormalization()(reference_hidden2)
     reference_hidden2 = layers.Dropout(DROPOUT)(reference_hidden2)
 
-    reference_output = layers.Dense(100,activation='tanh', name='reference_hidden_3')(reference_hidden2)
+    reference_output = layers.Dense(100, activation='tanh', name='reference_hidden_3')(reference_hidden2)
 
     ####################################################
 

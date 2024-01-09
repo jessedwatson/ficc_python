@@ -99,21 +99,21 @@ def model_definition(trade_history_normalizer,
     reference_hidden = layers.BatchNormalization()(reference_hidden)
     reference_hidden = layers.Dropout(DROPOUT)(reference_hidden)
 
-    reference_hidden2 = layers.Dense(200,activation='relu', name='reference_hidden_2')(reference_hidden)
+    reference_hidden2 = layers.Dense(200, activation='relu', name='reference_hidden_2')(reference_hidden)
     reference_hidden2 = layers.BatchNormalization()(reference_hidden2)
     reference_hidden2 = layers.Dropout(DROPOUT)(reference_hidden2)
 
-    reference_output = layers.Dense(100,activation='relu', name='reference_hidden_3')(reference_hidden2)
+    reference_output = layers.Dense(100, activation='relu', name='reference_hidden_3')(reference_hidden2)
 
     ####################################################
 
     feed_forward_input = layers.concatenate([reference_output, trade_history_output])
 
-    hidden = layers.Dense(300,activation='relu', name='output_layer_1')(feed_forward_input)
+    hidden = layers.Dense(300, activation='relu', name='output_layer_1')(feed_forward_input)
     hidden = layers.BatchNormalization()(hidden)
     hidden = layers.Dropout(DROPOUT)(hidden)
 
-    hidden2 = layers.Dense(100,activation='relu', name='output_layer_2')(hidden)
+    hidden2 = layers.Dense(100, activation='relu', name='output_layer_2')(hidden)
     hidden2 = layers.BatchNormalization()(hidden2)
     hidden2 = layers.Dropout(DROPOUT)(hidden2)
 
