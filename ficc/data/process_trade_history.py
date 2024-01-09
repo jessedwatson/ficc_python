@@ -40,7 +40,7 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
 def process_trade_history(query,
                           client, 
                           SEQUENCE_LENGTH, 
-                          NUM_FEATURES, 
+                          num_features_for_each_trade_in_history, 
                           PATH,  
                           remove_short_maturity,
                           trade_history_delay, 
@@ -115,14 +115,9 @@ def process_trade_history(query,
 
     print('Padding history')
     print(f'Minimum number of trades required in the history {min_trades_in_history}')
-    if only_dollar_price_history == False:
-        trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, 
-                                                                                                              NUM_FEATURES,
-                                                                                                              min_trades_in_history])
-    else:
-        trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, 
-                                                                                                              NUM_FEATURES - 1, 
-                                                                                                              min_trades_in_history])
+    trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, 
+                                                                                                          num_features_for_each_trade_in_history,
+                                                                                                          min_trades_in_history])
     print('Padding completed')
      
     trade_dataframe.dropna(subset=['trade_history'], inplace=True)

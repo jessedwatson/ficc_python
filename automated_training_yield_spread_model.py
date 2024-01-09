@@ -9,7 +9,7 @@ import pandas as pd
 import tensorflow as tf
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_functions import sqltodf
+from ficc.utils.auxiliary_functions import sqltodf, get_ys_trade_history_features
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, NUM_OF_DAYS_IN_YEAR
 from ficc.utils.nelson_siegel_model import yield_curve_level
@@ -21,8 +21,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from automated_training_auxiliary_functions import NUM_FEATURES, \
-                                                   SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
+from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
                                                    QUERY_FEATURES, \
                                                    QUERY_CONDITIONS, \
                                                    ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
@@ -121,7 +120,7 @@ def get_yield_for_last_duration(row):
     return ycl
 
 
-def update_data() -> (pd.DataFrame, datetime):
+def update_data() -> (pd.DataFrame, datetime, int):
     '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
     `process_data(...)` or `SEQUENCE_LENGTH_YIELD_SPREAD_MODEL` are changed, then we need to rebuild the entire `processed_data_test.pkl` 
     since that data is will have the old preferences; an easy way to do that is to manually set `last_trade_date` to a 
@@ -133,10 +132,12 @@ def update_data() -> (pd.DataFrame, datetime):
     DATA_QUERY = return_data_query(last_trade_date, QUERY_FEATURES, ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL + QUERY_CONDITIONS)
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
+    ys_trade_history_features = get_ys_trade_history_features(OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA.get('treasury_spread', False))
+    num_features_for_each_trade_in_history = len(ys_trade_history_features)
     data_from_last_trade_date = process_data(DATA_QUERY, 
                                              BQ_CLIENT, 
                                              SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, 
-                                             NUM_FEATURES, 
+                                             num_features_for_each_trade_in_history, 
                                              f'raw_data_{file_timestamp}.pkl', 
                                              **OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
 
@@ -183,7 +184,7 @@ def update_data() -> (pd.DataFrame, datetime):
         data.to_pickle(file_name)  
         print(f'Uploading data to {BUCKET_NAME}/{file_name}')
         upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name)
-    return data, last_trade_date
+    return data, last_trade_date, num_features_for_each_trade_in_history
 
 
 def segment_results(data):
@@ -213,7 +214,7 @@ def segment_results(data):
     return result_df
 
 
-def train_model(data, last_trade_date):
+def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, 'yield_spread')
 
     train_data = data[data.trade_date <= last_trade_date]
@@ -234,7 +235,7 @@ def train_model(data, last_trade_date):
 
     model = yield_spread_model(x_train, 
                                SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, 
-                               NUM_FEATURES,
+                               num_features_for_each_trade_in_history,
                                CATEGORICAL_FEATURES, 
                                NON_CAT_FEATURES, 
                                BINARY, 
@@ -295,11 +296,11 @@ def main():
     print(f'\n\nFunction starting {datetime.now()}')
 
     print('Processing data')
-    data, last_trade_date = update_data()
+    data, last_trade_date, num_features_for_each_trade_in_history = update_data()
     print('Data processed')
     
     print('Training model')
-    model, encoders, mae, result_df = train_model(data, last_trade_date)
+    model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
     print('Training done')
 
     if SAVE_MODEL_AND_DATA:

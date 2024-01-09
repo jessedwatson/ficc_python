@@ -9,12 +9,12 @@ import pandas as pd
 import tensorflow as tf
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
+from ficc.utils.auxiliary_functions import get_dp_trade_history_features
 from ficc.utils.gcp_storage_functions import upload_data
 from datetime import datetime
 from dollar_model import dollar_price_model
 
-from automated_training_auxiliary_functions import NUM_FEATURES, \
-                                                   SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, \
+from automated_training_auxiliary_functions import SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, \
                                                    QUERY_FEATURES, \
                                                    QUERY_CONDITIONS, \
                                                    ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
@@ -48,7 +48,7 @@ OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'treasury_spread': False,
                                        'only_dollar_price_history': True}
 
 
-def update_data() -> (pd.DataFrame, datetime.datetime):
+def update_data() -> (pd.DataFrame, datetime.datetime, int):
     '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
     `process_data(...)` or `SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL` are changed, then we need to rebuild the entire 
     `processed_data_dollar_price.pkl` since that data is will have the old preferences; an easy way to do that 
@@ -60,10 +60,12 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
     DATA_QUERY = return_data_query(last_trade_date, QUERY_FEATURES + ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, QUERY_CONDITIONS)
     file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
 
+    dp_trade_history_features = get_dp_trade_history_features()
+    num_features_for_each_trade_in_history = len(dp_trade_history_features)
     data_from_last_trade_date = process_data(DATA_QUERY, 
                                              BQ_CLIENT, 
                                              SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, 
-                                             NUM_FEATURES, 
+                                             num_features_for_each_trade_in_history, 
                                              f'raw_data_{file_timestamp}.pkl', 
                                              **OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     
@@ -100,10 +102,10 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
         data.to_pickle(file_name)  
         print(f'Uploading data to {BUCKET_NAME}/{file_name}')
         upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name)
-    return data, last_trade_date
+    return data, last_trade_date, num_features_for_each_trade_in_history
 
 
-def train_model(data, last_trade_date):
+def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
 
     train_data = data[data.trade_date <= last_trade_date]
@@ -117,7 +119,7 @@ def train_model(data, last_trade_date):
 
     model = dollar_price_model(x_train, 
                                SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, 
-                               NUM_FEATURES - 1, 
+                               num_features_for_each_trade_in_history, 
                                CATEGORICAL_FEATURES_DOLLAR_PRICE, 
                                NON_CAT_FEATURES_DOLLAR_PRICE, 
                                BINARY_DOLLAR_PRICE, 
@@ -131,11 +133,11 @@ def main():
     print(f'\n\nFunction starting {datetime.now()}')
 
     print('Processing data')
-    data, last_trade_date = update_data()
+    data, last_trade_date, num_features_for_each_trade_in_history = update_data()
     print('Data processed')
     
     print('Training model')
-    model, encoders, mae = train_model(data, last_trade_date)
+    model, encoders, mae = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
     print('Training done')
 
     if SAVE_MODEL_AND_DATA:
