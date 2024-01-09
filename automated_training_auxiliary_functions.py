@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from sklearn import preprocessing
 from pickle5 import pickle
+import tensorflow as tf
 from tensorflow import keras
 from datetime import datetime
 
@@ -33,7 +34,7 @@ BUCKET_NAME = 'automated_training'
 
 
 def get_creds():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/mitas/ficc/mitas_creds.json'    # '/home/ahmad/ahmad_creds.json'
     # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/shayaan/ficc/ahmad_creds.json'
     return None
 
@@ -46,6 +47,15 @@ def get_storage_client():
 def get_bq_client():
     get_creds()
     return bigquery.Client()
+
+
+def setup_gpus():
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if len(gpus) == 0:
+        print('No GPUs')
+    else:
+        for gpu in gpus:    # https://stackoverflow.com/questions/34199233/how-to-prevent-tensorflow-from-allocating-the-totality-of-a-gpu-memory
+            tf.config.experimental.set_memory_growth(gpu, True)
 
 
 SEQUENCE_LENGTH_YIELD_SPREAD_MODEL = 5
@@ -161,7 +171,7 @@ DROPOUT = 0.01
 TESTING = False
 if TESTING:
     SAVE_MODEL_AND_DATA = False
-    print('Check get_creds(...) to make sure the credentials are correct for the local machine')
+    print('Check get_creds(...) to make sure the credentials filepath are correct')
     NUM_EPOCHS = 10
 
 

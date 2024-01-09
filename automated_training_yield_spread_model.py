@@ -2,11 +2,10 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-08
+ # @ Modified date: 2024-01-09
  '''
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from google.cloud import bigquery
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features
@@ -30,6 +29,7 @@ from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_
                                                    EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
                                                    get_bq_client, \
+                                                   setup_gpus, \
                                                    get_trade_history_columns, \
                                                    target_trade_processing_for_attention, \
                                                    replace_ratings_by_standalone_rating, \
@@ -42,12 +42,7 @@ from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_
                                                    save_model
 
 
-print('***********************')
-if tf.test.is_gpu_available():
-    print('****** USING GPU ******')
-else:
-    print('** NO GPU AVAILABLE ***')
-print('***********************')
+setup_gpus()
 
 
 STORAGE_CLIENT = get_storage_client()
@@ -140,6 +135,7 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                              SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, 
                                              num_features_for_each_trade_in_history, 
                                              f'raw_data_{file_timestamp}.pkl', 
+                                             save_data=SAVE_MODEL_AND_DATA, 
                                              **OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
 
     if data_from_last_trade_date is not None:    # there is new data since `last_trade_date`

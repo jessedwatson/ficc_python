@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-17 14:44:20
+ # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified time: 2024-01-08
+ # @ Modified date: 2024-01-09
  # @ Description:
  '''
 import os
@@ -17,7 +17,7 @@ from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.get_treasury_rate import get_treasury_rate
 
 
-def fetch_trade_data(query, client, PATH='data.pkl'):
+def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
     if os.path.isfile(PATH):
         print(f'Data file {PATH} found, reading data from it')
         with open(PATH, 'rb') as f: 
@@ -29,11 +29,12 @@ def fetch_trade_data(query, client, PATH='data.pkl'):
     
     print(f'Grabbing data from BigQuery')
     trade_dataframe = sqltodf(query,client)
-    print(f'Saving query and data to {PATH}')
-    
-    ds = (query, trade_dataframe)
-    with open(PATH, 'wb') as f: 
-        pickle.dump(ds, f)
+
+    if save_data:
+        print(f'Saving query and data to {PATH}')
+        ds = (query, trade_dataframe)
+        with open(PATH, 'wb') as f: 
+            pickle.dump(ds, f)
     return trade_dataframe
 
 
@@ -47,7 +48,8 @@ def process_trade_history(query,
                           min_trades_in_history, 
                           treasury_spread,
                           add_rtrs_in_history,
-                          only_dollar_price_history,):
+                          only_dollar_price_history, 
+                          save_data=True):
     
     if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' or globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW':
         print('Grabbing yield curve params')
@@ -59,7 +61,7 @@ def process_trade_history(query,
     if treasury_spread == True:
         get_treasury_rate(client)
 
-    trade_dataframe = fetch_trade_data(query, client, PATH)
+    trade_dataframe = fetch_trade_data(query, client, PATH, save_data)
     print(f'Raw data contains {len(trade_dataframe)} samples')
     if len(trade_dataframe) == 0: return None
     

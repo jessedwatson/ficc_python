@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-08
+ # @ Modified date: 2024-01-09
  # @ Description: Source code to process trade history from BigQuery
  '''
 import numpy as np
@@ -40,6 +40,7 @@ def process_data(query,
                  add_related_trades_bool=False, 
                  add_rtrs_in_history=False, 
                  only_dollar_price_history=False, 
+                 save_data=True, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
@@ -56,7 +57,8 @@ def process_data(query,
                                       min_trades_in_history,
                                       treasury_spread,
                                       add_rtrs_in_history,
-                                      only_dollar_price_history)
+                                      only_dollar_price_history, 
+                                      save_data)
     
     if trades_df is None: return None    # no new trades
 
