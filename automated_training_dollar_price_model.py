@@ -115,7 +115,7 @@ def update_data() -> (pd.DataFrame, datetime.datetime):
 
 
 def train_model(data, last_trade_date):
-    encoders, fmax  = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
+    encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
 
     train_data = data[data.trade_date <= last_trade_date]
     test_data = data[data.trade_date > last_trade_date]

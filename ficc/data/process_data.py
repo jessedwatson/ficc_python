@@ -1,7 +1,7 @@
 '''
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
- # @ Modified by: Ahmad Shayaan
+ # @ Modified by: Mitas Ray
  # @ Modified date: 2024-01-08
  # @ Description: Source code to process trade history from BigQuery
  '''
@@ -62,7 +62,7 @@ def process_data(query,
                                       min_trades_in_history,
                                       treasury_spread,
                                       add_rtrs_in_history,
-                                      only_dollar_price_history,)
+                                      only_dollar_price_history)
     
     if trades_df is None: return None    # no new trades
 
