@@ -23,7 +23,6 @@ from email.mime.multipart import MIMEMultipart
 
 from automated_training_auxiliary_functions import NUM_FEATURES, \
                                                    SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
-                                                   TTYPE_DICT, \
                                                    QUERY_FEATURES, \
                                                    QUERY_CONDITIONS, \
                                                    ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
@@ -109,15 +108,6 @@ def upload_predictions(data:pd.DataFrame):
     except Exception as e:
         print('Failed to Upload')
         raise e
-
-
-def extract_feature_from_trade(row, name, trade):
-    # global TTYPE_DICT
-    yield_spread = trade[0]
-    ttypes = TTYPE_DICT[(trade[3], trade[4])] + row.trade_type
-    seconds_ago = trade[5]
-    quantity_diff = np.log10(1 + np.abs(10**trade[2] - 10**row.quantity))
-    return [yield_spread, ttypes, seconds_ago, quantity_diff]
 
 
 def get_yield_for_last_duration(row):
