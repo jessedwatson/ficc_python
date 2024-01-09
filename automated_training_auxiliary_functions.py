@@ -309,13 +309,13 @@ def _trade_history_derived_features(row, yield_spread_or_dollar_price, using_tre
     trade_history = row.trade_history
     most_recent_trade = trade_history[0]
     
-    D_min_ago_t = D_prev.get(row.cusip, trade)
+    D_min_ago_t = D_prev.get(row.cusip, most_recent_trade)
     D_min_ago = LONG_TIME_AGO_IN_NUM_SECONDS        
 
-    P_min_ago_t = P_prev.get(row.cusip, trade)
+    P_min_ago_t = P_prev.get(row.cusip, most_recent_trade)
     P_min_ago = LONG_TIME_AGO_IN_NUM_SECONDS
     
-    S_min_ago_t = S_prev.get(row.cusip, trade)
+    S_min_ago_t = S_prev.get(row.cusip, most_recent_trade)
     S_min_ago = LONG_TIME_AGO_IN_NUM_SECONDS
     
     max_ys_or_dp_t = most_recent_trade
