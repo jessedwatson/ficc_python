@@ -5,12 +5,14 @@
  # @ Modified date: 2024-01-09
  '''
 import pandas as pd
+from pandas.tseries.offsets import BDay
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
 from ficc.utils.auxiliary_functions import function_timer
 from datetime import datetime
 from dollar_model import dollar_price_model
 
 from automated_training_auxiliary_functions import SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, \
+                                                   TESTING, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
@@ -24,7 +26,8 @@ from automated_training_auxiliary_functions import SEQUENCE_LENGTH_DOLLAR_PRICE_
                                                    fit_encoders, \
                                                    train_and_evaluate_model, \
                                                    save_model, \
-                                                   send_results_email
+                                                   send_results_email, \
+                                                   send_no_new_model_email
 
 
 setup_gpus()
@@ -57,9 +60,24 @@ def update_data() -> (pd.DataFrame, datetime.datetime, int):
 @function_timer
 def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
+    
+    test_data = data[data.trade_date > last_trade_date]
+    if TESTING:
+        business_days_gone_back = 0
+        max_number_of_business_days_to_go_back = 10
+        while len(test_data) == 0 and business_days_gone_back == max_number_of_business_days_to_go_back:
+            last_trade_date = last_trade_date - BDay(1)
+            test_data = data[data.trade_date > last_trade_date]
+            business_days_gone_back += 1
+        if business_days_gone_back == max_number_of_business_days_to_go_back:
+            print(f'Went back {business_days_gone_back} and could not find any data; not going back any further')
+            return None, None, None
+    elif len(test_data) == 0:
+        return None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
-    test_data = data[data.trade_date > last_trade_date]
+    print(f'Training set (before {last_trade_date}) contains {len(train_data)} data points')
+    print(f'Test set (after {last_trade_date}) contains {len(test_data)} data points')
     
     x_train = create_input(train_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE)
     y_train = train_data.dollar_price
@@ -85,11 +103,14 @@ def main():
     data, last_trade_date, num_features_for_each_trade_in_history = update_data()
     model, encoders, mae = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
-    if SAVE_MODEL_AND_DATA:
-        print('Saving model')
-        save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
-        print('Finished saving the model\n\n')
-    send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS)
+    if not TESTING and model is None:
+        send_no_new_model_email(EMAIL_RECIPIENTS)
+    else:
+        if SAVE_MODEL_AND_DATA and model is not None:
+            print('Saving model')
+            save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
+            print('Finished saving the model\n\n')
+        if not TESTING: send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS)
 
 
 if __name__ == '__main__':

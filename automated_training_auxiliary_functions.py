@@ -555,6 +555,22 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     os.system(f'rm -r {model_filename}')
 
 
+def send_email(sender_email, message, recipients):
+    smtp_server = 'smtp.gmail.com'
+    port = 587
+
+    with smtplib.SMTP(smtp_server, port) as server:
+        try:
+            server.starttls()
+            server.login(sender_email, 'ztwbwrzdqsucetbg')
+            for receiver in recipients:
+                server.sendmail(sender_email, receiver, message.as_string())
+        except Exception as e:
+            print(e)
+        finally:
+            server.quit()
+
+
 def send_results_email(mae, last_trade_date, recipients:list):
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'
@@ -565,17 +581,15 @@ def send_results_email(mae, last_trade_date, recipients:list):
 
     message = MIMEText(f'The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae,3)}.', 'plain')
     msg.attach(message)
+    send_email(sender_email, msg, recipients)
+    
 
-    smtp_server = 'smtp.gmail.com'
-    port = 587
 
-    with smtplib.SMTP(smtp_server, port) as server:
-        try:
-            server.starttls()
-            server.login(sender_email, 'ztwbwrzdqsucetbg')
-            for receiver in recipients:
-                server.sendmail(sender_email, receiver, msg.as_string())
-        except Exception as e:
-            print(e)
-        finally:
-            server.quit()
+def send_no_new_model_email(last_trade_date, recipients:list):
+    print(f'Sending email to {recipients}')
+    sender_email = 'notifications@ficc.ai'
+    
+    msg = MIMEMultipart()
+    msg['Subject'] = f'No new data was found on {last_trade_date}, so no new model was trained'
+    msg['From'] = sender_email
+    send_email(sender_email, msg, recipients)

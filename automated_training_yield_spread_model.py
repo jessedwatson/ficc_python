@@ -6,6 +6,7 @@
  '''
 import numpy as np
 import pandas as pd
+from pandas.tseries.offsets import BDay
 from google.cloud import bigquery
 from ficc.utils.auxiliary_functions import function_timer
 from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES
@@ -17,6 +18,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
+                                                   TESTING, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
@@ -29,7 +31,9 @@ from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_
                                                    create_input, \
                                                    fit_encoders, \
                                                    train_and_evaluate_model, \
-                                                   save_model
+                                                   save_model, \
+                                                   send_email, \
+                                                   send_no_new_model_email
 
 
 setup_gpus()
@@ -123,19 +127,39 @@ def segment_results(data):
     return result_df
 
 
+def apply_exclusions(data):
+    data_before_exclusions = data[:]
+    data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+    data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+    data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+    data = data[data.days_to_maturity < np.log10(30000)]
+    data = data[~data.last_calc_date.isna()]
+    return data, data_before_exclusions
+
+
 @function_timer
 def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, 'yield_spread')
 
-    train_data = data[data.trade_date <= last_trade_date]
     test_data = data[data.trade_date > last_trade_date]
-    prediction_data = test_data[:]    # `test_data` before exclusions applied
-    
-    test_data = test_data[(test_data.days_to_call == 0) | (test_data.days_to_call > np.log10(400))]
-    test_data = test_data[(test_data.days_to_refund == 0) | (test_data.days_to_refund > np.log10(400))]
-    test_data = test_data[(test_data.days_to_maturity == 0) | (test_data.days_to_maturity > np.log10(400))]
-    test_data = test_data[test_data.days_to_maturity < np.log10(30000)]
-    test_data = test_data[~test_data.last_calc_date.isna()]
+    test_data, prediction_data = apply_exclusions(test_data)
+    if TESTING:
+        business_days_gone_back = 0
+        max_number_of_business_days_to_go_back = 10
+        while len(test_data) == 0 and business_days_gone_back == max_number_of_business_days_to_go_back:
+            last_trade_date = last_trade_date - BDay(1)
+            test_data = data[data.trade_date > last_trade_date]
+            test_data, prediction_data = apply_exclusions(test_data)
+            business_days_gone_back += 1
+        if business_days_gone_back == max_number_of_business_days_to_go_back:
+            print(f'Went back {business_days_gone_back} and could not find any data; not going back any further')
+            return None, None, None
+    elif len(test_data) == 0:
+        return None, None, None
+
+    train_data = data[data.trade_date <= last_trade_date]
+    print(f'Training set contains {len(train_data)} data points')
+    print(f'Test set contains {len(test_data)} data points')
     
     x_train = create_input(train_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
     y_train = train_data.new_ys
@@ -187,20 +211,7 @@ def send_results_email_table(result_df, last_trade_date, recipients:list):
     html_table = result_df.to_html(index=True)
     body = MIMEText(html_table, 'html')
     msg.attach(body)
-
-    smtp_server = 'smtp.gmail.com'
-    port = 587
-
-    with smtplib.SMTP(smtp_server, port) as server:
-        try:
-            server.starttls()
-            server.login(sender_email, 'ztwbwrzdqsucetbg')
-            for receiver in EMAIL_RECIPIENTS:
-                server.sendmail(sender_email, receiver, msg.as_string())
-        except Exception as e:
-            print(e)
-        finally:
-            server.quit()
+    send_email(sender_email, msg, recipients)
 
 
 @function_timer
@@ -209,16 +220,19 @@ def main():
     data, last_trade_date, num_features_for_each_trade_in_history = update_data()
     model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
-    if SAVE_MODEL_AND_DATA:
-        print('Saving model')
-        save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
-        print('Finished saving the model\n\n')
+    if not TESTING and model is None:
+        send_no_new_model_email(EMAIL_RECIPIENTS)
+    else:
+        if SAVE_MODEL_AND_DATA:
+            print('Saving model')
+            save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
+            print('Finished saving the model\n\n')
 
-    # send_results_email(mae, last_trade_date)
-    try:
-        send_results_email_table(result_df, last_trade_date, EMAIL_RECIPIENTS)
-    except Exception as e:
-        print(e)
+        # send_results_email(mae, last_trade_date)
+        try:
+            if not TESTING: send_results_email_table(result_df, last_trade_date, EMAIL_RECIPIENTS)
+        except Exception as e:
+            print(e)
 
 
 if __name__ == '__main__':
