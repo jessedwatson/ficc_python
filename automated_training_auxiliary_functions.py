@@ -23,7 +23,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from ficc.utils.gcp_storage_functions import upload_data
-from ficc.utils.auxiliary_functions import get_ys_trade_history_features, get_dp_trade_history_features
+from ficc.data.process_data import process_data
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
+from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
+from ficc.utils.nelson_siegel_model import yield_curve_level
+from ficc.utils.diff_in_days import diff_in_days_two_dates
 
 
 SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
@@ -213,6 +217,119 @@ def replace_ratings_by_standalone_rating(data):
     return data
 
 
+def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_parameter):
+    if pd.isnull(row['last_calc_date'])or pd.isnull(row['last_trade_date']):
+        # if there is no last trade, we use the duration of the current bond
+        duration = diff_in_days_two_dates(row['maturity_date'], row['trade_date']) / NUM_OF_DAYS_IN_YEAR
+        ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
+        return ycl
+    duration =  diff_in_days_two_dates(row['last_calc_date'], row['last_trade_date']) / NUM_OF_DAYS_IN_YEAR
+    ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
+    return ycl
+
+
+@function_timer
+def add_yield_curve(data):
+    '''Add 'new_ficc_ycl' field to `data`.'''
+    bq_client = get_bq_client()
+
+    nelson_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc', bq_client)
+    nelson_params.set_index('date', drop=True, inplace=True)
+    nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
+    nelson_params = nelson_params.transpose().to_dict()
+
+    scalar_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc', bq_client)
+    scalar_params.set_index('date', drop=True, inplace=True)
+    scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
+    scalar_params = scalar_params.transpose().to_dict()
+
+    shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', bq_client)
+    shape_parameter.set_index('Date', drop=True, inplace=True)
+    shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
+    shape_parameter = shape_parameter.transpose().to_dict()
+
+    data['last_trade_date'] = data['last_trade_datetime'].dt.date
+    data['new_ficc_ycl'] = data[['last_calc_date',
+                                 'last_settlement_date',
+                                 'trade_date',
+                                 'last_trade_date',
+                                 'maturity_date']].parallel_apply(lambda row: get_yield_for_last_duration(row, nelson_params, scalar_params, shape_parameter), axis=1)
+    data['new_ficc_ycl'] = data['new_ficc_ycl'] * 100
+    return data
+
+
+@function_timer
+def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=False, optional_arguments_for_process_data:dict={}):
+    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
+    query_features = QUERY_FEATURES
+    query_conditions = QUERY_CONDITIONS
+    if model == 'yield_spread':
+        query_conditions = ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL + query_conditions
+    else:
+        query_features = query_features + ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL
+    
+    old_data, last_trade_date = get_data_and_last_trade_date(BUCKET_NAME, file_name)
+    print(f'last trade date: {last_trade_date}')
+    DATA_QUERY = get_data_query(last_trade_date, query_features, query_conditions)
+    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
+
+    trade_history_features = get_ys_trade_history_features(using_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
+    num_features_for_each_trade_in_history = len(trade_history_features)
+    num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
+    data_from_last_trade_date = process_data(DATA_QUERY, 
+                                             bq_client, 
+                                             num_trades_in_history, 
+                                             num_features_for_each_trade_in_history, 
+                                             f'raw_data_{file_timestamp}.pkl', 
+                                             save_data=SAVE_MODEL_AND_DATA, 
+                                             **optional_arguments_for_process_data)
+    return old_data, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history
+
+
+@function_timer
+def combine_new_data_with_old_data(old_data, new_data, predictors:list, model:str):
+    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
+    if new_data is not None:    # there is new data since `last_trade_date`
+        num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
+        print(f'Restricting history to {num_trades_in_history} trades')
+        new_data.trade_history = new_data.trade_history.apply(lambda x: x[:num_trades_in_history])
+        old_data.trade_history = old_data.trade_history.apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
+
+        new_data = replace_ratings_by_standalone_rating(new_data)
+        new_data['yield'] = new_data['yield'] * 100
+        if model == 'yield_spread': new_data = add_yield_curve(new_data)
+        new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
+
+        #### removing missing data
+        new_data['trade_history_sum'] = new_data.trade_history.parallel_apply(lambda x: np.sum(x))
+        new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
+        new_data.dropna(inplace=True, subset=predictors + ['trade_history_sum'])
+        data = pd.concat([new_data, old_data])    # concatenating `new_data` to the original `data` dataframe
+        if model == 'yield_spread': data['new_ys'] = data['yield'] - data['new_ficc_ycl']
+        return data
+    return old_data
+
+
+@function_timer
+def add_trade_history_derived_features(data, model:str, using_treasury_spread:bool=False):
+    data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
+    trade_history_derived_features = trade_history_derived_features_yield_spread(using_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
+    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
+    cols = get_trade_history_columns(model)
+    data[cols] = pd.DataFrame(temp.tolist(), index=data.index)
+    del temp
+
+    data.sort_values('trade_datetime', ascending=False, inplace=True)
+    return data
+
+
+def save_data(data, file_name, storage_client):
+    print(f'Saving data to pickle file with name {file_name}')
+    data.to_pickle(file_name)  
+    print(f'Uploading data to {BUCKET_NAME}/{file_name}')
+    upload_data(storage_client, BUCKET_NAME, file_name)
+
+
 def create_input(df, encoders, non_cat_features, binary_features, categorical_features):
     datalist = []
     datalist.append(np.stack(df['trade_history'].to_numpy()))
@@ -242,7 +359,7 @@ def get_data_and_last_trade_date(bucket_name, file_name):
     return data, last_trade_date
 
 
-def return_data_query(last_trade_date, features, conditions):
+def get_data_query(last_trade_date, features, conditions):
     features_as_string = ', '.join(features)
     conditions = conditions + [f'trade_date > "{last_trade_date}"']
     conditions_as_string = ' AND '.join(conditions)
@@ -278,16 +395,16 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
     return encoders, fmax
 
 
-def _trade_history_derived_features(row, yield_spread_or_dollar_price, using_treasury_spread):
-    assert yield_spread_or_dollar_price in ('yield_spread', 'dollar_price'), f'Invalid value for yield_spread_or_dollar_price: {yield_spread_or_dollar_price}'
-    if yield_spread_or_dollar_price == 'yield_spread':
+def _trade_history_derived_features(row, model:str, using_treasury_spread:bool):
+    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
+    if model == 'yield_spread':
         variants = YS_VARIANTS
         trade_history_features = get_ys_trade_history_features(using_treasury_spread)
     else:
         variants = DP_VARIANTS
         trade_history_features = get_dp_trade_history_features()
 
-    ys_or_dp_idx = trade_history_features.index(yield_spread_or_dollar_price)
+    ys_or_dp_idx = trade_history_features.index(model)
     par_traded_idx = trade_history_features.index('par_traded')
     trade_type1_idx = trade_history_features.index('trade_type1')
     trade_type2_idx = trade_history_features.index('trade_type2')
@@ -439,6 +556,7 @@ def save_model(model, encoders, storage_client, dollar_price_model):
 
 
 def send_results_email(mae, last_trade_date, recipients:list):
+    print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'
     
     msg = MIMEMultipart()
