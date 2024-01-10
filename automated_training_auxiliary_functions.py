@@ -2,13 +2,14 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-09
+ # @ Modified date: 2024-01-10
  '''
 import os
 import gcsfs
 import shutil
 import numpy as np
 import pandas as pd
+from pandas.tseries.offsets import BDay
 from sklearn import preprocessing
 from pickle5 import pickle
 import tensorflow as tf
@@ -328,6 +329,25 @@ def save_data(data, file_name, storage_client):
     data.to_pickle(file_name)  
     print(f'Uploading data to {BUCKET_NAME}/{file_name}')
     upload_data(storage_client, BUCKET_NAME, file_name)
+
+
+def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_business_days_to_go_back=10, exclusions_function=None):
+    '''Iterate backwards on `date` until the data after `date` is non-empty. Go back a maximum of 
+    `max_number_of_business_days_to_go_back` days. If `exclusions_function` is not `None`, assumes 
+    that the function returns values, where the first item is the data after exclusions, and the 
+    second item is the data before exclusions.'''
+    if not TESTING: return date
+    data_after_date = data[data.trade_date > date]
+    if exclusions_function is not None: data_after_date, _ = exclusions_function(data_after_date)
+    business_days_gone_back = 0
+    while len(data_after_date) == 0 and business_days_gone_back < max_number_of_business_days_to_go_back:
+        business_days_gone_back += 1
+        data_after_date = data[data.trade_date > (date - BDay(business_days_gone_back))]
+        if exclusions_function is not None: data_after_date, _ = exclusions_function(data_after_date)
+    if business_days_gone_back == max_number_of_business_days_to_go_back:
+        print(f'Went back {business_days_gone_back} and could not find any data; not going back any further, so returning the original `date`')
+        return date
+    return date - BDay(business_days_gone_back)
 
 
 def create_input(df, encoders, non_cat_features, binary_features, categorical_features):

@@ -2,10 +2,9 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-09
+ # @ Modified date: 2024-01-10
  '''
 import pandas as pd
-from pandas.tseries.offsets import BDay
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
 from ficc.utils.auxiliary_functions import function_timer
 from datetime import datetime
@@ -23,6 +22,7 @@ from automated_training_auxiliary_functions import SEQUENCE_LENGTH_DOLLAR_PRICE_
                                                    add_trade_history_derived_features, \
                                                    save_data, \
                                                    create_input, \
+                                                   get_trade_date_where_data_exists_after_this_date, \
                                                    fit_encoders, \
                                                    train_and_evaluate_model, \
                                                    save_model, \
@@ -60,20 +60,10 @@ def update_data() -> (pd.DataFrame, datetime.datetime, int):
 @function_timer
 def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
-    
+
+    if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data)
     test_data = data[data.trade_date > last_trade_date]
-    if TESTING:
-        business_days_gone_back = 0
-        max_number_of_business_days_to_go_back = 10
-        while len(test_data) == 0 and business_days_gone_back == max_number_of_business_days_to_go_back:
-            last_trade_date = last_trade_date - BDay(1)
-            test_data = data[data.trade_date > last_trade_date]
-            business_days_gone_back += 1
-        if business_days_gone_back == max_number_of_business_days_to_go_back:
-            print(f'Went back {business_days_gone_back} and could not find any data; not going back any further')
-            return None, None, None
-    elif len(test_data) == 0:
-        return None, None, None
+    if len(test_data) == 0: return None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
     print(f'Training set (before {last_trade_date}) contains {len(train_data)} data points')

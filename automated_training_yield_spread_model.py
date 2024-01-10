@@ -2,18 +2,16 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-09
+ # @ Modified date: 2024-01-10
  '''
 import numpy as np
 import pandas as pd
-from pandas.tseries.offsets import BDay
 from google.cloud import bigquery
 from ficc.utils.auxiliary_functions import function_timer
 from ficc.utils.auxiliary_variables import PREDICTORS, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES
 from datetime import datetime
 from yield_model import yield_spread_model
 
-import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -29,6 +27,7 @@ from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_
                                                    add_trade_history_derived_features, \
                                                    save_data, \
                                                    create_input, \
+                                                   get_trade_date_where_data_exists_after_this_date, \
                                                    fit_encoders, \
                                                    train_and_evaluate_model, \
                                                    save_model, \
@@ -141,21 +140,10 @@ def apply_exclusions(data):
 def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, 'yield_spread')
 
+    if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=apply_exclusions)
     test_data = data[data.trade_date > last_trade_date]
-    test_data, prediction_data = apply_exclusions(test_data)
-    if TESTING:
-        business_days_gone_back = 0
-        max_number_of_business_days_to_go_back = 10
-        while len(test_data) == 0 and business_days_gone_back == max_number_of_business_days_to_go_back:
-            last_trade_date = last_trade_date - BDay(1)
-            test_data = data[data.trade_date > last_trade_date]
-            test_data, prediction_data = apply_exclusions(test_data)
-            business_days_gone_back += 1
-        if business_days_gone_back == max_number_of_business_days_to_go_back:
-            print(f'Went back {business_days_gone_back} and could not find any data; not going back any further')
-            return None, None, None
-    elif len(test_data) == 0:
-        return None, None, None
+    test_data, test_data_before_exclusions = apply_exclusions(data)
+    if len(test_data) == 0: return None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
     print(f'Training set contains {len(train_data)} data points')
@@ -188,12 +176,12 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     ## Uploading prediction to BQ
     if SAVE_MODEL_AND_DATA:
         try:
-            prediction_data_x_test = create_input(prediction_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
-            prediction_data['new_ys_prediction'] = model.predict(prediction_data_x_test, batch_size=1000)
-            prediction_data = prediction_data[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
-            prediction_data['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
-            prediction_data['trade_date'] = pd.to_datetime(prediction_data['trade_date']).dt.date
-            upload_predictions(prediction_data)
+            test_data_before_exclusions_x_test = create_input(test_data_before_exclusions, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
+            test_data_before_exclusions['new_ys_prediction'] = model.predict(test_data_before_exclusions_x_test, batch_size=1000)
+            test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
+            test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
+            test_data_before_exclusions['trade_date'] = pd.to_datetime(test_data_before_exclusions['trade_date']).dt.date
+            upload_predictions(test_data_before_exclusions)
         except Exception as e:
             print('Failed to upload predictions to BigQuery')
             print(e)
