@@ -37,6 +37,8 @@ EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc
 
 BUCKET_NAME = 'automated_training'
 
+YEAR_MONTH_DAY = '%Y-%m-%d'
+
 
 def get_creds():
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/mitas/ficc/mitas_creds.json'    # '/home/ahmad/ahmad_creds.json'
@@ -176,7 +178,7 @@ DROPOUT = 0.01
 TESTING = False
 if TESTING:
     SAVE_MODEL_AND_DATA = False
-    print('Check get_creds(...) to make sure the credentials filepath are correct')
+    print('Check get_creds(...) to make sure the credentials filepath is correct')
     NUM_EPOCHS = 10
 
 
@@ -337,17 +339,19 @@ def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_b
     that the function returns values, where the first item is the data after exclusions, and the 
     second item is the data before exclusions.'''
     if not TESTING: return date
-    data_after_date = data[data.trade_date > date]
+    previous_date = date
+    data_after_date = data[data.trade_date > previous_date]
     if exclusions_function is not None: data_after_date, _ = exclusions_function(data_after_date)
     business_days_gone_back = 0
     while len(data_after_date) == 0 and business_days_gone_back < max_number_of_business_days_to_go_back:
         business_days_gone_back += 1
-        data_after_date = data[data.trade_date > (date - BDay(business_days_gone_back))]
+        previous_date = (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(business_days_gone_back)).strftime(YEAR_MONTH_DAY)
+        data_after_date = data[data.trade_date > previous_date]
         if exclusions_function is not None: data_after_date, _ = exclusions_function(data_after_date)
     if business_days_gone_back == max_number_of_business_days_to_go_back:
         print(f'Went back {business_days_gone_back} and could not find any data; not going back any further, so returning the original `date`')
         return date
-    return date - BDay(business_days_gone_back)
+    return previous_date
 
 
 def create_input(df, encoders, non_cat_features, binary_features, categorical_features):
@@ -375,7 +379,7 @@ def get_data_and_last_trade_date(bucket_name, file_name):
         data = pd.read_pickle(f)
     print(f'Data downloaded from {bucket_name}/{file_name}')
     
-    last_trade_date = data.trade_date.max().date().strftime('%Y-%m-%d')
+    last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
     return data, last_trade_date
 
 

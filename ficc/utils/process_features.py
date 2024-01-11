@@ -1,12 +1,10 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-17 12:09:34
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-07-18 20:35:27
+ # @ Create date: 2021-12-17
+ # @ Modified by: Mitas Ray
+ # @ Modified date: 2024-01-10
  # @ Description:
  '''
-
-import pandas as pd
 import numpy as np
 from ficc.utils.auxiliary_variables import COUPON_FREQUENCY_DICT
 from ficc.utils.diff_in_days import diff_in_days
@@ -22,7 +20,6 @@ def process_features(df):
     df.issue_amount = np.log10(1 + df.issue_amount.astype(np.float32))
     df.maturity_amount = np.log10(1.0 + df.maturity_amount.astype(float))
     df.orig_principal_amount = np.log10(1.0 + df.orig_principal_amount.astype(float))
-    #Check the outstanding_amount
     df.max_amount_outstanding = np.log10(1.0 + df.max_amount_outstanding.astype(float))
     
     # Creating Binary features

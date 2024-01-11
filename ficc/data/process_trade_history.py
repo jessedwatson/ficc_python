@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-09
+ # @ Modified date: 2024-01-10
  # @ Description:
  '''
 import os
@@ -123,5 +123,5 @@ def process_trade_history(query,
     print('Padding completed')
      
     trade_dataframe.dropna(subset=['trade_history'], inplace=True)
-    print(f'Processed trade history contain {len(trade_dataframe)} samples')
+    print(f'Processed trade history contains {len(trade_dataframe)} samples')
     return trade_dataframe

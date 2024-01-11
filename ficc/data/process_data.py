@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-09
+ # @ Modified date: 2024-01-10
  # @ Description: Source code to process trade history from BigQuery
  '''
 import numpy as np
@@ -67,17 +67,23 @@ def process_data(query,
             # Calculating yield spreads using ficc_ycl
             print('Calculating yield spread using ficc yield curve')
             trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(get_ficc_ycl, axis=1)
-            
              
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
-        trades_df.dropna(subset=['yield_spread'],inplace=True)
+        trades_df.dropna(subset=['yield_spread'], inplace=True)
         print('Yield spread calculated')
 
         if treasury_spread == True:
-            trades_df['treasury_rate'] = trades_df[['trade_date','calc_date','settlement_date']].parallel_apply(current_treasury_rate, 
-                                                                                                                            axis=1)
+            trades_df['treasury_rate'] = trades_df[['trade_date', 'calc_date', 'settlement_date']].parallel_apply(current_treasury_rate, axis=1)
+            null_treasury_rate = trades_df['treasury_rate'].isnull()
+            if null_treasury_rate.sum() > 0:
+                trade_dates_corresponding_to_null_treasury_rate = trades_df.loc[null_treasury_rate, 'trade_date']
+                print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed from the date: {trade_dates_corresponding_to_null_treasury_rate.unique()}')
+                trades_df = trades_df[~null_treasury_rate]
             trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
-    
+
+    if len(trades_df) == 0:
+        print(f'After dropping trades for not having a treasury rate, the dataframe is empty')
+        return trades_df
         
     # Dropping columns which are not used for training
     # trades_df = drop_extra_columns(trades_df)
