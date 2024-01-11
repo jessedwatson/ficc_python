@@ -83,7 +83,7 @@ def process_data(query,
 
     if len(trades_df) == 0:
         print(f'After dropping trades for not having a treasury rate, the dataframe is empty')
-        return trades_df
+        return None
         
     # Dropping columns which are not used for training
     # trades_df = drop_extra_columns(trades_df)
@@ -115,5 +115,4 @@ def process_data(query,
     
 
     print(f'Numbers of samples {len(trades_df)}')
-    
     return trades_df

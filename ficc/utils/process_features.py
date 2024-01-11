@@ -12,6 +12,7 @@ from ficc.utils.days_in_interest_payment import days_in_interest_payment
 from ficc.utils.fill_missing_values import fill_missing_values
 from ficc.utils.auxiliary_functions import calculate_a_over_e
 
+
 def process_features(df):
     df.interest_payment_frequency.fillna(0, inplace=True)
     df.loc[:,'interest_payment_frequency'] = df.interest_payment_frequency.apply(lambda x: COUPON_FREQUENCY_DICT[x])
