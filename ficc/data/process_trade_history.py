@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-10
+ # @ Modified date: 2024-01-12
  # @ Description:
  '''
 import os
@@ -50,7 +50,6 @@ def process_trade_history(query,
                           add_rtrs_in_history,
                           only_dollar_price_history, 
                           save_data=True):
-    
     if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' or globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW':
         print('Grabbing yield curve params')
         try:
@@ -58,29 +57,19 @@ def process_trade_history(query,
         except Exception as e:
             raise e 
     
-    if treasury_spread == True:
-        get_treasury_rate(client)
+    if treasury_spread == True: get_treasury_rate(client)
 
     trade_dataframe = fetch_trade_data(query, client, PATH, save_data)
     print(f'Raw data contains {len(trade_dataframe)} samples')
     if len(trade_dataframe) == 0: return None
     
     trade_dataframe = process_ratings(trade_dataframe)
-    #trade_dataframe = convert_object_to_category(trade_dataframe)
-
-    print(f'Raw data contains {len(trade_dataframe)} samples')
-
-    # Taking only the most recent trades
-    # trade_dataframe.recent = trade_dataframe.recent.apply(lambda x: x[:SEQUENCE_LENGTH])
+    # trade_dataframe = convert_object_to_category(trade_dataframe)
 
     print('Creating trade history')
-    if remove_short_maturity == True:
-        print('Removing trades with shorter maturity')
-
+    if remove_short_maturity == True: print('Removing trades with shorter maturity')
     print(f'Removing trades less than {trade_history_delay} seconds in the history')
-    
     temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history','temp_last_features'])
-    
     temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
                                                                              treasury_spread,
@@ -108,12 +97,10 @@ def process_trade_history(query,
                      'last_calc_day_cat',
                      'last_settlement_date',
                      'last_trade_type']] = pd.DataFrame(trade_dataframe['temp_last_features'].tolist(), index=trade_dataframe.index)
-    
-    # trade_dataframe.drop(columns=['recent','temp_last_features'],inplace=True)
-    trade_dataframe = trade_dataframe.drop(columns=['temp_last_features','recent'])
+    trade_dataframe = trade_dataframe.drop(columns=['temp_last_features', 'recent'])
 
     print(f'Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades')
-    trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda x: x[:SEQUENCE_LENGTH])
+    trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda history: history[:SEQUENCE_LENGTH])
 
     print('Padding history')
     print(f'Minimum number of trades required in the history {min_trades_in_history}')

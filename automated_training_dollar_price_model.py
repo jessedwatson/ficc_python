@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-11
+ # @ Modified date: 2024-01-12
  '''
 import pandas as pd
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -53,6 +53,7 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                                                                                                                    optional_arguments_for_process_data=OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, PREDICTORS_DOLLAR_PRICE, 'dollar_price')
     data = add_trade_history_derived_features(data, 'dollar_price')
+    data = data.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
     data.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)
     return data, last_trade_date, num_features_for_each_trade_in_history
@@ -70,10 +71,10 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     print(f'Training set contains {len(train_data)} data points (on or before {last_trade_date})')
     print(f'Test set contains {len(test_data)} data points (after {last_trade_date})')
     
-    x_train = create_input(train_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE)
+    x_train = create_input(train_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
     y_train = train_data.dollar_price
 
-    x_test = create_input(test_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE)
+    x_test = create_input(test_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
     y_test = test_data.dollar_price
 
     model = dollar_price_model(x_train, 

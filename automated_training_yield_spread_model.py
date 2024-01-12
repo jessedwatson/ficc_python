@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-11
+ # @ Modified date: 2024-01-12
  '''
 import numpy as np
 import pandas as pd
@@ -150,10 +150,10 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     print(f'Training set contains {len(train_data)} data points (on or before {last_trade_date})')
     print(f'Test set contains {len(test_data)} data points (after {last_trade_date})')
     
-    x_train = create_input(train_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
+    x_train = create_input(train_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, 'yield_spread')
     y_train = train_data.new_ys
 
-    x_test = create_input(test_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
+    x_test = create_input(test_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, 'yield_spread')
     y_test = test_data.new_ys
 
     model = yield_spread_model(x_train, 

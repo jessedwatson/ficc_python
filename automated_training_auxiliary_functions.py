@@ -190,7 +190,7 @@ P_prev = dict()
 S_prev = dict()
 
 
-def get_trade_history_columns(model):
+def get_trade_history_columns(model:str):
     '''Creates a list of columns.'''
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     if model == 'yield_spread':
@@ -329,6 +329,7 @@ def add_trade_history_derived_features(data, model:str, using_treasury_spread:bo
     return data
 
 
+@function_timer
 def save_data(data, file_name, storage_client):
     print(f'Saving data to pickle file with name {file_name}')
     data.to_pickle(file_name)  
@@ -358,9 +359,11 @@ def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_b
 
 
 @function_timer
-def create_input(df, encoders, non_cat_features, binary_features, categorical_features):
+def create_input(df, encoders, non_cat_features, binary_features, categorical_features, model:str):
+    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     datalist = []
-    datalist.append(np.stack(df['trade_history'].to_numpy()))
+    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
+    datalist.append(np.stack(df[trade_history_feature_name].to_numpy()))
     datalist.append(np.stack(df['target_attention_features'].to_numpy()))
 
     noncat_and_binary = []
