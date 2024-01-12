@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create Time: 2021-12-16 09:44:22
  # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-04 10:39:30
+ # @ Modified time: 2023-10-20 11:41:14
  # @ Description: This file is an example of how to call the ficc data package. 
  # The driver method for the package is the proces data function. 
  # The method takes the following arguments. 
@@ -66,6 +66,7 @@ orig_principal_amount,
 publish_datetime,
 max_amount_outstanding, 
 recent,
+recent_similar,
 dollar_price,
 calc_date,
 purpose_sub_class,
@@ -104,7 +105,7 @@ first_coupon_date,
 last_period_accrues_from_date,
 maturity_description_code 
 FROM
-`eng-reactor-287421.auxiliary_views.materialized_trade_history`
+`eng-reactor-287421.jesse_tests.new_similar_recent`
 WHERE
   yield IS NOT NULL
   AND yield > 0
@@ -118,7 +119,7 @@ WHERE
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
   AND settlement_date is not null
   ORDER BY trade_datetime desc
-  limit 1000
+  limit 100
 '''
 
 # DATA_QUERY = '''
@@ -133,18 +134,6 @@ WHERE
 #     trade_datetime desc
 # '''
 
-DATA_QUERY = '''
-SELECT
-    * except(most_recent_event)
-  FROM
-    `eng-reactor-287421.auxiliary_views.materialized_trade_history`
-  WHERE
-    msrb_valid_to_date > current_date -- condition to remove cancelled trades
-    AND rtrs_control_number = 2023073100373100
-  ORDER BY
-    trade_datetime desc
-'''
-
 
 bq_client = bigquery.Client()
 
@@ -157,14 +146,14 @@ if __name__ == "__main__":
                               NUM_FEATURES,
                               'data.pkl',
                               'FICC_NEW',
-                              remove_short_maturity=True,
+                              remove_short_maturity=False,
                               trade_history_delay = 0,
                               min_trades_in_history = 0,
                               treasury_spread = True,
                               add_flags=False,
                               add_related_trades_bool=False,
                               add_rtrs_in_history=False,
-                              only_dollar_price_history = True)
+                              only_dollar_price_history = False)
     
     end_time = time.time()
 
