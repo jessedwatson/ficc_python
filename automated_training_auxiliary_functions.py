@@ -41,8 +41,7 @@ YEAR_MONTH_DAY = '%Y-%m-%d'
 
 
 def get_creds():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/mitas/ficc/mitas_creds.json'    # '/home/ahmad/ahmad_creds.json'
-    # os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/shayaan/ficc/ahmad_creds.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'    # '/home/mitas/ficc/mitas_creds.json'
     return None
 
 
