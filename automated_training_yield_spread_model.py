@@ -166,7 +166,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
 
     model, mae, history = train_and_evaluate_model(model, x_train, y_train, x_test, y_test)
 
-    ## Creating table to send over email    
+    # creating table to send over email
     try:
         test_data['predicted_ys'] = model.predict(x_test, batch_size=1000)
         result_df = segment_results(test_data)
@@ -179,7 +179,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     except Exception as e:
         print('Need to run `pip install tabulate` on this machine in orer to display the dataframe in a easy to read way')
 
-    ## Uploading prediction to BQ
+    # uploading predictions to bigquery
     if SAVE_MODEL_AND_DATA:
         try:
             test_data_before_exclusions_x_test = create_input(test_data_before_exclusions, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
@@ -217,11 +217,7 @@ def main():
     if not TESTING and model is None:
         send_no_new_model_email(EMAIL_RECIPIENTS)
     else:
-        if SAVE_MODEL_AND_DATA:
-            print('Saving model')
-            save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
-            print('Finished saving the model\n\n')
-
+        if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
         # send_results_email(mae, last_trade_date)
         try:
             if not TESTING: send_results_email_table(result_df, last_trade_date, EMAIL_RECIPIENTS)

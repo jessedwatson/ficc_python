@@ -576,9 +576,13 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
     return model, mae, history
 
 
+@function_timer
 def save_model(model, encoders, storage_client, dollar_price_model):
     '''`dollar_price_model` is a boolean flag that indicates whether we are 
-    working with the dollar price model instead of hte yield spread model.'''
+    working with the dollar price model instead of the yield spread model.'''
+    if model is None:
+        print('model is `None` and so not saving it to storage')
+        return None
     suffix = '_dollar_price' if dollar_price_model else ''
     suffix_wo_underscore = 'dollar_price' if dollar_price_model else ''    # need this variable as well since the model naming is missing an underscore
 

@@ -98,10 +98,7 @@ def main():
     if not TESTING and model is None:
         send_no_new_model_email(EMAIL_RECIPIENTS)
     else:
-        if SAVE_MODEL_AND_DATA and model is not None:
-            print('Saving model')
-            save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
-            print('Finished saving the model\n\n')
+        if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
         if not TESTING: send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS)
 
 
