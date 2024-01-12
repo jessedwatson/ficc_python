@@ -406,9 +406,9 @@ def save_update_data_results_to_pickle_files(suffix:str, update_data:callable):
         with open(f'files/num_features_for_each_trade_in_history_{suffix}.pkl', 'rb') as file: num_features_for_each_trade_in_history = pickle.load(file)
     else:
         data, last_trade_date, num_features_for_each_trade_in_history = update_data()
-    data.to_pickle(data_pickle_filepath)
-    with open(f'files/last_trade_data_from_update_data_{suffix}.pkl', 'wb') as file: pickle.dump(last_trade_date, file)
-    with open(f'files/num_features_for_each_trade_in_history_{suffix}.pkl', 'wb') as file: pickle.dump(num_features_for_each_trade_in_history, file)
+        data.to_pickle(data_pickle_filepath)
+        with open(f'files/last_trade_data_from_update_data_{suffix}.pkl', 'wb') as file: pickle.dump(last_trade_date, file)
+        with open(f'files/num_features_for_each_trade_in_history_{suffix}.pkl', 'wb') as file: pickle.dump(num_features_for_each_trade_in_history, file)
     return data, last_trade_date, num_features_for_each_trade_in_history
 
 
@@ -438,7 +438,7 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
     return encoders, fmax
 
 
-def _trade_history_derived_features(row, model:str, using_treasury_spread:bool):
+def _trade_history_derived_features(row, model:str, using_treasury_spread:bool=False):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if model == 'yield_spread':
         variants = YS_VARIANTS

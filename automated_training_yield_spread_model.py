@@ -174,6 +174,11 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
         print(e)
         result_df = pd.DataFrame()
 
+    try:
+        print(result_df.to_markdown())
+    except Exception as e:
+        print('Need to run `pip install tabulate` on this machine in orer to display the dataframe in a easy to read way')
+
     ## Uploading prediction to BQ
     if SAVE_MODEL_AND_DATA:
         try:

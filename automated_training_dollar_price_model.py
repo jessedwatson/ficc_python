@@ -41,7 +41,7 @@ OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'treasury_spread': False,
                                        'only_dollar_price_history': True}
 
 
-def update_data() -> (pd.DataFrame, datetime.datetime, int):
+def update_data() -> (pd.DataFrame, datetime, int):
     '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
     `process_data(...)` or `SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL` are changed, then we need to rebuild the entire 
     `processed_data_dollar_price.pkl` since that data is will have the old preferences; an easy way to do that 
