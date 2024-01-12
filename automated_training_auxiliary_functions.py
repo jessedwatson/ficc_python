@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-11
+ # @ Modified date: 2024-01-12
  '''
 import os
 import gcsfs
@@ -178,8 +178,11 @@ DROPOUT = 0.01
 TESTING = False
 if TESTING:
     SAVE_MODEL_AND_DATA = False
-    print('Check get_creds(...) to make sure the credentials filepath is correct')
     NUM_EPOCHS = 2
+    print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS}')
+    print('Check get_creds(...) to make sure the credentials filepath is correct')
+else:
+    print(f'In PRODUCTION mode; all files and models will be saved and NUM_EPOCHS={NUM_EPOCHS}')
 
 
 D_prev = dict()
