@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-10
+ # @ Modified date: 2024-01-11
  '''
 import pandas as pd
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -21,6 +21,7 @@ from automated_training_auxiliary_functions import SEQUENCE_LENGTH_DOLLAR_PRICE_
                                                    combine_new_data_with_old_data, \
                                                    add_trade_history_derived_features, \
                                                    save_data, \
+                                                   save_update_data_results_to_pickle_files, \
                                                    create_input, \
                                                    get_trade_date_where_data_exists_after_this_date, \
                                                    fit_encoders, \
@@ -66,8 +67,8 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     if len(test_data) == 0: return None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
-    print(f'Training set (before {last_trade_date}) contains {len(train_data)} data points')
-    print(f'Test set (after {last_trade_date}) contains {len(test_data)} data points')
+    print(f'Training set contains {len(train_data)} data points (on or before {last_trade_date})')
+    print(f'Test set contains {len(test_data)} data points (after {last_trade_date})')
     
     x_train = create_input(train_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE)
     y_train = train_data.dollar_price
@@ -89,8 +90,8 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
 
 @function_timer
 def main():
-    print(f'\n\nautomated_training_dollar_price_model.py starting {datetime.now()}')
-    data, last_trade_date, num_features_for_each_trade_in_history = update_data()
+    print(f'automated_training_dollar_price_model.py starting {datetime.now()}')
+    data, last_trade_date, num_features_for_each_trade_in_history = save_update_data_results_to_pickle_files('dollar_price', update_data)
     model, encoders, mae = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
     if not TESTING and model is None:

@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-10
+ # @ Modified date: 2024-01-11
  '''
 import os
 import gcsfs
@@ -179,7 +179,7 @@ TESTING = False
 if TESTING:
     SAVE_MODEL_AND_DATA = False
     print('Check get_creds(...) to make sure the credentials filepath is correct')
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 2
 
 
 D_prev = dict()
@@ -354,6 +354,7 @@ def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_b
     return previous_date
 
 
+@function_timer
 def create_input(df, encoders, non_cat_features, binary_features, categorical_features):
     datalist = []
     datalist.append(np.stack(df['trade_history'].to_numpy()))
@@ -391,6 +392,24 @@ def get_data_query(last_trade_date, features, conditions):
                FROM `eng-reactor-287421.auxiliary_views.materialized_trade_history`
                WHERE {conditions_as_string}
                ORDER BY trade_datetime desc'''
+
+
+def save_update_data_results_to_pickle_files(suffix:str, update_data:callable):
+    '''The function specified in `update_data` is called, and the 3 return values are stored as pickle files. If 
+    testing, then first check whether the pickle files exist, before calling `update_data`. `suffix` is appended 
+    to the end of the filename for each pickle file.'''
+    data_pickle_filepath = f'files/data_from_update_data_{suffix}.pkl'
+    if TESTING and os.path.isfile(data_pickle_filepath):
+        print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data()')
+        data = pd.read_pickle(data_pickle_filepath)
+        with open(f'files/last_trade_data_from_update_data_{suffix}.pkl', 'rb') as file: last_trade_date = pickle.load(file)
+        with open(f'files/num_features_for_each_trade_in_history_{suffix}.pkl', 'rb') as file: num_features_for_each_trade_in_history = pickle.load(file)
+    else:
+        data, last_trade_date, num_features_for_each_trade_in_history = update_data()
+    data.to_pickle(data_pickle_filepath)
+    with open(f'files/last_trade_data_from_update_data_{suffix}.pkl', 'wb') as file: pickle.dump(last_trade_date, file)
+    with open(f'files/num_features_for_each_trade_in_history_{suffix}.pkl', 'wb') as file: pickle.dump(num_features_for_each_trade_in_history, file)
+    return data, last_trade_date, num_features_for_each_trade_in_history
 
 
 def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
