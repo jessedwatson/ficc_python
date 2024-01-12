@@ -182,7 +182,7 @@ if TESTING:
     print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS}')
     print('Check get_creds(...) to make sure the credentials filepath is correct')
 else:
-    print(f'In PRODUCTION mode; all files and models will be saved and NUM_EPOCHS={NUM_EPOCHS}')
+    print(f'In PRODUCTION mode (to change to TESTING mode, set `TESTING` to `True`); all files and models will be saved and NUM_EPOCHS={NUM_EPOCHS}')
 
 
 D_prev = dict()
