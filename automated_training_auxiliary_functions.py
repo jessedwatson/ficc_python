@@ -554,7 +554,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
                                                    mode='auto',
                                                    restore_best_weights=True)]
 
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0007),
                   loss=keras.losses.MeanAbsoluteError(),
                   metrics=[keras.metrics.MeanAbsoluteError()])
 
