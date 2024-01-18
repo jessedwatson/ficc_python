@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-12
+ # @ Modified date: 2024-01-18
  '''
 import os
 import gcsfs
@@ -171,7 +171,7 @@ QUERY_CONDITIONS = ['par_traded >= 10000',
 ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL = ['yield IS NOT NULL', 'yield > 0']
 
 NUM_EPOCHS = 100
-BATCH_SIZE = 1000
+BATCH_SIZE = 10000
 DROPOUT = 0.01
 
 TESTING = False
