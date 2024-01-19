@@ -172,7 +172,7 @@ ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL = ['yield IS NOT NULL', 'yiel
 
 NUM_EPOCHS = 100
 BATCH_SIZE = 10000
-DROPOUT = 0.01
+DROPOUT = 0.1
 
 TESTING = False
 if TESTING:
@@ -292,7 +292,7 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
 
 
 @function_timer
-def combine_new_data_with_old_data(old_data, new_data, predictors:list, model:str):
+def combine_new_data_with_old_data(old_data, new_data, model:str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if new_data is not None:    # there is new data since `last_trade_date`
         num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
@@ -308,7 +308,7 @@ def combine_new_data_with_old_data(old_data, new_data, predictors:list, model:st
         #### removing missing data
         new_data['trade_history_sum'] = new_data.trade_history.parallel_apply(lambda x: np.sum(x))
         new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
-        new_data.dropna(inplace=True, subset=predictors + ['trade_history_sum'])
+        new_data.dropna(inplace=True, subset=['trade_history_sum'])
         data = pd.concat([new_data, old_data])    # concatenating `new_data` to the original `data` dataframe
         if model == 'yield_spread': data['new_ys'] = data['yield'] - data['new_ficc_ycl']
         return data

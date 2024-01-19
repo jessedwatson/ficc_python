@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-12
+ # @ Modified date: 2024-01-18
  '''
 import pandas as pd
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -51,7 +51,8 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                                                                                                                    'dollar_price', 
                                                                                                                                    BQ_CLIENT, 
                                                                                                                                    optional_arguments_for_process_data=OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
-    data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, PREDICTORS_DOLLAR_PRICE, 'dollar_price')
+    data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, 'dollar_price')
+    print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'dollar_price')
     data = data.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
     data.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE)

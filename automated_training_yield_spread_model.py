@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-12
+ # @ Modified date: 2024-01-18
  '''
 import numpy as np
 import pandas as pd
@@ -93,7 +93,8 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                                                                                                                    BQ_CLIENT, 
                                                                                                                                    using_treasury_spread, 
                                                                                                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
-    data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, PREDICTORS, 'yield_spread')
+    data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, 'yield_spread')
+    print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'yield_spread', using_treasury_spread)
     data.dropna(inplace=True, subset=PREDICTORS)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)

@@ -114,5 +114,5 @@ def process_data(query,
                                        CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE)
     
 
-    print(f'Numbers of samples {len(trades_df)}')
+    print(f'Number of data points at the end of `process_data(...)`: {len(trades_df)}')
     return trades_df
