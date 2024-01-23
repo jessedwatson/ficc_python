@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-18
+ # @ Modified date: 2024-01-23
  '''
 import os
 import gcsfs
@@ -39,9 +39,11 @@ BUCKET_NAME = 'automated_training'
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 
+WORKING_DIRECTORY = '/home/shayaan/ficc_python'    # '/home/mitas/ficc_python'
+
 
 def get_creds():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/ahmad/ahmad_creds.json'    # '/home/mitas/ficc/mitas_creds.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/shayaan/ficc_python/ahmad_creds.json'    # '/home/mitas/ficc/mitas_creds.json'
     return None
 
 
@@ -171,7 +173,7 @@ QUERY_CONDITIONS = ['par_traded >= 10000',
 ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL = ['yield IS NOT NULL', 'yield > 0']
 
 NUM_EPOCHS = 100
-BATCH_SIZE = 10000
+BATCH_SIZE = 1000
 DROPOUT = 0.1
 
 TESTING = False
@@ -179,7 +181,8 @@ if TESTING:
     SAVE_MODEL_AND_DATA = False
     NUM_EPOCHS = 2
     print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS}')
-    print('Check get_creds(...) to make sure the credentials filepath is correct')
+    print('Check `get_creds(...)` to make sure the credentials filepath is correct')
+    print('Check `WORKING_DIRECTORY` to make sure the path is correct')
 else:
     print(f'In PRODUCTION mode (to change to TESTING mode, set `TESTING` to `True`); all files and models will be saved and NUM_EPOCHS={NUM_EPOCHS}')
 
@@ -403,17 +406,19 @@ def save_update_data_results_to_pickle_files(suffix:str, update_data:callable):
     '''The function specified in `update_data` is called, and the 3 return values are stored as pickle files. If 
     testing, then first check whether the pickle files exist, before calling `update_data`. `suffix` is appended 
     to the end of the filename for each pickle file.'''
-    data_pickle_filepath = f'files/data_from_update_data_{suffix}.pkl'
+    data_pickle_filepath = f'{WORKING_DIRECTORY}/files/data_from_update_data_{suffix}.pkl'
+    last_trade_data_from_update_data_pickle_filepath = f'{WORKING_DIRECTORY}/files/last_trade_data_from_update_data_{suffix}.pkl'
+    num_features_for_each_trade_in_history_pickle_filepath = f'{WORKING_DIRECTORY}/files/num_features_for_each_trade_in_history_{suffix}.pkl'
     if TESTING and os.path.isfile(data_pickle_filepath):
         print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data()')
         data = pd.read_pickle(data_pickle_filepath)
-        with open(f'files/last_trade_data_from_update_data_{suffix}.pkl', 'rb') as file: last_trade_date = pickle.load(file)
-        with open(f'files/num_features_for_each_trade_in_history_{suffix}.pkl', 'rb') as file: num_features_for_each_trade_in_history = pickle.load(file)
+        with open(last_trade_data_from_update_data_pickle_filepath, 'rb') as file: last_trade_date = pickle.load(file)
+        with open(num_features_for_each_trade_in_history_pickle_filepath, 'rb') as file: num_features_for_each_trade_in_history = pickle.load(file)
     else:
         data, last_trade_date, num_features_for_each_trade_in_history = update_data()
         data.to_pickle(data_pickle_filepath)
-        with open(f'files/last_trade_data_from_update_data_{suffix}.pkl', 'wb') as file: pickle.dump(last_trade_date, file)
-        with open(f'files/num_features_for_each_trade_in_history_{suffix}.pkl', 'wb') as file: pickle.dump(num_features_for_each_trade_in_history, file)
+        with open(last_trade_data_from_update_data_pickle_filepath, 'wb') as file: pickle.dump(last_trade_date, file)
+        with open(num_features_for_each_trade_in_history_pickle_filepath, 'wb') as file: pickle.dump(num_features_for_each_trade_in_history, file)
     return data, last_trade_date, num_features_for_each_trade_in_history
 
 
@@ -423,11 +428,6 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
     Outputs a tuple of dictionaries where the first item is the encoders and the second item is the maximum value 
     for each class.'''
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
-    if model == 'yield_spread':
-        filename = 'encoders.pkl'
-    else:
-        filename = 'encoders_dollar_price.pkl'
-    
     encoders = {}
     fmax = {}
     for feature in categorical_features:
@@ -438,7 +438,8 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
         fmax[feature] = np.max(fprep.transform(fprep.classes_))
         encoders[feature] = fprep
     
-    with open(filename, 'wb') as file:
+    filename = 'encoders.pkl' if model == 'yield_spread' else 'encoders_dollar_price.pkl'
+    with open(f'{WORKING_DIRECTORY}/{filename}', 'wb') as file:
         pickle.dump(encoders, file)
     return encoders, fmax
 
@@ -554,7 +555,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
                                                    mode='auto',
                                                    restore_best_weights=True)]
 
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0007),
+    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
                   loss=keras.losses.MeanAbsoluteError(),
                   metrics=[keras.metrics.MeanAbsoluteError()])
 
