@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-23
+ # @ Modified date: 2024-01-24
  '''
 import os
 import gcsfs
@@ -291,6 +291,7 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
                                              f'raw_data_{file_timestamp}.pkl', 
                                              save_data=SAVE_MODEL_AND_DATA, 
                                              **optional_arguments_for_process_data)
+    if model == 'dollar_price': data_from_last_trade_date = data_from_last_trade_date.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
     return old_data, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history
 
 
@@ -320,9 +321,11 @@ def combine_new_data_with_old_data(old_data, new_data, model:str):
 
 @function_timer
 def add_trade_history_derived_features(data, model:str, using_treasury_spread:bool=False):
+    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
     trade_history_derived_features = trade_history_derived_features_yield_spread(using_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
-    temp = data[['cusip', 'trade_history', 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
+    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
+    temp = data[['cusip', trade_history_feature_name, 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
     cols = get_trade_history_columns(model)
     data[cols] = pd.DataFrame(temp.tolist(), index=data.index)
     del temp
@@ -333,8 +336,8 @@ def add_trade_history_derived_features(data, model:str, using_treasury_spread:bo
 
 @function_timer
 def save_data(data, file_name, storage_client):
-    print(f'Saving data to pickle file with name {file_name}')
-    data.to_pickle(file_name)  
+    print(f'Saving data to pickle file with name {WORKING_DIRECTORY}/files/{file_name}')
+    data.to_pickle(f'{WORKING_DIRECTORY}/files/{file_name}')
     print(f'Uploading data to {BUCKET_NAME}/{file_name}')
     upload_data(storage_client, BUCKET_NAME, file_name)
 
@@ -472,7 +475,8 @@ def _trade_history_derived_features(row, model:str, using_treasury_spread:bool=F
     global S_prev
     global P_prev
     
-    trade_history = row.trade_history
+    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
+    trade_history = row[trade_history_feature_name]
     most_recent_trade = trade_history[0]
     
     D_min_ago_t = D_prev.get(row.cusip, most_recent_trade)

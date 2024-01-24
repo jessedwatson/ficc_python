@@ -69,7 +69,7 @@ def process_trade_history(query,
     print('Creating trade history')
     if remove_short_maturity == True: print('Removing trades with shorter maturity')
     print(f'Removing trades less than {trade_history_delay} seconds in the history')
-    temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history','temp_last_features'])
+    temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history', 'temp_last_features'])
     temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
                                                                              treasury_spread,
@@ -77,7 +77,7 @@ def process_trade_history(query,
                                                                              only_dollar_price_history]))
                                                                                                 
                                                                         
-    trade_dataframe[['trade_history','temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)
+    trade_dataframe[['trade_history', 'temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)
     del temp
     print('Trade history created')
     print('Getting last trade features')

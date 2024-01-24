@@ -217,6 +217,7 @@ def main():
 
     if not TESTING and model is None:
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS)
+        raise RuntimeError('No new data was found. Raising an error so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
         # send_results_email(mae, last_trade_date)

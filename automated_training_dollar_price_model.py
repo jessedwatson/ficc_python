@@ -54,7 +54,6 @@ def update_data() -> (pd.DataFrame, datetime, int):
     data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, 'dollar_price')
     print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'dollar_price')
-    data = data.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
     data.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)
     return data, last_trade_date, num_features_for_each_trade_in_history
@@ -98,6 +97,7 @@ def main():
 
     if not TESTING and model is None:
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS)
+        raise RuntimeError('No new data was found. Raising an error so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
         if not TESTING: send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS)
