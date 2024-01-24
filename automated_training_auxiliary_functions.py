@@ -39,11 +39,11 @@ BUCKET_NAME = 'automated_training'
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 
-WORKING_DIRECTORY = '/home/shayaan/ficc_python'    # '/home/mitas/ficc_python'
+WORKING_DIRECTORY = '/home/mitas/ficc_python'    # '/home/shayaan/ficc_python'
 
 
 def get_creds():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/shayaan/ficc_python/ahmad_creds.json'    # '/home/mitas/ficc/mitas_creds.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/mitas/ficc/mitas_creds.json'    # '/home/shayaan/ficc_python/ahmad_creds.json'
     return None
 
 
