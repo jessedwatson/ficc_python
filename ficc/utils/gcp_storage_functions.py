@@ -1,9 +1,9 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2022-03-01 11:00:41
+ # @ Create date: 2022-03-01
  # @ Modified by: Mitas Ray
- # @ Modified time: 2023-12-29
- # @ Description:
+ # @ Modified date: 2024-01-24
+ # @ Description: Convenience functions to upload and download data from Google cloud buckets.
  '''
 import pickle5 as pickle
 
@@ -13,7 +13,7 @@ def upload_data(storage_client, bucket_name, file_name):
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(file_name)
     blob.upload_from_filename(file_name)
-    print(f'File {file_name} uploaded to {bucket_name}')
+    print(f'File {file_name} uploaded to Google cloud bucket: {bucket_name}')
 
 
 def download_data(storage_client, bucket_name, file_name):
@@ -23,5 +23,5 @@ def download_data(storage_client, bucket_name, file_name):
     blob = bucket.blob(file_name)
     pickle_in = blob.download_as_string()
     data = pickle.loads(pickle_in) 
-    print(f'File {file_name} downloaded to {bucket_name}')
+    print(f'File {file_name} downloaded from Google cloud bucket: {bucket_name}')
     return data
