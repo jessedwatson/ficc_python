@@ -39,7 +39,8 @@ BUCKET_NAME = 'automated_training'
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 
-WORKING_DIRECTORY = '/home/mitas/ficc_python'    # '/home/shayaan/ficc_python'
+HOME_DIRECTORY = '/home/mitas'
+WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'    # '/home/shayaan/ficc_python'
 
 
 def get_creds():
@@ -291,7 +292,7 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
                                              f'raw_data_{file_timestamp}.pkl', 
                                              save_data=SAVE_MODEL_AND_DATA, 
                                              **optional_arguments_for_process_data)
-    if model == 'dollar_price': data_from_last_trade_date = data_from_last_trade_date.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
+    if data_from_last_trade_date is not None and model == 'dollar_price': data_from_last_trade_date = data_from_last_trade_date.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
     return old_data, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history
 
 
@@ -594,20 +595,20 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     print(f'file time stamp: {file_timestamp}')
 
     print('Saving encoders and uploading encoders')
-    encoders_filename = f'encoders{suffix}.pkl'
+    encoders_filename = f'{WORKING_DIRECTORY}/files/encoders{suffix}.pkl'
     with open(encoders_filename, 'wb') as file:
         pickle.dump(encoders, file)    
     upload_data(storage_client, 'ahmad_data', encoders_filename)
 
     print('Saving and uploading model')
-    model_filename = f'saved_model_{suffix_wo_underscore}{file_timestamp}'
+    model_filename = f'{HOME_DIRECTORY}/trained_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
     model.save(model_filename)
     
-    model_zip_filename = f'model{suffix}'
+    model_zip_filename = f'{HOME_DIRECTORY}/trained_models/model{suffix}'
     shutil.make_archive(model_zip_filename, 'zip', model_filename)
     # shutil.make_archive(f'saved_model_{file_timestamp}', 'zip', f'saved_model_{file_timestamp}')
     
-    upload_data(storage_client, 'ahmad_data', model_zip_filename)
+    upload_data(storage_client, 'ahmad_data', f'{model_zip_filename}.zip')
     # upload_data(storage_client, 'ahmad_data/yield_spread_models', f'saved_model_{file_timestamp}.zip')
     os.system(f'rm -r {model_filename}')
 
@@ -636,7 +637,7 @@ def send_results_email(mae, last_trade_date, recipients:list):
     msg['Subject'] = f'Mae for model trained till {last_trade_date}'
     msg['From'] = sender_email
 
-    message = MIMEText(f'The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae,3)}.', 'plain')
+    message = MIMEText(f'The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae, 3)}.', 'plain')
     msg.attach(message)
     send_email(sender_email, msg, recipients)
     

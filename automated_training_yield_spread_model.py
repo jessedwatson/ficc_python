@@ -183,7 +183,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     # uploading predictions to bigquery
     if SAVE_MODEL_AND_DATA:
         try:
-            test_data_before_exclusions_x_test = create_input(test_data_before_exclusions, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES)
+            test_data_before_exclusions_x_test = create_input(test_data_before_exclusions, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, 'yield_spread')
             test_data_before_exclusions['new_ys_prediction'] = model.predict(test_data_before_exclusions_x_test, batch_size=1000)
             test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
             test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
@@ -192,7 +192,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
         except Exception as e:
             print('Failed to upload predictions to BigQuery')
             print(e)
-    return model, encoders, mae, result_df           
+    return model, encoders, mae, result_df
 
 
 def send_results_email_table(result_df, last_trade_date, recipients:list):

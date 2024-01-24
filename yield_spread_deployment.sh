@@ -5,9 +5,10 @@
 
 #!/bin/sh
 who
+HOME='/home/mitas'
 # Changing directory and training the model
 echo "Training model"
-/opt/conda/bin/python /home/mitas/ficc_python/automated_training_yield_spread_model.py
+/opt/conda/bin/python $HOME/ficc_python/automated_training_yield_spread_model.py
 if [ $? -ne 0 ]; then
   echo "Python script failed with exit code $?"
   exit 1
@@ -21,16 +22,16 @@ ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOIN
 #Unzip model and uploading it to automated training bucket
 TIMESTAMP=$(date +%m-%d)
 MODEL_NAME='model'-${TIMESTAMP}
-echo "Unziping model $MODEL_NAME"
-gsutil cp -r gs://ahmad_data/model.zip /home/mitas/trained_models/model.zip
-unzip /home/mitas/trained_models/model.zip -d /home/mitas/trained_models/$MODEL_NAME
+echo "Unzipping model $MODEL_NAME"
+gsutil cp -r gs://ahmad_data/model.zip $HOME/trained_models/model.zip
+unzip $HOME/trained_models/model.zip -d $HOME/trained_models/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
   exit 1
 fi
 
 echo "Uploading model to bucket"
-gsutil cp -r /home/mitas/trained_models/$MODEL_NAME gs://automated_training
+gsutil cp -r $HOME/trained_models/$MODEL_NAME gs://automated_training
 if [ $? -ne 0 ]; then
   echo "Uploading model failed with exit code $?"
   exit 1

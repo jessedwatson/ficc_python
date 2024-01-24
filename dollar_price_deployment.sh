@@ -21,7 +21,7 @@ ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOIN
 #Unzip model and uploading it to automated training bucket
 TIMESTAMP=$(date +%m-%d)
 MODEL_NAME='dollar-model'-${TIMESTAMP}
-echo "Unziping model $MODEL_NAME"
+echo "Unzipping model $MODEL_NAME"
 gsutil cp -r gs://ahmad_data/model_dollar_price.zip /home/mitas/trained_models/dollar_price_models/model_dollar_price.zip
 unzip /home/mitas/trained_models/dollar_price_models/model_dollar_price.zip -d /home/mitas/trained_models/dollar_price_models/$MODEL_NAME
 if [ $? -ne 0 ]; then
