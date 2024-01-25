@@ -2,18 +2,19 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2022-03-01
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-24
+ # @ Modified date: 2024-01-25
  # @ Description: Convenience functions to upload and download data from Google cloud buckets.
  '''
 import pickle5 as pickle
 
 
-def upload_data(storage_client, bucket_name, file_name):
-    '''Upload data to the cloud bucket `bucket_name` with filename `file_name`.'''
+def upload_data(storage_client, bucket_name, file_name, file_path:str=None):
+    '''Upload data to the cloud bucket `bucket_name` with filename `file_name` from a local `file_path`.'''
+    if file_path is None: file_path = file_name
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(file_name)
-    blob.upload_from_filename(file_name)
-    print(f'File {file_name} uploaded to Google cloud bucket: {bucket_name}')
+    blob.upload_from_filename(file_path)
+    print(f'File from {file_path} uploaded to {file_name} in Google cloud bucket: {bucket_name}')
 
 
 def download_data(storage_client, bucket_name, file_name):

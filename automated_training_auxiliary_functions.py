@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-24
+ # @ Modified date: 2024-01-25
  '''
 import os
 import gcsfs
@@ -300,10 +300,11 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
 def combine_new_data_with_old_data(old_data, new_data, model:str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if new_data is not None:    # there is new data since `last_trade_date`
+        trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
         num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
         print(f'Restricting history to {num_trades_in_history} trades')
-        new_data.trade_history = new_data.trade_history.apply(lambda x: x[:num_trades_in_history])
-        old_data.trade_history = old_data.trade_history.apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
+        new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])
+        old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
         new_data = replace_ratings_by_standalone_rating(new_data)
         new_data['yield'] = new_data['yield'] * 100
@@ -311,7 +312,7 @@ def combine_new_data_with_old_data(old_data, new_data, model:str):
         new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
 
         #### removing missing data
-        new_data['trade_history_sum'] = new_data.trade_history.parallel_apply(lambda x: np.sum(x))
+        new_data['trade_history_sum'] = new_data[trade_history_feature_name].parallel_apply(lambda x: np.sum(x))
         new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
         new_data.dropna(inplace=True, subset=['trade_history_sum'])
         data = pd.concat([new_data, old_data])    # concatenating `new_data` to the original `data` dataframe
@@ -337,10 +338,10 @@ def add_trade_history_derived_features(data, model:str, using_treasury_spread:bo
 
 @function_timer
 def save_data(data, file_name, storage_client):
-    print(f'Saving data to pickle file with name {WORKING_DIRECTORY}/files/{file_name}')
-    data.to_pickle(f'{WORKING_DIRECTORY}/files/{file_name}')
-    print(f'Uploading data to {BUCKET_NAME}/{file_name}')
-    upload_data(storage_client, BUCKET_NAME, file_name)
+    file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
+    print(f'Saving data to pickle file with name {file_path}')
+    data.to_pickle(file_path)
+    upload_data(storage_client, BUCKET_NAME, file_name, file_path)
 
 
 def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_business_days_to_go_back=10, exclusions_function=None):
