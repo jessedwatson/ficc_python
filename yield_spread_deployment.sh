@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
-# @ Create Time: 2023-07-28 17:17:38
+# @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified time: 2023-01-23
+# @ Modified date: 2023-01-24
 
 #!/bin/sh
 who
@@ -38,8 +38,8 @@ if [ $? -ne 0 ]; then
 fi
 
 
-echo $ENDPOINT_ID
-echo $MODEL_NAME
+echo "ENDPOINT_ID $ENDPOINT_ID"
+echo "MODEL_NAME $MODEL_NAME"
 echo "Uploading model to vertex ai"
 gcloud beta ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-8:latest --artifact-uri=gs://automated_training/$MODEL_NAME
 if [ $? -ne 0 ]; then
@@ -48,8 +48,8 @@ if [ $? -ne 0 ]; then
 fi
 
 NEW_MODEL_ID=$(gcloud ai models list --region=us-east4 --format='value(name)' --filter='displayName'=$MODEL_NAME)
-echo $NEW_MODEL_ID
-echo $MODEL_NAME
+echo "NEW_MODEL_ID $NEW_MODEL_ID"
+echo "MODEL_NAME $MODEL_NAME"
 echo "Deploying to endpoint"
 gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2  --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
 
