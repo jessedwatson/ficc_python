@@ -39,8 +39,8 @@ BUCKET_NAME = 'automated_training'
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 
-HOME_DIRECTORY = '/home/mitas'
-WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'    # '/home/shayaan/ficc_python'
+HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
+WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'    
 
 
 def get_creds():
@@ -414,6 +414,9 @@ def save_update_data_results_to_pickle_files(suffix:str, update_data:callable):
     data_pickle_filepath = f'{WORKING_DIRECTORY}/files/data_from_update_data_{suffix}.pkl'
     last_trade_data_from_update_data_pickle_filepath = f'{WORKING_DIRECTORY}/files/last_trade_data_from_update_data_{suffix}.pkl'
     num_features_for_each_trade_in_history_pickle_filepath = f'{WORKING_DIRECTORY}/files/num_features_for_each_trade_in_history_{suffix}.pkl'
+
+    if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
+ 
     if TESTING and os.path.isfile(data_pickle_filepath):
         print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data()')
         data = pd.read_pickle(data_pickle_filepath)
@@ -597,11 +600,13 @@ def save_model(model, encoders, storage_client, dollar_price_model):
 
     print('Saving encoders and uploading encoders')
     encoders_filename = f'{WORKING_DIRECTORY}/files/encoders{suffix}.pkl'
+    if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
     with open(encoders_filename, 'wb') as file:
         pickle.dump(encoders, file)    
     upload_data(storage_client, 'ahmad_data', encoders_filename)
 
     print('Saving and uploading model')
+    if not os.path.isdir(f'{HOME_DIRECTORY}/trained_models'): os.mkdir(f'{HOME_DIRECTORY}/trained_models')
     model_filename = f'{HOME_DIRECTORY}/trained_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
     model.save(model_filename)
     
