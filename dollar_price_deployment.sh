@@ -6,6 +6,8 @@
 #!/bin/sh
 who
 HOME='/home/mitas'
+# Create TIMESTAMP before training so that in case the training takes too long and goes into the next day, the TIMESTAMP is correct
+TIMESTAMP=$(date +%m-%d)
 # Changing directory and training the model
 echo "Training model"
 /opt/conda/bin/python $HOME/ficc_python/automated_training_dollar_price_model.py
@@ -15,12 +17,11 @@ if [ $? -ne 0 ]; then
 fi
 echo "Model trained"
 
-#Getting the endpoint ID we want to deploy the model on
+# Getting the endpoint ID we want to deploy the model on
 ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
 # ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='test')
 
-#Unzip model and uploading it to automated training bucket
-TIMESTAMP=$(date +%m-%d)
+# Unzip model and uploading it to automated training bucket
 MODEL_NAME='dollar-model'-${TIMESTAMP}
 echo "Unzipping model $MODEL_NAME"
 gsutil cp -r gs://ahmad_data/model_dollar_price.zip $HOME/trained_models/dollar_price_models/model_dollar_price.zip
