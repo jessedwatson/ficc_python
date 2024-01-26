@@ -39,9 +39,7 @@ BUCKET_NAME = 'automated_training'
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 
-#use of relative path omits the need to hardcode home directory like `home/mitas`
-#use os.path.expanduser parses `~` because pickle cannot read `~` as is
-HOME_DIRECTORY = os.path.expanduser('~') 
+HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'    
 
 
