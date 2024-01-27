@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-24
+ # @ Modified date: 2024-01-26
  '''
 import pandas as pd
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -96,11 +96,11 @@ def main():
     model, encoders, mae = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
     if not TESTING and model is None:
-        send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS)
+        send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, 'dollar_price')
         raise RuntimeError('No new data was found. Raising an error so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
-        if not TESTING: send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS)
+        if not TESTING: send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS, 'dollar_price')
 
 
 if __name__ == '__main__':
