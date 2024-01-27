@@ -6,8 +6,9 @@
 #!/bin/sh
 who
 HOME='/home/mitas'
-# Create TIMESTAMP before training so that in case the training takes too long and goes into the next day, the TIMESTAMP is correct
-TIMESTAMP=$(date +%m-%d)
+# Create dates before training so that in case the training takes too long and goes into the next day, the date is correct
+DATE_WITH_YEAR=$(date +%Y-%m-%d)
+DATE_WITHOUT_YEAR=$(date +%m-%d)
 # Changing directory and training the model
 echo "Training model"
 /opt/conda/bin/python $HOME/ficc_python/automated_training_yield_spread_model.py
@@ -17,12 +18,14 @@ if [ $? -ne 0 ]; then
 fi
 echo "Model trained"
 
+# Cleaning the logs to make more readable
+/opt/conda/bin/python $HOME/ficc_python/cleaning_training_log.py "$HOME/training_logs/yield_spread_training_$DATE_WITH_YEAR.log"
+
 # Getting the endpoint ID we want to deploy the model on
 ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='new_attention_model')
-# ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='test')
 
 # Unzip model and uploading it to automated training bucket
-MODEL_NAME='model'-${TIMESTAMP}
+MODEL_NAME='model'-${DATE_WITHOUT_YEAR}
 echo "Unzipping model $MODEL_NAME"
 gsutil cp -r gs://ahmad_data/model.zip $HOME/trained_models/model.zip
 unzip $HOME/trained_models/model.zip -d $HOME/trained_models/$MODEL_NAME
