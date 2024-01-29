@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-25
+ # @ Modified date: 2024-01-26
  '''
 import os
 import gcsfs
@@ -635,12 +635,13 @@ def send_email(sender_email, message, recipients):
             server.quit()
 
 
-def send_results_email(mae, last_trade_date, recipients:list):
+def send_results_email(mae, last_trade_date, recipients:list, model:str):
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'
     
     msg = MIMEMultipart()
-    msg['Subject'] = f'Mae for model trained till {last_trade_date}'
+    msg['Subject'] = f'Mae for {model} model trained till {last_trade_date}'
     msg['From'] = sender_email
 
     message = MIMEText(f'The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae, 3)}.', 'plain')
@@ -649,11 +650,12 @@ def send_results_email(mae, last_trade_date, recipients:list):
     
 
 
-def send_no_new_model_email(last_trade_date, recipients:list):
+def send_no_new_model_email(last_trade_date, recipients:list, model:str):
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'
     
     msg = MIMEMultipart()
-    msg['Subject'] = f'No new data was found on {last_trade_date}, so no new model was trained'
+    msg['Subject'] = f'No new data was found on {last_trade_date}, so no new {model} model was trained'
     msg['From'] = sender_email
     send_email(sender_email, msg, recipients)

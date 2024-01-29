@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-24
+ # @ Modified date: 2024-01-26
  '''
 import numpy as np
 import pandas as pd
@@ -195,12 +195,13 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     return model, encoders, mae, result_df
 
 
-def send_results_email_table(result_df, last_trade_date, recipients:list):
+def send_results_email_table(result_df, last_trade_date, recipients:list, model:str):
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'
     
     msg = MIMEMultipart()
-    msg['Subject'] = f'Mae for model trained till {last_trade_date}'
+    msg['Subject'] = f'Mae for {model} model trained till {last_trade_date}'
     msg['From'] = sender_email
 
     html_table = result_df.to_html(index=True)
@@ -216,13 +217,13 @@ def main():
     model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
     if not TESTING and model is None:
-        send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS)
+        send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
         raise RuntimeError('No new data was found. Raising an error so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
-        # send_results_email(mae, last_trade_date)
         try:
-            if not TESTING: send_results_email_table(result_df, last_trade_date, EMAIL_RECIPIENTS)
+            if not TESTING: send_results_email_table(result_df, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
+            # send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
         except Exception as e:
             print(e)
 

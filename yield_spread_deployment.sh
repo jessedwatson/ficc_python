@@ -19,7 +19,7 @@ fi
 echo "Model trained"
 
 # Cleaning the logs to make more readable
-/opt/conda/bin/python $HOME/ficc_python/cleaning_training_log.py "$HOME/training_logs/yield_spread_training_$DATE_WITH_YEAR.log"
+/opt/conda/bin/python $HOME/ficc_python/clean_training_log.py "$HOME/training_logs/yield_spread_training_$DATE_WITH_YEAR.log"
 
 # Getting the endpoint ID we want to deploy the model on
 ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='new_attention_model')
