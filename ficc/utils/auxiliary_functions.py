@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create date: 2021-12-15
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-08
+ # @ Modified date: 2024-01-29
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -23,13 +23,17 @@ double_quote_a_string = lambda potential_string: f'"{str(potential_string)}"' if
 
 def function_timer(function_to_time):
     '''This function is to be used as a decorator. It will print out the execution time of `function_to_time`.'''
+    def remove_fractional_seconds_beyond_3_digits(original_timedelta):
+        return str(original_timedelta)[:-3]    # total of 6 digits after the decimal, so we keep everything but the last 3
+
     @wraps(function_to_time)    # used to ensure that the function name is still the same after applying the decorator when running tests: https://stackoverflow.com/questions/6312167/python-unittest-cant-call-decorated-test
     def wrapper(*args, **kwargs):    # using the same formatting from https://docs.python.org/3/library/functools.html
         print(f'BEGIN {function_to_time.__name__}')
         start_time = time.time()
         result = function_to_time(*args, **kwargs)
         end_time = time.time()
-        print(f'END {function_to_time.__name__}. Execution time: {timedelta(seconds=end_time - start_time)}')
+        time_elapsed = timedelta(seconds=end_time - start_time)
+        print(f'END {function_to_time.__name__}. Execution time: {remove_fractional_seconds_beyond_3_digits(time_elapsed)}')    # remove microseconds beyond 3 decimal places since this level of precision is unnecessary and just adds noise
         return result
     return wrapper
 
@@ -48,6 +52,7 @@ def convert_dates(df):
             print('************ ERROR ************')
             print(f'Failed to convert date for {col}')
             print('*******************************')
+            print('Error:', e)
             continue
     
     return df
@@ -94,9 +99,9 @@ def convert_object_to_category(df):
 def calculate_a_over_e(df):
     if not pd.isnull(df.previous_coupon_payment_date):
         A = (df.settlement_date - df.previous_coupon_payment_date).days
-        return A/df.days_in_interest_payment
+        return A / df.days_in_interest_payment
     else:
-        return df['accrued_days']/NUM_OF_DAYS_IN_YEAR
+        return df['accrued_days'] / NUM_OF_DAYS_IN_YEAR
 
 
 def convert_calc_date_to_category(row):
