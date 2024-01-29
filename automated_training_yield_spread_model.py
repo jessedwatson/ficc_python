@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-26
+ # @ Modified date: 2024-01-29
  '''
 import numpy as np
 import pandas as pd
@@ -103,28 +103,36 @@ def update_data() -> (pd.DataFrame, datetime, int):
 
 def segment_results(data):
     data['delta'] = np.abs(data.predicted_ys - data.new_ys)
+    delta = data['delta']
 
-    investment_grade = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-']
+    def get_mae_and_count(condition):
+        return np.round(np.mean(delta[condition]), 3), data[condition].shape[0]    # round mae to 3 digits after the decimal point to reduce noise
 
-    total_mae, total_count = np.mean(data.delta), data.shape[0] 
-
-    dd_mae, dd_count = np.mean(data['delta'][data.trade_type == 'D']), data[data.trade_type == 'D'].shape[0]
-    dp_mae, dp_count = np.mean(data['delta'][data.trade_type == 'P']), data[data.trade_type == 'P'].shape[0]
-    ds_mae, ds_count = np.mean(data['delta'][data.trade_type == 'S']), data[data.trade_type == 'S'].shape[0]
-
-    AAA_mae, AAA_count = np.mean(data['delta'][data.rating == 'AAA']), data[data.rating == 'AAA'].shape[0]
-    investment_grade_mae, investment_grade_count = np.mean(data['delta'][data.rating.isin(investment_grade)]), data[data.rating.isin(investment_grade)].shape[0]
-    hundred_k_mae, hundred_k_count = np.mean(data['delta'][data.par_traded >= 1e5]), data[data.par_traded >= 1e5].shape[0]
+    investment_grade_ratings = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-']
+    total_mae, total_count = np.mean(delta), data.shape[0] 
+    
+    inter_dealer = data.trade_type == 'D'
+    dd_mae, dd_count = get_mae_and_count(inter_dealer)
+    dealer_purchase = data.trade_type == 'P'
+    dp_mae, dp_count = get_mae_and_count(dealer_purchase)
+    dealer_sell = data.trade_type == 'S'
+    ds_mae, ds_count = get_mae_and_count(dealer_sell)
+    aaa = data.rating == 'AAA'
+    aaa_mae, aaa_count = get_mae_and_count(aaa)
+    investment_grade = data.rating.isin(investment_grade_ratings)
+    investment_grade_mae, investment_grade_count = get_mae_and_count(investment_grade)
+    par_traded_greater_than_or_equal_to_100k = data.par_traded >= 1e5
+    hundred_k_mae, hundred_k_count = get_mae_and_count(par_traded_greater_than_or_equal_to_100k)
 
     result_df = pd.DataFrame(data=[[total_mae, total_count],
                                    [dd_mae, dd_count],
                                    [dp_mae, dp_count],
                                    [ds_mae, ds_count], 
-                                   [AAA_mae, AAA_count], 
+                                   [aaa_mae, aaa_count], 
                                    [investment_grade_mae, investment_grade_count],
                                    [hundred_k_mae, hundred_k_count]],
                              columns=['Mean absolute Error', 'Trade count'],
-                             index=['Entire set', 'Dealer-Dealer', 'Dealer-Purchase', 'Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size > 100k'])
+                             index=['Entire set', 'Dealer-Dealer', 'Dealer-Purchase', 'Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size >= 100k'])
     return result_df
 
 
@@ -178,7 +186,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     try:
         print(result_df.to_markdown())
     except Exception as e:
-        print('Need to run `pip install tabulate` on this machine in orer to display the dataframe in a easy to read way')
+        print('Need to run `pip install tabulate` on this machine in orer to display the dataframe in an easy to read way')
 
     # uploading predictions to bigquery
     if SAVE_MODEL_AND_DATA:
