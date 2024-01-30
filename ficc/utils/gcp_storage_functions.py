@@ -1,33 +1,28 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2022-03-01 11:00:41
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-02-09 14:27:46
- # @ Description:
+ # @ Create date: 2022-03-01
+ # @ Modified by: Mitas Ray
+ # @ Modified date: 2024-01-25
+ # @ Description: Convenience functions to upload and download data from Google cloud buckets.
  '''
-
-from google.cloud import storage
 import pickle5 as pickle
 
-'''
-This function is used to upload data to the cloud bucket
-'''
 
-def upload_data(storage_client, bucket_name, file_name):
+def upload_data(storage_client, bucket_name, file_name, file_path:str=None):
+    '''Upload data to the cloud bucket `bucket_name` with filename `file_name` from a local `file_path`.'''
+    if file_path is None: file_path = file_name
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(file_name)
-    blob.upload_from_filename(file_name)
-    print("File {} uploaded to {}.".format(file_name, bucket_name))
+    blob.upload_from_filename(file_path)
+    print(f'File from {file_path} uploaded to {file_name} in Google cloud bucket: {bucket_name}')
 
-'''
-This function is used to download the data from the GCP storage bucket.
-It is assumed that we will be downloading a pickle file
-'''
 
 def download_data(storage_client, bucket_name, file_name):
+    '''Download file `file_name` from the cloud bucket `bucket_name`. Assumes 
+    that `file_name` is a pickle file.'''
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(file_name)
     pickle_in = blob.download_as_string()
     data = pickle.loads(pickle_in) 
-    print("File {} downloaded to {}.".format(file_name, bucket_name))
+    print(f'File {file_name} downloaded from Google cloud bucket: {bucket_name}')
     return data

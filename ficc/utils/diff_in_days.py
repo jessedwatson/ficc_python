@@ -6,13 +6,12 @@
  # @ Description: This file implements a function to calculate the difference in 
  # days between two days in accordance to the provision of MSRB rule 33G
  '''
-
 import pandas as pd
 
 
-'''This function calculates the difference in days using the 360/30 
-convention specified in MSRB Rule Book G-33, rule (e).'''
 def _diff_in_days_two_dates_360_30(end_date, start_date):
+    '''This function calculates the difference in days using the 360/30 
+    convention specified in MSRB Rule Book G-33, rule (e).'''
     Y2 = end_date.year
     Y1 = start_date.year
     M2 = end_date.month
@@ -43,7 +42,7 @@ def diff_in_days_two_dates(end_date, start_date, convention="360/30"):
 
     
 def diff_in_days(trade, convention="360/30", **kwargs):
-    #See MSRB Rule 33-G for details
+    # see MSRB Rule 33-G for details
     if 'calc_type' in kwargs:
         if kwargs['calc_type'] == 'accrual' and not pd.isnull(trade.accrual_date):
             start_date = trade.accrual_date

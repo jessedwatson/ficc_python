@@ -1,21 +1,14 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-16 10:04:41
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-10-19 10:53:50
+ # @ Create date: 2021-12-16
+ # @ Modified by: Mitas Ray
+ # @ Modified date: 2024-01-10
  # @ Description: Source code to process trade history from BigQuery
  '''
- 
-import pandas as pd
-from pandas.tseries.offsets import BDay
 import numpy as np
-from pytz import timezone
-pacific = timezone('US/Pacific')
-
 # Pandaralled is a python package that is 
 # used to multi-thread df apply
 from pandarallel import pandarallel
-from datetime import datetime, timedelta
 
 import os
 
@@ -32,60 +25,71 @@ from ficc.utils.get_treasury_rate import current_treasury_rate
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_replica_count_flag, add_same_day_flag, add_ntbc_precursor_flag
 from ficc.utils.related_trade import add_related_trades
 
+
 def process_data(query, 
                  client, 
                  SEQUENCE_LENGTH, 
-                 NUM_FEATURES, 
+                 num_features_for_each_trade_in_history, 
                  PATH, 
-                 YIELD_CURVE="FICC_NEW", 
+                 YIELD_CURVE='FICC_NEW', 
                  remove_short_maturity=False, 
-                 trade_history_delay=1, 
-                 min_trades_in_history=1, 
-                 treasury_spread=False,
-                 add_flags=False,
-                 add_related_trades_bool=False,
-                 add_rtrs_in_history=False,
-                 only_dollar_price_history=False,
+                 trade_history_delay=12, 
+                 min_trades_in_history=0, 
+                 treasury_spread=False, 
+                 add_flags=False, 
+                 add_related_trades_bool=False, 
+                 add_rtrs_in_history=False, 
+                 only_dollar_price_history=False, 
+                 save_data=True, 
                  **kwargs):
     
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
-    print(f'Running with\n remove_short_maturity:{remove_short_maturity}\n trade_history_delay:{trade_history_delay}\n min_trades_in_hist:{min_trades_in_history}\n add_flags:{add_flags}')
+    print(f'Running with\n remove_short_maturity: {remove_short_maturity}\n trade_history_delay: {trade_history_delay}\n min_trades_in_hist: {min_trades_in_history}\n add_flags: {add_flags}')
     
     trades_df = process_trade_history(query,
                                       client, 
                                       SEQUENCE_LENGTH,
-                                      NUM_FEATURES,
+                                      num_features_for_each_trade_in_history,
                                       PATH,
                                       remove_short_maturity, 
                                       trade_history_delay,  
                                       min_trades_in_history,
                                       treasury_spread,
                                       add_rtrs_in_history,
-                                      only_dollar_price_history,)
+                                      only_dollar_price_history, 
+                                      save_data)
+    
+    if trades_df is None: return None    # no new trades
 
     if only_dollar_price_history == False:
-        if YIELD_CURVE.upper() == "FICC" or YIELD_CURVE.upper() == "FICC_NEW":
+        if YIELD_CURVE.upper() == 'FICC' or YIELD_CURVE.upper() == 'FICC_NEW':
             # Calculating yield spreads using ficc_ycl
-            print("Calculating yield spread using ficc yield curve")
-            trades_df['ficc_ycl'] = trades_df[['trade_date','calc_date']].parallel_apply(get_ficc_ycl,axis=1)
-            
+            print('Calculating yield spread using ficc yield curve')
+            trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(get_ficc_ycl, axis=1)
              
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
-        trades_df.dropna(subset=['yield_spread'],inplace=True)
+        trades_df.dropna(subset=['yield_spread'], inplace=True)
         print('Yield spread calculated')
 
         if treasury_spread == True:
-            trades_df['treasury_rate'] = trades_df[['trade_date','calc_date','settlement_date']].parallel_apply(current_treasury_rate, 
-                                                                                                                            axis=1)
+            trades_df['treasury_rate'] = trades_df[['trade_date', 'calc_date', 'settlement_date']].parallel_apply(current_treasury_rate, axis=1)
+            null_treasury_rate = trades_df['treasury_rate'].isnull()
+            if null_treasury_rate.sum() > 0:
+                trade_dates_corresponding_to_null_treasury_rate = trades_df.loc[null_treasury_rate, 'trade_date']
+                print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed from the date: {trade_dates_corresponding_to_null_treasury_rate.unique()}')
+                trades_df = trades_df[~null_treasury_rate]
             trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
-    
+
+    if len(trades_df) == 0:
+        print(f'After dropping trades for not having a treasury rate, the dataframe is empty')
+        return None
         
     # Dropping columns which are not used for training
     # trades_df = drop_extra_columns(trades_df)
     trades_df = convert_dates(trades_df)
 
-    print("Processing features")
+    print('Processing features')
     trades_df = process_features(trades_df)
 
     if remove_short_maturity == True:
@@ -110,6 +114,5 @@ def process_data(query,
                                        CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE)
     
 
-    print(f"Numbers of samples {len(trades_df)}")
-    
+    print(f'Number of data points at the end of `process_data(...)`: {len(trades_df)}')
     return trades_df
