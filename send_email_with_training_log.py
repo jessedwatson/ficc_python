@@ -7,13 +7,14 @@
  the recipients to view the training log without having to ssh into the VM where the training occurs.
  '''
 import sys
+from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 
 from automated_training_auxiliary_functions import EMAIL_RECIPIENTS, send_email
 
 
-def send_training_log(attachment_path, recipients:list, model:str):
+def send_training_log(attachment_path, recipients:list, model:str, message:str):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
 
     def get_filename_from_path(path):
@@ -29,6 +30,9 @@ def send_training_log(attachment_path, recipients:list, model:str):
     msg['Subject'] = f'Training log for {model} model trained today'
     msg['From'] = sender_email
 
+    body = MIMEText(message, 'plain')
+    msg.attach(body)
+
     attachment_filename = get_filename_from_path(attachment_path)
     with open(attachment_path, 'rb') as attachment:    # attach the file
         part = MIMEApplication(attachment.read())
@@ -38,10 +42,11 @@ def send_training_log(attachment_path, recipients:list, model:str):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print('Usage: $ python send_email_with_training_log.py <filepath> <model>')
+    if len(sys.argv) != 4:
+        print('Usage: $ python send_email_with_training_log.py <filepath> <model> <message>')
     else:
         filepath = sys.argv[1]
         model = sys.argv[2]
+        message = sys.argv[3]
         print(f'Sending email with {filepath}')
-        send_training_log(filepath, EMAIL_RECIPIENTS, model)
+        send_training_log(filepath, EMAIL_RECIPIENTS, model, message)

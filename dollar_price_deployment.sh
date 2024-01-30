@@ -2,6 +2,7 @@
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
 # @ Modified date: 2023-01-29
+echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 
 #!/bin/sh
 who
@@ -10,6 +11,7 @@ HOME='/home/mitas'
 DATE_WITH_YEAR=$(date +%Y-%m-%d)
 DATE_WITHOUT_YEAR=$(date +%m-%d)
 TRAINING_LOG_PATH="$HOME/training_logs/dollar_price_training_$DATE_WITH_YEAR.log"
+MODEL="dollar_price"
 
 # Changing directory and training the model
 echo "Training model"
@@ -33,23 +35,25 @@ gsutil cp -r gs://ahmad_data/model_dollar_price.zip $HOME/trained_models/dollar_
 unzip $HOME/trained_models/dollar_price_models/model_dollar_price.zip -d $HOME/trained_models/dollar_price_models/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
+  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Unzipping model failed. See attached logs for more details."
   exit 1
 fi
 
 echo "Uploading model to bucket"
 gsutil cp -r $HOME/trained_models/dollar_price_models/$MODEL_NAME gs://automated_training
 if [ $? -ne 0 ]; then
-  echo "Uploading model failed with exit code $?"
+  echo "Uploading model to bucket failed with exit code $?"
+  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Uploading model to bucket failed. See attached logs for more details."
   exit 1
 fi
 
-
 echo "ENDPOINT_ID $ENDPOINT_ID"
 echo "MODEL_NAME $MODEL_NAME"
-echo "Uploading model to vertex ai"
+echo "Uploading model to Vertex AI"
 gcloud beta ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-8:latest --artifact-uri=gs://automated_training/$MODEL_NAME
 if [ $? -ne 0 ]; then
-  echo "Failed to deploy model on vertex ai exited with code $?"
+  echo "Model upload to Vertex AI failed with exit code $?"
+  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."
   exit 1
 fi
 
@@ -57,7 +61,12 @@ NEW_MODEL_ID=$(gcloud ai models list --region=us-east4 --format='value(name)' --
 echo "NEW_MODEL_ID $NEW_MODEL_ID"
 echo "Deploying to endpoint"
 gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2  --accelerator=type=nvidia-tesla-p4,count=1 --min-replica-count=1 --max-replica-count=1
+if [ $? -ne 0 ]; then
+  echo "Model deployment to Vertex AI failed with exit code $?"
+  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
+  exit 1
+fi
 
-/opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH "dollar_price"
+/opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
 
 sudo shutdown -h now

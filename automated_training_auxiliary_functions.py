@@ -648,7 +648,6 @@ def send_results_email(mae, last_trade_date, recipients:list, model:str):
     message = MIMEText(f'The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae, 3)}.', 'plain')
     msg.attach(message)
     send_email(sender_email, msg, recipients)
-    
 
 
 def send_no_new_model_email(last_trade_date, recipients:list, model:str):
