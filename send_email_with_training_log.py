@@ -31,8 +31,8 @@ def send_training_log(attachment_path, recipients:list, model:str):
 
     attachment_filename = get_filename_from_path(attachment_path)
     with open(attachment_path, 'rb') as attachment:    # attach the file
-        part = MIMEApplication(attachment.read(), Name=attachment_filename)
-        part['Content-Disposition'] = f'''attachment; filename="{part['Name']}"'''    # using triple quotes to do 3 layers of nested quotes
+        part = MIMEApplication(attachment.read())
+        part.add_header('Content-Disposition', 'attachment', filename=attachment_filename)
         msg.attach(part)
     send_email(sender_email, msg, recipients)
 
