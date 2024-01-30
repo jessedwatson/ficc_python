@@ -18,7 +18,7 @@ def remove_lines_with_character(character_to_remove, file_path, new_file_path=No
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print('Usage: python clean_training_log.py <filepath>')
+        print('Usage: $ python clean_training_log.py <filepath>')
     else:
         filepath = sys.argv[1]
         print(f'Cleaning up: {filepath}')

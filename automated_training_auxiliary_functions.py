@@ -626,7 +626,8 @@ def send_email(sender_email, message, recipients):
     with smtplib.SMTP(smtp_server, port) as server:
         try:
             server.starttls()
-            server.login(sender_email, 'ztwbwrzdqsucetbg')
+            sender_password = 'ztwbwrzdqsucetbg'
+            server.login(sender_email, sender_password)
             for receiver in recipients:
                 server.sendmail(sender_email, receiver, message.as_string())
         except Exception as e:

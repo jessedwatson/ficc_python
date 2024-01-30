@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2023-01-26
+# @ Modified date: 2023-01-29
 
 #!/bin/sh
 who
@@ -9,6 +9,8 @@ HOME='/home/mitas'
 # Create dates before training so that in case the training takes too long and goes into the next day, the date is correct
 DATE_WITH_YEAR=$(date +%Y-%m-%d)
 DATE_WITHOUT_YEAR=$(date +%m-%d)
+TRAINING_LOG_PATH="$HOME/training_logs/dollar_price_training_$DATE_WITH_YEAR.log"
+
 # Changing directory and training the model
 echo "Training model"
 /opt/conda/bin/python $HOME/ficc_python/automated_training_dollar_price_model.py
@@ -19,7 +21,7 @@ fi
 echo "Model trained"
 
 # Cleaning the logs to make more readable
-/opt/conda/bin/python $HOME/ficc_python/clean_training_log.py "$HOME/training_logs/yield_spread_training_$DATE_WITH_YEAR.log"
+/opt/conda/bin/python $HOME/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
 
 # Getting the endpoint ID we want to deploy the model on
 ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
@@ -55,5 +57,7 @@ NEW_MODEL_ID=$(gcloud ai models list --region=us-east4 --format='value(name)' --
 echo "NEW_MODEL_ID $NEW_MODEL_ID"
 echo "Deploying to endpoint"
 gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2  --accelerator=type=nvidia-tesla-p4,count=1 --min-replica-count=1 --max-replica-count=1
+
+/opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH
 
 sudo shutdown -h now
