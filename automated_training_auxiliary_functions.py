@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-26
+ # @ Modified date: 2024-01-29
  '''
 import os
 import gcsfs
@@ -285,15 +285,16 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
     trade_history_features = get_ys_trade_history_features(using_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
     num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
+    raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
     data_from_last_trade_date = process_data(DATA_QUERY, 
                                              bq_client, 
                                              num_trades_in_history, 
                                              num_features_for_each_trade_in_history, 
-                                             f'raw_data_{file_timestamp}.pkl', 
+                                             raw_data_filepath, 
                                              save_data=SAVE_MODEL_AND_DATA, 
                                              **optional_arguments_for_process_data)
     if data_from_last_trade_date is not None and model == 'dollar_price': data_from_last_trade_date = data_from_last_trade_date.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
-    return old_data, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history
+    return old_data, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
 @function_timer
@@ -423,11 +424,11 @@ def save_update_data_results_to_pickle_files(suffix:str, update_data:callable):
         with open(last_trade_data_from_update_data_pickle_filepath, 'rb') as file: last_trade_date = pickle.load(file)
         with open(num_features_for_each_trade_in_history_pickle_filepath, 'rb') as file: num_features_for_each_trade_in_history = pickle.load(file)
     else:
-        data, last_trade_date, num_features_for_each_trade_in_history = update_data()
+        data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = update_data()
         data.to_pickle(data_pickle_filepath)
         with open(last_trade_data_from_update_data_pickle_filepath, 'wb') as file: pickle.dump(last_trade_date, file)
         with open(num_features_for_each_trade_in_history_pickle_filepath, 'wb') as file: pickle.dump(num_features_for_each_trade_in_history, file)
-    return data, last_trade_date, num_features_for_each_trade_in_history
+    return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
 def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
@@ -617,6 +618,20 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     upload_data(storage_client, 'ahmad_data', f'{model_zip_filename}.zip')
     # upload_data(storage_client, 'ahmad_data/yield_spread_models', f'saved_model_{file_timestamp}.zip')
     os.system(f'rm -r {model_filename}')
+
+
+def remove_file(file_path):
+    '''Remove the file at path: `file_path`. 
+    Taken directly from ChatGPT from search: "how to remove a file python".'''
+    try:
+        os.remove(file_path)
+        print(f"File '{file_path}' removed successfully.")
+    except FileNotFoundError:
+        print(f"File '{file_path}' not found.")
+    except PermissionError:
+        print(f"PermissionError: Unable to remove '{file_path}'.")
+    except Exception as e:
+        print(f'Error: {e}')
 
 
 def send_email(sender_email, message, recipients):

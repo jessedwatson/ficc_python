@@ -32,6 +32,7 @@ from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_
                                                    fit_encoders, \
                                                    train_and_evaluate_model, \
                                                    save_model, \
+                                                   remove_file, \
                                                    send_email, \
                                                    send_no_new_model_email
 
@@ -88,17 +89,17 @@ def update_data() -> (pd.DataFrame, datetime, int):
     date way in the past (the desired start date of the data).'''
     file_name = 'processed_data_test.pkl'
     using_treasury_spread = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA.get('treasury_spread', False)
-    data_before_last_trade_date, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history = get_new_data(file_name, 
-                                                                                                                                   'yield_spread', 
-                                                                                                                                   BQ_CLIENT, 
-                                                                                                                                   using_treasury_spread, 
-                                                                                                                                   OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
+    data_before_last_trade_date, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
+                                                                                                                                                      'yield_spread', 
+                                                                                                                                                      BQ_CLIENT, 
+                                                                                                                                                      using_treasury_spread, 
+                                                                                                                                                      OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, 'yield_spread')
     print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'yield_spread', using_treasury_spread)
     data.dropna(inplace=True, subset=PREDICTORS)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)
-    return data, last_trade_date, num_features_for_each_trade_in_history
+    return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
 def segment_results(data):
@@ -221,9 +222,12 @@ def send_results_email_table(result_df, last_trade_date, recipients:list, model:
 @function_timer
 def main():
     print(f'automated_training_yield_spread_model.py starting at {datetime.now()}')
-    data, last_trade_date, num_features_for_each_trade_in_history = save_update_data_results_to_pickle_files('yield_spread', update_data)
+    data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('yield_spread', update_data)
     model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
+    print(f'Removing {raw_data_filepath} since training is complete')
+    remove_file(raw_data_filepath)
+    
     if not TESTING and model is None:
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
         raise RuntimeError('No new data was found. Raising an error so that the shell script terminates.')

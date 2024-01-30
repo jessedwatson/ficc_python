@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-12
+ # @ Modified date: 2024-01-29
  # @ Description:
  '''
 import os
@@ -28,7 +28,7 @@ def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
             raise Exception (f'Saved query is incorrect:\n{q}')
     
     print(f'Grabbing data from BigQuery')
-    trade_dataframe = sqltodf(query,client)
+    trade_dataframe = sqltodf(query, client)
 
     if save_data:
         print(f'Saving query and data to {PATH}')
@@ -75,7 +75,6 @@ def process_trade_history(query,
                                                                              treasury_spread,
                                                                              add_rtrs_in_history,
                                                                              only_dollar_price_history]))
-                                                                                                
                                                                         
     trade_dataframe[['trade_history', 'temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)
     del temp
