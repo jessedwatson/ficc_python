@@ -18,7 +18,8 @@ MODEL="yield_spread"
 echo "Training model"
 /opt/conda/bin/python $HOME/ficc_python/automated_training_yield_spread_model.py
 if [ $? -ne 0 ]; then
-  echo "Python script failed with exit code $?"
+  echo "automated_training_yield_spread_model.py script failed with exit code $?"
+  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details."
   exit 1
 fi
 echo "Model trained"
