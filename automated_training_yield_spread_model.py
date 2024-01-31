@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-29
+ # @ Modified date: 2024-01-31
  '''
 import numpy as np
 import pandas as pd
@@ -154,7 +154,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=apply_exclusions)
     test_data = data[data.trade_date > last_trade_date]
     test_data, test_data_before_exclusions = apply_exclusions(test_data)
-    if len(test_data) == 0: return None, None, None
+    if len(test_data) == 0: return None, None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
     print(f'Training set contains {len(train_data)} data points (on or before {last_trade_date})')
