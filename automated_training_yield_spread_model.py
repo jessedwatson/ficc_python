@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-31
+ # @ Modified date: 2024-02-01
  '''
 import numpy as np
 import pandas as pd
@@ -89,12 +89,12 @@ def update_data() -> (pd.DataFrame, datetime, int):
     date way in the past (the desired start date of the data).'''
     file_name = 'processed_data_test.pkl'
     using_treasury_spread = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA.get('treasury_spread', False)
-    data_before_last_trade_date, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
-                                                                                                                                                      'yield_spread', 
-                                                                                                                                                      BQ_CLIENT, 
-                                                                                                                                                      using_treasury_spread, 
-                                                                                                                                                      OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
-    data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, 'yield_spread')
+    data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
+                                                                                                                                                              'yield_spread', 
+                                                                                                                                                              BQ_CLIENT, 
+                                                                                                                                                              using_treasury_spread, 
+                                                                                                                                                              OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
+    data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'yield_spread')
     print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'yield_spread', using_treasury_spread)
     data.dropna(inplace=True, subset=PREDICTORS)

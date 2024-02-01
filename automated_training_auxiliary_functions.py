@@ -2,8 +2,9 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-29
+ # @ Modified date: 2024-02-01
  '''
+import warnings
 import os
 import gcsfs
 import shutil
@@ -38,6 +39,7 @@ EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc
 BUCKET_NAME = 'automated_training'
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
+HOUR_MIN_SEC = '%H:%M:%S'
 
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'    
@@ -267,6 +269,19 @@ def add_yield_curve(data):
     return data
 
 
+def decrement_business_days(date, num_business_days:int):
+    '''Subtract `num_business_days` from `date`.'''
+    return (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
+
+
+def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data, last_trade_date):
+    '''Checks whether `last_trade_date` is the same as the date of the earliest trade in `new_data`. This 
+    situation arises materialized trade history is created in the middle of the day, and so there are trades 
+    on the same day that are still coming in. If we do not account for this case, then the automated training 
+    fails since it searches for trades to populate the testing set as those after the `last_trade_date`.'''
+    return new_data.trade_date.min().date().strftime(YEAR_MONTH_DAY) == last_trade_date
+
+
 @function_timer
 def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=False, optional_arguments_for_process_data:dict={}):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
@@ -277,24 +292,30 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
     else:
         query_features = query_features + ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL
     
-    old_data, last_trade_date = get_data_and_last_trade_date(BUCKET_NAME, file_name)
-    print(f'last trade date: {last_trade_date}')
-    DATA_QUERY = get_data_query(last_trade_date, query_features, query_conditions)
-    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H:%M')
+    old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
+    print(f'last trade datetime: {last_trade_datetime}')
+    DATA_QUERY = get_data_query(last_trade_datetime, query_features, query_conditions)
+    file_timestamp = datetime.now().strftime(YEAR_MONTH_DAY + '-%H:%M')
 
     trade_history_features = get_ys_trade_history_features(using_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
     num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
     raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
-    data_from_last_trade_date = process_data(DATA_QUERY, 
-                                             bq_client, 
-                                             num_trades_in_history, 
-                                             num_features_for_each_trade_in_history, 
-                                             raw_data_filepath, 
-                                             save_data=SAVE_MODEL_AND_DATA, 
-                                             **optional_arguments_for_process_data)
-    if data_from_last_trade_date is not None and model == 'dollar_price': data_from_last_trade_date = data_from_last_trade_date.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
-    return old_data, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
+    data_from_last_trade_datetime = process_data(DATA_QUERY, 
+                                                 bq_client, 
+                                                 num_trades_in_history, 
+                                                 num_features_for_each_trade_in_history, 
+                                                 raw_data_filepath, 
+                                                 save_data=SAVE_MODEL_AND_DATA, 
+                                                 **optional_arguments_for_process_data)
+    
+    if earliest_trade_from_new_data_is_same_as_last_trade_date(data_from_last_trade_datetime, last_trade_date):    # see explanation in docstring for `earliest_trade_from_new_data_is_same_as_last_trade_date(...)` as to why this scenario is important to handle
+        decremented_last_trade_date = decrement_business_days(last_trade_date, 1)
+        warnings.warn(f'Since the earliest trade from the new data is the same as the last trade date, we are decrementing the last trade date from {last_trade_date} to {decremented_last_trade_date}. This occurs because materialized trade history was created in the middle of the work day. If materialized trade history was not created during the middle of the work day, then investigate why we are inside this `if` statement.')
+        last_trade_date = decremented_last_trade_date
+
+    if data_from_last_trade_datetime is not None and model == 'dollar_price': data_from_last_trade_datetime = data_from_last_trade_datetime.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
+    return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
 @function_timer
@@ -357,7 +378,7 @@ def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_b
     business_days_gone_back = 0
     while len(data_after_date) == 0 and business_days_gone_back < max_number_of_business_days_to_go_back:
         business_days_gone_back += 1
-        previous_date = (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(business_days_gone_back)).strftime(YEAR_MONTH_DAY)
+        previous_date = decrement_business_days(date, business_days_gone_back)
         data_after_date = data[data.trade_date > previous_date]
         if exclusions_function is not None: data_after_date, _ = exclusions_function(data_after_date)
     if business_days_gone_back == max_number_of_business_days_to_go_back:
@@ -386,21 +407,22 @@ def create_input(df, encoders, non_cat_features, binary_features, categorical_fe
     return datalist
 
 
-def get_data_and_last_trade_date(bucket_name, file_name):
-    '''Get the dataframe from `bucket_name/file_name` and the most recent trade date from this dataframe.'''
+def get_data_and_last_trade_datetime(bucket_name, file_name):
+    '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
     print(f'Downloading data from {bucket_name}/{file_name}')
     fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
     with fs.open(f'{bucket_name}/{file_name}') as f:
         data = pd.read_pickle(f)
     print(f'Data downloaded from {bucket_name}/{file_name}')
     
+    last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
-    return data, last_trade_date
+    return data, last_trade_datetime, last_trade_date
 
 
-def get_data_query(last_trade_date, features, conditions):
+def get_data_query(last_trade_datetime, features, conditions):
     features_as_string = ', '.join(features)
-    conditions = conditions + [f'trade_date > "{last_trade_date}"']
+    conditions = conditions + [f'trade_datetime > "{last_trade_datetime}"']
     conditions_as_string = ' AND '.join(conditions)
     return f'''SELECT {features_as_string}
                FROM `eng-reactor-287421.auxiliary_views.materialized_trade_history`

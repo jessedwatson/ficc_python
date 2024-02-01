@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-29
+ # @ Modified date: 2024-02-01
  '''
 import pandas as pd
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -48,11 +48,11 @@ def update_data() -> (pd.DataFrame, datetime, int):
     `processed_data_dollar_price.pkl` since that data is will have the old preferences; an easy way to do that 
     is to manually set `last_trade_date` to a date way in the past (the desired start date of the data).'''
     file_name = 'processed_data_dollar_price.pkl'
-    data_before_last_trade_date, data_from_last_trade_date, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
-                                                                                                                                                      'dollar_price', 
-                                                                                                                                                      BQ_CLIENT, 
-                                                                                                                                                      optional_arguments_for_process_data=OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
-    data = combine_new_data_with_old_data(data_before_last_trade_date, data_from_last_trade_date, 'dollar_price')
+    data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
+                                                                                                                                                              'dollar_price', 
+                                                                                                                                                              BQ_CLIENT, 
+                                                                                                                                                              optional_arguments_for_process_data=OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
+    data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'dollar_price')
     print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'dollar_price')
     data.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE)
