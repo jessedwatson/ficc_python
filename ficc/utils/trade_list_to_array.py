@@ -18,6 +18,7 @@ def trade_list_to_array(trade_history,
                         use_treasury_spread: bool,
                         add_rtrs_in_history: bool,
                         only_dollar_price_history: bool, 
+                        yield_curve_to_use: str, 
                         treasury_rate_dict: dict = None):
     empty_last_trade_features = [None] * 16
     if len(trade_history) == 0: return np.array([]), empty_last_trade_features
@@ -31,6 +32,7 @@ def trade_list_to_array(trade_history,
                                                         use_treasury_spread,
                                                         add_rtrs_in_history,
                                                         only_dollar_price_history, 
+                                                        yield_curve_to_use, 
                                                         treasury_rate_dict)
         if trades is not None: trades_list.append(trades)
         if last_trade_features is None: last_trade_features = temp_last_features

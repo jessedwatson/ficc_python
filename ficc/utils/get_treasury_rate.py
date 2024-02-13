@@ -6,7 +6,6 @@
  # @ Description:
  '''
 import numpy as np
-from pandas.tseries.offsets import BDay
 
 from ficc.utils.auxiliary_functions import sqltodf
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR

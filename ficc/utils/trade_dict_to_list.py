@@ -23,7 +23,14 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-def trade_dict_to_list(trade_dict: dict, remove_short_maturity, trade_history_delay, use_treasury_spread, add_rtrs_in_history, only_dollar_price_history, treasury_rate_dict: dict) -> list:
+def trade_dict_to_list(trade_dict: dict, 
+                       remove_short_maturity: bool, 
+                       trade_history_delay: int, 
+                       use_treasury_spread: bool, 
+                       add_rtrs_in_history: bool, 
+                       only_dollar_price_history: bool, 
+                       yield_curve_to_use: str, 
+                       treasury_rate_dict: dict) -> list:
     trade_type_mapping = {'D': [0, 0], 'S': [0, 1], 'P': [1, 0]}
     trade_list = []
     necessary_features = [
@@ -37,11 +44,9 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, trade_history_de
         'dollar_price',
     ]
     for feature in necessary_features:
-        if trade_dict[feature] is None:
-            return None, None
+        if trade_dict[feature] is None: return None, None
 
-    if trade_dict['seconds_ago'] < trade_history_delay:    # only keep trades further in the past than `trade_history_delay`
-        return None, None
+    if trade_dict['seconds_ago'] < trade_history_delay: return None, None    # only keep trades further in the past than `trade_history_delay`
 
     if only_dollar_price_history is True:
         yield_at_that_time = None
@@ -55,14 +60,14 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, trade_history_de
                     return None, None
             except Exception as e:
                 print(f'Failed to remove this trade due to error: {e}')
-                for key in trade_dict.keys():
-                    print(f'{key}: {trade_dict[key]}')
+                for key, value in trade_dict.items():
+                    print(f'{key}: {value}')
                 return None, None
 
         target_date = trade_dict['trade_datetime'].date()
         calc_date = trade_dict['calc_date']
         time_to_maturity = diff_in_days_two_dates(calc_date, target_date) / NUM_OF_DAYS_IN_YEAR
-        if (globals.YIELD_CURVE_TO_USE.upper() == 'FICC' or globals.YIELD_CURVE_TO_USE == 'FICC_NEW'):    # ficc yield curve coefficients are only present before 27th July for the old yield curve and 2nd August for the new yield curve
+        if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':    # ficc yield curve coefficients are only present before 27th July for the old yield curve and 2nd August for the new yield curve
             global nelson_params
             global scalar_params
             yield_at_that_time = yield_curve_level(time_to_maturity, target_date, globals.nelson_params, globals.scalar_params, globals.shape_parameter)

@@ -16,7 +16,6 @@ from ficc.utils.process_features import process_features
 print(f'Initializing pandarallel with {os.cpu_count()/2} cores')
 pandarallel.initialize(progress_bar=False, nb_workers=int(os.cpu_count()/2))
 
-import ficc.utils.globals as globals
 from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.auxiliary_functions import convert_dates
@@ -42,9 +41,7 @@ def process_data(query,
                  only_dollar_price_history=False, 
                  save_data=True, 
                  **kwargs):
-    
-    # This global variable is used to be able to process data in parallel
-    globals.YIELD_CURVE_TO_USE = YIELD_CURVE
+    yield_curve_to_use = YIELD_CURVE.upper()
     print(f'Running with\n remove_short_maturity: {remove_short_maturity}\n trade_history_delay: {trade_history_delay}\n min_trades_in_hist: {min_trades_in_history}\n add_flags: {add_flags}')
     treasury_rate_dict = get_treasury_rate_dict(client) if use_treasury_spread is True else None
     trades_df = process_trade_history(query,
@@ -58,13 +55,14 @@ def process_data(query,
                                       use_treasury_spread,
                                       add_rtrs_in_history,
                                       only_dollar_price_history, 
+                                      yield_curve_to_use, 
                                       treasury_rate_dict, 
                                       save_data)
     
     if trades_df is None: return None    # no new trades
 
     if only_dollar_price_history is False:
-        if YIELD_CURVE.upper() == 'FICC' or YIELD_CURVE.upper() == 'FICC_NEW':
+        if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':
             print('Calculating yield spread using ficc yield curve')
             trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(get_ficc_ycl, axis=1)
              
