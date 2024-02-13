@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2022-09-29
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-10
+ # @ Modified date: 2024-02-13
  # @ Description:
  '''
 import numpy as np
@@ -15,8 +15,9 @@ import ficc.utils.globals as globals
 
 
 def get_treasury_rate(client):
-    query = '''SELECT * FROM `eng-reactor-287421.treasury_yield.daily_yield_rate` order by Date desc;'''
+    query = '''SELECT * FROM `eng-reactor-287421.treasury_yield.daily_yield_rate` order by Date desc'''
     globals.treasury_rate = sqltodf(query, client)
+    globals.treasury_rate = globals.treasury_rate.drop_duplicates(keep='first')    # from testing or manual corrections, sometimes there are duplicate entries in the table
     globals.treasury_rate.set_index('Date', drop=True, inplace=True)
     globals.treasury_rate = globals.treasury_rate.transpose().to_dict()
 
