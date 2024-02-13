@@ -53,8 +53,8 @@ def process_trade_history(query: str,
                           shape_parameter: dict = None, 
                           save_data: bool = True):
     trades_df = fetch_trade_data(query, client, PATH, save_data)
-    print(f'Raw data contains {len(trades_df)} samples')
     if len(trades_df) == 0: return None
+    print(f'Raw data contains {len(trades_df)} trades ranging from trade datetimes of {trades_df.trade_datetime.min()} to {trades_df.trade_datetime.min()}')
     
     trades_df = process_ratings(trades_df)
     # trades_df = convert_object_to_category(trades_df)
@@ -108,5 +108,5 @@ def process_trade_history(query: str,
     
     num_trades_before_removing_null_history = len(trades_df)
     trades_df.dropna(subset=['trade_history'], inplace=True)
-    print(f'Processed trade history contains {len(trades_df)} samples. Prior to removing null histories, it contained {num_trades_before_removing_null_history} samples.')
+    print(f'Processed trade history contains {len(trades_df)} trades. Prior to removing null histories, it contained {num_trades_before_removing_null_history} trades.')
     return trades_df

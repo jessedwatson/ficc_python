@@ -76,11 +76,12 @@ def process_data(query,
     if only_dollar_price_history is False:
         if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':
             print('Calculating yield spread using ficc yield curve')
-            trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(get_ficc_ycl, axis=1)
+            trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(lambda trade: get_ficc_ycl(trade, nelson_params, scalar_params, shape_parameter), axis=1)
              
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
+        num_trades_before_dropping_null_yield_spreads = len(trades_df)
         trades_df.dropna(subset=['yield_spread'], inplace=True)
-        print('Yield spread calculated')
+        print(f'Yield spread calculated; removed {num_trades_before_dropping_null_yield_spreads - len(trades_df)} trades since these had a null yield spread')
 
         if use_treasury_spread is True:
             trades_df['treasury_rate'] = trades_df[['trade_date', 'calc_date', 'settlement_date']].parallel_apply(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
@@ -103,6 +104,7 @@ def process_data(query,
     trades_df = process_features(trades_df)
 
     if remove_short_maturity is True:
+        print('Removing short maturity')
         trades_df = trades_df[trades_df.days_to_maturity >= np.log10(1 + 400)]
 
     if 'training_features' in kwargs:
@@ -123,5 +125,5 @@ def process_data(query,
                                        NUM_RELATED_TRADES, 
                                        CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE)
     
-    print(f'Number of data points at the end of `process_data(...)`: {len(trades_df)}')
+    print(f'{len(trades_df)} trades at the end of `process_data(...)` ranging from trade datetimes of {trades_df.trade_datetime.min()} to {trades_df.trade_datetime.min()}')
     return trades_df
