@@ -14,7 +14,6 @@ from ficc.utils.pad_trade_history import pad_trade_history
 import ficc.utils.globals as globals
 from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
-from ficc.utils.get_treasury_rate import get_treasury_rate
 
 
 def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
@@ -46,18 +45,18 @@ def process_trade_history(query,
                           remove_short_maturity,
                           trade_history_delay, 
                           min_trades_in_history, 
-                          treasury_spread,
+                          use_treasury_spread,
                           add_rtrs_in_history,
                           only_dollar_price_history, 
+                          treasury_rate_dict: dict, 
                           save_data=True):
     if globals.YIELD_CURVE_TO_USE.upper() == 'FICC' or globals.YIELD_CURVE_TO_USE.upper() == 'FICC_NEW':
         print('Grabbing yield curve params')
         try:
             yield_curve_params(client, globals.YIELD_CURVE_TO_USE.upper())
         except Exception as e:
-            raise e 
-    
-    if treasury_spread == True: get_treasury_rate(client)
+            print('Unable to grab yield curve parameters')
+            raise e
 
     trade_dataframe = fetch_trade_data(query, client, PATH, save_data)
     print(f'Raw data contains {len(trade_dataframe)} samples')
@@ -72,9 +71,10 @@ def process_trade_history(query,
     temp = pd.DataFrame(data=None, index=trade_dataframe.index, columns=['trade_history', 'temp_last_features'])
     temp = trade_dataframe.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
                                                                              trade_history_delay,
-                                                                             treasury_spread,
+                                                                             use_treasury_spread,
                                                                              add_rtrs_in_history,
-                                                                             only_dollar_price_history]))
+                                                                             only_dollar_price_history, 
+                                                                             treasury_rate_dict]))
                                                                         
     trade_dataframe[['trade_history', 'temp_last_features']] = pd.DataFrame(temp.tolist(), index=trade_dataframe.index)
     del temp

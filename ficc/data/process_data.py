@@ -21,7 +21,7 @@ from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.auxiliary_functions import convert_dates
 from ficc.utils.auxiliary_variables import RELATED_TRADE_FEATURE_PREFIX, NUM_RELATED_TRADES, CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE
-from ficc.utils.get_treasury_rate import current_treasury_rate
+from ficc.utils.get_treasury_rate import get_treasury_rate_dict, current_treasury_rate
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_replica_count_flag, add_same_day_flag, add_ntbc_precursor_flag
 from ficc.utils.related_trade import add_related_trades
 
@@ -35,7 +35,7 @@ def process_data(query,
                  remove_short_maturity=False, 
                  trade_history_delay=12, 
                  min_trades_in_history=0, 
-                 treasury_spread=False, 
+                 use_treasury_spread=False, 
                  add_flags=False, 
                  add_related_trades_bool=False, 
                  add_rtrs_in_history=False, 
@@ -46,7 +46,7 @@ def process_data(query,
     # This global variable is used to be able to process data in parallel
     globals.YIELD_CURVE_TO_USE = YIELD_CURVE
     print(f'Running with\n remove_short_maturity: {remove_short_maturity}\n trade_history_delay: {trade_history_delay}\n min_trades_in_hist: {min_trades_in_history}\n add_flags: {add_flags}')
-    
+    treasury_rate_dict = get_treasury_rate_dict(client) if use_treasury_spread is True else None
     trades_df = process_trade_history(query,
                                       client, 
                                       SEQUENCE_LENGTH,
@@ -55,16 +55,16 @@ def process_data(query,
                                       remove_short_maturity, 
                                       trade_history_delay,  
                                       min_trades_in_history,
-                                      treasury_spread,
+                                      use_treasury_spread,
                                       add_rtrs_in_history,
                                       only_dollar_price_history, 
+                                      treasury_rate_dict, 
                                       save_data)
     
     if trades_df is None: return None    # no new trades
 
-    if only_dollar_price_history == False:
+    if only_dollar_price_history is False:
         if YIELD_CURVE.upper() == 'FICC' or YIELD_CURVE.upper() == 'FICC_NEW':
-            # Calculating yield spreads using ficc_ycl
             print('Calculating yield spread using ficc yield curve')
             trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(get_ficc_ycl, axis=1)
              
@@ -72,8 +72,8 @@ def process_data(query,
         trades_df.dropna(subset=['yield_spread'], inplace=True)
         print('Yield spread calculated')
 
-        if treasury_spread == True:
-            trades_df['treasury_rate'] = trades_df[['trade_date', 'calc_date', 'settlement_date']].parallel_apply(current_treasury_rate, axis=1)
+        if use_treasury_spread is True:
+            trades_df['treasury_rate'] = trades_df[['trade_date', 'calc_date', 'settlement_date']].parallel_apply(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
             null_treasury_rate = trades_df['treasury_rate'].isnull()
             if null_treasury_rate.sum() > 0:
                 trade_dates_corresponding_to_null_treasury_rate = trades_df.loc[null_treasury_rate, 'trade_date']

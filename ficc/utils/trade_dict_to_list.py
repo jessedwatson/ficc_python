@@ -23,7 +23,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-def trade_dict_to_list(trade_dict: dict, remove_short_maturity, trade_history_delay, use_treasury_spread, add_rtrs_in_history, only_dollar_price_history) -> list:
+def trade_dict_to_list(trade_dict: dict, remove_short_maturity, trade_history_delay, use_treasury_spread, add_rtrs_in_history, only_dollar_price_history, treasury_rate_dict: dict) -> list:
     trade_type_mapping = {'D': [0, 0], 'S': [0, 1], 'P': [1, 0]}
     trade_list = []
     necessary_features = [
@@ -78,7 +78,7 @@ def trade_dict_to_list(trade_dict: dict, remove_short_maturity, trade_history_de
             maturity = min(treasury_maturities, key=lambda x: abs(x - time_to_maturity))
             maturity = 'year_' + str(maturity)
             try:
-                t_rate = globals.treasury_rate[target_date][maturity]
+                t_rate = treasury_rate_dict[target_date][maturity]
             except Exception as e:
                 return None, None
 
