@@ -11,7 +11,6 @@ import pickle5 as pickle
 
 from ficc.utils.auxiliary_functions import sqltodf, process_ratings
 from ficc.utils.pad_trade_history import pad_trade_history
-from ficc.utils.yield_curve_params import yield_curve_params
 from ficc.utils.trade_list_to_array import trade_list_to_array
 
 
@@ -48,16 +47,11 @@ def process_trade_history(query: str,
                           add_rtrs_in_history: bool,
                           only_dollar_price_history: bool, 
                           yield_curve_to_use: str, 
-                          treasury_rate_dict: dict, 
+                          treasury_rate_dict: dict = None, 
+                          nelson_params: dict = None, 
+                          scalar_params: dict = None, 
+                          shape_parameter: dict = None, 
                           save_data: bool = True):
-    if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':
-        print('Grabbing yield curve params')
-        try:
-            yield_curve_params(client, yield_curve_to_use)
-        except Exception as e:
-            print('Unable to grab yield curve parameters')
-            raise e
-
     trades_df = fetch_trade_data(query, client, PATH, save_data)
     print(f'Raw data contains {len(trades_df)} samples')
     if len(trades_df) == 0: return None
@@ -66,36 +60,39 @@ def process_trade_history(query: str,
     # trades_df = convert_object_to_category(trades_df)
 
     print('Creating trade history')
-    if remove_short_maturity == True: print('Removing trades with shorter maturity')
+    if remove_short_maturity is True: print('Removing trades with shorter maturity')
     print(f'Removing trades less than {trade_history_delay} seconds in the history')
     temp = pd.DataFrame(data=None, index=trades_df.index, columns=['trade_history', 'temp_last_features'])
     temp = trades_df.recent.parallel_apply(trade_list_to_array, args=([remove_short_maturity,
-                                                                        trade_history_delay,
-                                                                        use_treasury_spread,
-                                                                        add_rtrs_in_history,
-                                                                        only_dollar_price_history, 
-                                                                        yield_curve_to_use, 
-                                                                        treasury_rate_dict]))
+                                                                       trade_history_delay,
+                                                                       use_treasury_spread,
+                                                                       add_rtrs_in_history,
+                                                                       only_dollar_price_history, 
+                                                                       yield_curve_to_use, 
+                                                                       treasury_rate_dict, 
+                                                                       nelson_params, 
+                                                                       scalar_params, 
+                                                                       shape_parameter]))
                                                                         
     trades_df[['trade_history', 'temp_last_features']] = pd.DataFrame(temp.tolist(), index=trades_df.index)
     del temp
     print('Trade history created')
     print('Getting last trade features')
-    trades_df[['last_yield_spread',
-               'last_ficc_ycl',
-               'last_rtrs_control_number',
-               'last_yield',
-               'last_dollar_price',
-               'last_seconds_ago',
-               'last_size',
+    trades_df[['last_yield_spread', 
+               'last_ficc_ycl', 
+               'last_rtrs_control_number', 
+               'last_yield', 
+               'last_dollar_price', 
+               'last_seconds_ago', 
+               'last_size', 
                'last_calc_date', 
                'last_maturity_date', 
                'last_next_call_date', 
                'last_par_call_date', 
-               'last_refund_date',
-               'last_trade_datetime',
-               'last_calc_day_cat',
-               'last_settlement_date',
+               'last_refund_date', 
+               'last_trade_datetime', 
+               'last_calc_day_cat', 
+               'last_settlement_date', 
                'last_trade_type']] = pd.DataFrame(trades_df['temp_last_features'].tolist(), index=trades_df.index)
     trades_df = trades_df.drop(columns=['temp_last_features', 'recent'])
 

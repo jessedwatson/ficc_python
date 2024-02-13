@@ -16,7 +16,6 @@ import numpy as np
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.yield_curve import yield_curve_level
-import ficc.utils.globals as globals
 
 import warnings
 
@@ -30,7 +29,10 @@ def trade_dict_to_list(trade_dict: dict,
                        add_rtrs_in_history: bool, 
                        only_dollar_price_history: bool, 
                        yield_curve_to_use: str, 
-                       treasury_rate_dict: dict) -> list:
+                       treasury_rate_dict: dict, 
+                       nelson_params: dict, 
+                       scalar_params: dict, 
+                       shape_parameter: dict) -> list:
     trade_type_mapping = {'D': [0, 0], 'S': [0, 1], 'P': [1, 0]}
     trade_list = []
     necessary_features = [
@@ -67,10 +69,8 @@ def trade_dict_to_list(trade_dict: dict,
         target_date = trade_dict['trade_datetime'].date()
         calc_date = trade_dict['calc_date']
         time_to_maturity = diff_in_days_two_dates(calc_date, target_date) / NUM_OF_DAYS_IN_YEAR
-        if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':    # ficc yield curve coefficients are only present before 27th July for the old yield curve and 2nd August for the new yield curve
-            global nelson_params
-            global scalar_params
-            yield_at_that_time = yield_curve_level(time_to_maturity, target_date, globals.nelson_params, globals.scalar_params, globals.shape_parameter)
+        if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':    # ficc yield curve coefficients are only present before 2021-07-27 for the old yield curve and 2021-08-02 for the new yield curve
+            yield_at_that_time = yield_curve_level(time_to_maturity, target_date, nelson_params, scalar_params, shape_parameter)
 
             if trade_dict['yield'] is not None and yield_at_that_time is not None:
                 yield_spread = trade_dict['yield'] * 100 - yield_at_that_time
