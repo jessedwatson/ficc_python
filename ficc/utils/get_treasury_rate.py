@@ -45,7 +45,7 @@ def current_treasury_rate(trade):
     if trade_date not in globals.treasury_rate: return np.nan
     treasury_maturities = np.array([1, 2, 3, 5, 7, 10, 20, 30])
     time_to_maturity = diff_in_days_two_dates(trade['calc_date'], trade['settlement_date']) / NUM_OF_DAYS_IN_YEAR
-    maturity = min(treasury_maturities, key=lambda x:abs(x - time_to_maturity))
+    maturity = min(treasury_maturities, key=lambda treasury_maturity: abs(treasury_maturity - time_to_maturity))
     maturity = 'year_' + str(maturity)
     t_rate = globals.treasury_rate[trade['trade_date']][maturity]
     return t_rate
