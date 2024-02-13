@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-29
+ # @ Modified date: 2024-02-13
  # @ Description:
  '''
 import os
@@ -102,12 +102,13 @@ def process_trade_history(query,
     trade_dataframe.trade_history = trade_dataframe.trade_history.apply(lambda history: history[:SEQUENCE_LENGTH])
 
     print('Padding history')
-    print(f'Minimum number of trades required in the history {min_trades_in_history}')
+    print(f'Minimum number of trades required in the history: {min_trades_in_history}')
     trade_dataframe.trade_history = trade_dataframe.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, 
                                                                                                           num_features_for_each_trade_in_history,
                                                                                                           min_trades_in_history])
     print('Padding completed')
-     
+    
+    num_trades_before_removing_null_history = len(trade_dataframe)
     trade_dataframe.dropna(subset=['trade_history'], inplace=True)
-    print(f'Processed trade history contains {len(trade_dataframe)} samples')
+    print(f'Processed trade history contains {len(trade_dataframe)} samples. Prior to removing null histories, it contained {num_trades_before_removing_null_history} samples.')
     return trade_dataframe
