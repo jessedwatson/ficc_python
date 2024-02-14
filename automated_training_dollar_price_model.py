@@ -10,7 +10,7 @@ from ficc.utils.auxiliary_functions import function_timer
 from datetime import datetime
 from dollar_model import dollar_price_model
 
-from automated_training_auxiliary_functions import SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, \
+from automated_training_auxiliary_functions import NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
                                                    EASTERN, \
                                                    TESTING, \
                                                    SAVE_MODEL_AND_DATA, \
@@ -39,13 +39,13 @@ setup_gpus()
 STORAGE_CLIENT = get_storage_client()
 BQ_CLIENT = get_bq_client()
 
-OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'treasury_spread': False, 
+OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'use_treasury_spread': False, 
                                        'only_dollar_price_history': True}
 
 
 def update_data() -> (pd.DataFrame, datetime, int):
     '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
-    `process_data(...)` or `SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL` are changed, then we need to rebuild the entire 
+    `process_data(...)` or `NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL` are changed, then we need to rebuild the entire 
     `processed_data_dollar_price.pkl` since that data is will have the old preferences; an easy way to do that 
     is to manually set `last_trade_date` to a date way in the past (the desired start date of the data).'''
     file_name = 'processed_data_dollar_price.pkl'
@@ -80,7 +80,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     y_test = test_data.dollar_price
 
     model = dollar_price_model(x_train, 
-                               SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL, 
+                               NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, 
                                num_features_for_each_trade_in_history, 
                                CATEGORICAL_FEATURES_DOLLAR_PRICE, 
                                NON_CAT_FEATURES_DOLLAR_PRICE, 

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-02-01
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-09
+ # @ Modified date: 2024-02-14
  '''
 import numpy as np
 import tensorflow as tf
@@ -18,21 +18,21 @@ tf.keras.utils.set_random_seed(10)
 
 def model_definition(trade_history_normalizer,
                      noncat_binary_normalizer,
-                     SEQUENCE_LENGTH, 
-                     NUM_FEATURES, 
-                     CATEGORICAL_FEATURES, 
-                     NON_CAT_FEATURES, 
-                     BINARY,
+                     num_trades_in_history, 
+                     num_features_for_each_trade_in_history, 
+                     categorical_features, 
+                     non_cat_features, 
+                     binary_features,
                      fmax):
     inputs = []
     layer = []
 
     ############## INPUT BLOCK ###################
-    trade_history_input = layers.Input(name="trade_history_input", 
-                                       shape=(SEQUENCE_LENGTH, NUM_FEATURES), 
+    trade_history_input = layers.Input(name='trade_history_input', 
+                                       shape=(num_trades_in_history, num_features_for_each_trade_in_history), 
                                        dtype=tf.float32) 
 
-    target_attention_input = layers.Input(name="target_attention_input", 
+    target_attention_input = layers.Input(name='target_attention_input', 
                                           shape=(1, 3), 
                                           dtype=tf.float32) 
 
@@ -41,8 +41,8 @@ def model_definition(trade_history_normalizer,
     inputs.append(target_attention_input)
 
     inputs.append(layers.Input(
-        name="NON_CAT_AND_BINARY_FEATURES",
-        shape=(len(NON_CAT_FEATURES + BINARY),)
+        name='NON_CAT_AND_BINARY_FEATURES',
+        shape=(len(non_cat_features + binary_features),)
     ))
 
 
@@ -54,13 +54,13 @@ def model_definition(trade_history_normalizer,
 
     lstm_layer = layers.Bidirectional(layers.LSTM(50, 
                                                   activation='tanh',
-                                                  input_shape=(SEQUENCE_LENGTH, NUM_FEATURES),
+                                                  input_shape=(num_trades_in_history, num_features_for_each_trade_in_history),
                                                   return_sequences=True,
                                                   name='LSTM'))
 
     lstm_layer_2 = layers.Bidirectional(layers.LSTM(100, 
                                                     activation='tanh',
-                                                    input_shape=(SEQUENCE_LENGTH, 50),
+                                                    input_shape=(num_trades_in_history, 50),
                                                     return_sequences=True,
                                                     name='LSTM_2'))
 
@@ -83,13 +83,13 @@ def model_definition(trade_history_normalizer,
     ####################################################
 
     ############## REFERENCE DATA MODEL ################
-    for f in CATEGORICAL_FEATURES:
+    for f in categorical_features:
         fin = layers.Input(shape=(1,), name=f)
         inputs.append(fin)
-        embedded = layers.Flatten(name=f + "_flat")(layers.Embedding(input_dim=fmax[f] + 1,
+        embedded = layers.Flatten(name=f + '_flat')(layers.Embedding(input_dim=fmax[f] + 1,
                                                                      output_dim=max(30, int(np.sqrt(fmax[f]))),
                                                                      input_length=1,
-                                                                     name=f + "_embed")(fin))
+                                                                     name=f + '_embed')(fin))
         layer.append(embedded)
 
         
@@ -124,11 +124,11 @@ def model_definition(trade_history_normalizer,
 
 
 def dollar_price_model(x_train, 
-                       SEQUENCE_LENGTH, 
-                       NUM_FEATURES, 
-                       CATEGORICAL_FEATURES, 
-                       NON_CAT_FEATURES, 
-                       BINARY,
+                       num_trades_in_history, 
+                       num_features_for_each_trade_in_history, 
+                       categorical_features, 
+                       non_cat_features, 
+                       binary_features,
                        fmax):
     trade_history_normalizer = Normalization(name='Trade_history_normalizer')
     trade_history_normalizer.adapt(x_train[0], batch_size=BATCH_SIZE)
@@ -138,11 +138,10 @@ def dollar_price_model(x_train,
 
     model = model_definition(trade_history_normalizer,
                              noncat_binary_normalizer, 
-                             SEQUENCE_LENGTH, 
-                             NUM_FEATURES, 
-                             CATEGORICAL_FEATURES, 
-                             NON_CAT_FEATURES, 
-                             BINARY,
+                             num_trades_in_history, 
+                             num_features_for_each_trade_in_history, 
+                             categorical_features, 
+                             non_cat_features, 
+                             binary_features,
                              fmax)
-    
     return model

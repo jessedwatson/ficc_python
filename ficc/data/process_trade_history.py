@@ -37,7 +37,7 @@ def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
 
 def process_trade_history(query: str,
                           client, 
-                          SEQUENCE_LENGTH: int, 
+                          num_trades_in_history: int, 
                           num_features_for_each_trade_in_history: int, 
                           PATH: str,  
                           remove_short_maturity: bool,
@@ -56,7 +56,7 @@ def process_trade_history(query: str,
     if len(trades_df) == 0:
         print('Raw data contains 0 trades')
         return None
-    print(f'Raw data contains {len(trades_df)} trades ranging from trade datetimes of {trades_df.trade_datetime.min()} to {trades_df.trade_datetime.min()}')
+    print(f'Raw data contains {len(trades_df)} trades ranging from trade datetimes of {trades_df.trade_datetime.min()} to {trades_df.trade_datetime.max()}')
     
     trades_df = process_ratings(trades_df)
     # trades_df = convert_object_to_category(trades_df)
@@ -98,12 +98,12 @@ def process_trade_history(query: str,
                'last_trade_type']] = pd.DataFrame(trades_df['temp_last_features'].tolist(), index=trades_df.index)
     trades_df = trades_df.drop(columns=['temp_last_features', 'recent'])
 
-    print(f'Restricting the trade history to the {SEQUENCE_LENGTH} most recent trades')
-    trades_df.trade_history = trades_df.trade_history.apply(lambda history: history[:SEQUENCE_LENGTH])
+    print(f'Restricting the trade history to the {num_trades_in_history} most recent trades')
+    trades_df.trade_history = trades_df.trade_history.apply(lambda history: history[:num_trades_in_history])
 
     print('Padding history')
     print(f'Minimum number of trades required in the history: {min_trades_in_history}')
-    trades_df.trade_history = trades_df.trade_history.parallel_apply(pad_trade_history, args=[SEQUENCE_LENGTH, 
+    trades_df.trade_history = trades_df.trade_history.parallel_apply(pad_trade_history, args=[num_trades_in_history, 
                                                                                               num_features_for_each_trade_in_history,
                                                                                               min_trades_in_history])
     print('Padding completed')

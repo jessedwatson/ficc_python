@@ -27,8 +27,8 @@ def trade_list_to_array(trade_history,
 
     trades_list = []
     last_trade_features = None
-    for entry in trade_history:
-        trades, temp_last_features = trade_dict_to_list(entry,
+    for trade in trade_history:
+        trades, temp_last_features = trade_dict_to_list(trade,
                                                         remove_short_maturity,
                                                         trade_history_delay,
                                                         use_treasury_spread,
@@ -48,8 +48,8 @@ def trade_list_to_array(trade_history,
     except Exception as e:
         print(f'Unable to call np.stack(trades_list) due to error: {e}')
         print('trades_list')
-        for idx, trade in trades_list:
-            print(f'trades_list[{idx}]:', trade)
+        for idx, trade_list in enumerate(trades_list):
+            print(f'trades_list[{idx}]:', trade_list)
         print('last_trade_features')
         print(last_trade_features)
         raise e

@@ -72,8 +72,8 @@ def setup_gpus():
             tf.config.experimental.set_memory_growth(gpu, True)
 
 
-SEQUENCE_LENGTH_YIELD_SPREAD_MODEL = 5
-SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL = 2
+NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL = 5
+NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL = 2
 
 CATEGORICAL_FEATURES_VALUES = {'purpose_class' : list(range(53 + 1)),    # possible values for `purpose_class` are 0 through 53
                                'rating' : ['A', 'A+', 'A-', 'AA', 'AA+', 'AA-', 'AAA', 'B', 'B+', 'B-', 'BB', 'BB+', 'BB-',
@@ -286,7 +286,7 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data, last_trade
 
 
 @function_timer
-def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=False, optional_arguments_for_process_data:dict={}):
+def get_new_data(file_name, model:str, bq_client, use_treasury_spread:bool=False, optional_arguments_for_process_data:dict={}):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     query_features = QUERY_FEATURES
     query_conditions = QUERY_CONDITIONS
@@ -300,9 +300,9 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
     DATA_QUERY = get_data_query(last_trade_datetime, query_features, query_conditions)
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M')
 
-    trade_history_features = get_ys_trade_history_features(using_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
+    trade_history_features = get_ys_trade_history_features(use_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
-    num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
+    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
     raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
     data_from_last_trade_datetime = process_data(DATA_QUERY, 
                                                  bq_client, 
@@ -327,7 +327,7 @@ def combine_new_data_with_old_data(old_data, new_data, model:str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if new_data is not None:    # there is new data since `last_trade_date`
         trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
-        num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
+        num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
         print(f'Restricting history to {num_trades_in_history} trades')
         new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])
         old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before

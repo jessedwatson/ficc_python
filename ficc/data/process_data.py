@@ -2,9 +2,10 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-13
+ # @ Modified date: 2024-02-14
  # @ Description: Source code to process trade history from BigQuery
  '''
+import warnings
 import numpy as np
 # Pandaralled is a python package that is 
 # used to multi-thread df apply
@@ -28,10 +29,10 @@ from ficc.utils.yield_curve_params import yield_curve_params
 
 def process_data(query, 
                  client, 
-                 SEQUENCE_LENGTH, 
+                 num_trades_in_history, 
                  num_features_for_each_trade_in_history, 
-                 PATH, 
-                 YIELD_CURVE='FICC_NEW', 
+                 path, 
+                 yield_curve='FICC_NEW', 
                  remove_short_maturity=False, 
                  trade_history_delay=12, 
                  min_trades_in_history=0, 
@@ -42,29 +43,31 @@ def process_data(query,
                  only_dollar_price_history=False, 
                  save_data=True, 
                  **kwargs):
-    yield_curve_to_use = YIELD_CURVE.upper()
-    if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':
+    if len(kwargs) != 0: warnings.warn(f'**kwargs is not empty and has following arguments: {kwargs.keys()}', category=RuntimeWarning)
+        
+    yield_curve = yield_curve.upper()
+    if yield_curve == 'FICC' or yield_curve == 'FICC_NEW':
         print('Grabbing yield curve params')
         try:
-            nelson_params, scalar_params, shape_parameter = yield_curve_params(client, yield_curve_to_use)
+            nelson_params, scalar_params, shape_parameter = yield_curve_params(client, yield_curve)
         except Exception as e:
             print('Unable to grab yield curve parameters')
             raise e
     
-    print(f'Running with\n remove_short_maturity: {remove_short_maturity}\n trade_history_delay: {trade_history_delay}\n min_trades_in_hist: {min_trades_in_history}\n add_flags: {add_flags}')
+    print(f'Running with\n remove_short_maturity: {remove_short_maturity}\n trade_history_delay: {trade_history_delay}\n use_treasury_spread: {use_treasury_spread}\n min_trades_in_hist: {min_trades_in_history}\n add_flags: {add_flags}\n add_related_trades_bool: {add_related_trades_bool}\n add_rtrs_in_history: {add_rtrs_in_history}\n only_dollar_price_history: {only_dollar_price_history}\n save_data: {save_data}')
     treasury_rate_dict = get_treasury_rate_dict(client) if use_treasury_spread is True else None
     trades_df = process_trade_history(query, 
                                       client, 
-                                      SEQUENCE_LENGTH, 
+                                      num_trades_in_history, 
                                       num_features_for_each_trade_in_history, 
-                                      PATH, 
+                                      path, 
                                       remove_short_maturity, 
                                       trade_history_delay,  
                                       min_trades_in_history, 
                                       use_treasury_spread, 
                                       add_rtrs_in_history, 
                                       only_dollar_price_history, 
-                                      yield_curve_to_use, 
+                                      yield_curve, 
                                       treasury_rate_dict, 
                                       nelson_params, 
                                       scalar_params, 
@@ -74,7 +77,7 @@ def process_data(query,
     if trades_df is None: return None    # no new trades
 
     if only_dollar_price_history is False:
-        if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':
+        if yield_curve == 'FICC' or yield_curve == 'FICC_NEW':
             print('Calculating yield spread using ficc yield curve')
             trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(lambda trade: get_ficc_ycl(trade, nelson_params, scalar_params, shape_parameter), axis=1)
              
@@ -125,5 +128,5 @@ def process_data(query,
                                        NUM_RELATED_TRADES, 
                                        CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE)
     
-    print(f'{len(trades_df)} trades at the end of `process_data(...)` ranging from trade datetimes of {trades_df.trade_datetime.min()} to {trades_df.trade_datetime.min()}')
+    print(f'{len(trades_df)} trades at the end of `process_data(...)` ranging from trade datetimes of {trades_df.trade_datetime.min()} to {trades_df.trade_datetime.max()}')
     return trades_df
