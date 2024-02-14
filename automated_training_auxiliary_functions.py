@@ -13,6 +13,7 @@ import pandas as pd
 from pandas.tseries.offsets import BDay
 from sklearn import preprocessing
 from pickle5 import pickle
+from pytz import timezone
 import tensorflow as tf
 from tensorflow import keras
 from datetime import datetime
@@ -31,6 +32,8 @@ from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 
+
+EASTERN = timezone('US/Eastern')
 
 SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
 
@@ -295,7 +298,7 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
     old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
     DATA_QUERY = get_data_query(last_trade_datetime, query_features, query_conditions)
-    file_timestamp = datetime.now().strftime(YEAR_MONTH_DAY + '-%H:%M')
+    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M')
 
     trade_history_features = get_ys_trade_history_features(using_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
@@ -414,7 +417,6 @@ def get_data_and_last_trade_datetime(bucket_name, file_name):
     fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
     with fs.open(f'{bucket_name}/{file_name}') as f:
         data = pd.read_pickle(f)
-    print(f'Data downloaded from {bucket_name}/{file_name}')
     
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
@@ -619,7 +621,7 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     suffix = '_dollar_price' if dollar_price_model else ''
     suffix_wo_underscore = 'dollar_price' if dollar_price_model else ''    # need this variable as well since the model naming is missing an underscore
 
-    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
+    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
 
     print('Saving encoders and uploading encoders')

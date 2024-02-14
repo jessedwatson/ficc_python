@@ -53,7 +53,9 @@ def process_trade_history(query: str,
                           shape_parameter: dict = None, 
                           save_data: bool = True):
     trades_df = fetch_trade_data(query, client, PATH, save_data)
-    if len(trades_df) == 0: return None
+    if len(trades_df) == 0:
+        print('Raw data contains 0 trades')
+        return None
     print(f'Raw data contains {len(trades_df)} trades ranging from trade datetimes of {trades_df.trade_datetime.min()} to {trades_df.trade_datetime.min()}')
     
     trades_df = process_ratings(trades_df)

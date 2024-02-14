@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-01
+ # @ Modified date: 2024-02-13
  '''
 import numpy as np
 import pandas as pd
@@ -16,6 +16,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
+                                                   EASTERN, \
                                                    TESTING, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
@@ -221,7 +222,7 @@ def send_results_email_table(result_df, last_trade_date, recipients:list, model:
 
 @function_timer
 def main():
-    print(f'automated_training_yield_spread_model.py starting at {datetime.now()}')
+    print(f'automated_training_yield_spread_model.py starting at {datetime.now(EASTERN)} ET')
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('yield_spread', update_data)
     model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
