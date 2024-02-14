@@ -97,7 +97,7 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                                                                                                                                               OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'yield_spread')
     print(f'Number of data points after combining new and old data: {len(data)}')
-    data = add_trade_history_derived_features(data, 'yield_spread', using_treasury_spread)
+    data = add_trade_history_derived_features(data, 'yield_spread', use_treasury_spread)
     data.dropna(inplace=True, subset=PREDICTORS)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath

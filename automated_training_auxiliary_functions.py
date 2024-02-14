@@ -348,10 +348,10 @@ def combine_new_data_with_old_data(old_data, new_data, model:str):
 
 
 @function_timer
-def add_trade_history_derived_features(data, model:str, using_treasury_spread:bool=False):
+def add_trade_history_derived_features(data, model:str, use_treasury_spread:bool=False):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
-    trade_history_derived_features = trade_history_derived_features_yield_spread(using_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
+    trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
     temp = data[['cusip', trade_history_feature_name, 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
     cols = get_trade_history_columns(model)
@@ -478,11 +478,11 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
     return encoders, fmax
 
 
-def _trade_history_derived_features(row, model:str, using_treasury_spread:bool=False):
+def _trade_history_derived_features(row, model:str, use_treasury_spread:bool=False):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if model == 'yield_spread':
         variants = YS_VARIANTS
-        trade_history_features = get_ys_trade_history_features(using_treasury_spread)
+        trade_history_features = get_ys_trade_history_features(use_treasury_spread)
     else:
         variants = DP_VARIANTS
         trade_history_features = get_dp_trade_history_features()
@@ -577,8 +577,8 @@ def _trade_history_derived_features(row, model:str, using_treasury_spread:bool=F
     return variant_trade_list
 
 
-def trade_history_derived_features_yield_spread(using_treasury_spread):
-    return lambda row: _trade_history_derived_features(row, 'yield_spread', using_treasury_spread)
+def trade_history_derived_features_yield_spread(use_treasury_spread):
+    return lambda row: _trade_history_derived_features(row, 'yield_spread', use_treasury_spread)
 def trade_history_derived_features_dollar_price(row):
     return _trade_history_derived_features(row, 'dollar_price')
 
