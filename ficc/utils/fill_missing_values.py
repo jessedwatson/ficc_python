@@ -48,11 +48,12 @@ def replace_nan_with_value(df, feature, default_value):
     else:
         df[feature].fillna(default_value, inplace=True)
 
+
 def fill_missing_values(df):
     # df.dropna(subset=['instrument_primary_name'], inplace=True)
     for feature, default_value in FEATURES_AND_DEFAULT_VALUES.items():
         try:
             replace_nan_with_value(df, feature, default_value)
-        except Exception as e:
-            print(f"Feature {feature} not in dataframe")
+        except Exception:
+            print(f'Feature {feature} not in dataframe')
     return df

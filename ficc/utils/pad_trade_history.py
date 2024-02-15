@@ -1,8 +1,8 @@
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-16 14:51:09
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2022-08-09 13:40:48
+ # @ Create date: 2021-12-16
+ # @ Modified by: Mitas Ray
+ # @ Modified date: 2024-02-14
  # @ Description:The pad_trade_history function pads the trade historie with zeros, to make their
  #  length equal to the sequence length. The function pads the end of trade history and creates 
  #  a single sequence. The paddings are added after the most recent trades.
@@ -12,28 +12,27 @@
  #  sequence length number of trades in the sequence. We will expand the model to include comps for 
  #  CUSIPs which do not have sufficient history
  '''
-
 import numpy as np
 
-def pad_trade_history(x, SEQUENCE_LENGTH, NUM_FEATURES, min_trades_in_history):
-    if len(x) == 0 and min_trades_in_history ==0:
-        temp = [[0]*NUM_FEATURES]*(SEQUENCE_LENGTH)
+
+def pad_trade_history(trade_history, num_trades_in_history, num_features_per_trade, min_trades_in_history):
+    empty_trade = [[0] * num_features_per_trade]
+    num_trades_in_current_trade_history = len(trade_history)
+    if num_trades_in_current_trade_history == 0 and min_trades_in_history == 0:
+        temp = empty_trade * num_trades_in_history
         return np.stack(temp)
-    
-    elif len(x) < SEQUENCE_LENGTH and len(x) >= min_trades_in_history: 
-        temp = x.tolist()
-        temp = temp + [[0]*NUM_FEATURES]*(SEQUENCE_LENGTH - len(x))
+    elif num_trades_in_current_trade_history < num_trades_in_history and num_trades_in_current_trade_history >= min_trades_in_history: 
+        trade_history_as_list = trade_history.tolist()
+        trade_history_as_list = trade_history_as_list + empty_trade * (num_trades_in_history - num_trades_in_current_trade_history)
         try:
-            return np.stack(temp)
+            return np.stack(trade_history_as_list)
         except Exception as e:
-            print("Failed to pad trade history for")
-            for i in temp:
-                print(i)
+            print(f'num_trades_in_history: {num_trades_in_history}, num_features_per_trade: {num_features_per_trade}, min_trades_in_history: {min_trades_in_history}')
+            print(f'Failed to pad trade history (error: {e}) for:')
+            for trade_idx, trade in enumerate(trade_history_as_list):
+                print(f'Trade {trade_idx}:', trade)
             # raise e
-                
-    #returning none for data less than the minimum required number of trades in history
-    elif len(x) < min_trades_in_history:
-        # TODO call the similarity model to get min_trades_in_history similar trades
+    elif num_trades_in_current_trade_history < min_trades_in_history:    # returning none for data less than the minimum required number of trades in history
         return None
     else:
-        return x
+        return trade_history

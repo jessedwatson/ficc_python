@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-01
+ # @ Modified date: 2024-02-13
  '''
 import numpy as np
 import pandas as pd
@@ -15,7 +15,8 @@ from yield_model import yield_spread_model
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from automated_training_auxiliary_functions import SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, \
+from automated_training_auxiliary_functions import NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
+                                                   EASTERN, \
                                                    TESTING, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
@@ -45,7 +46,7 @@ BQ_CLIENT = get_bq_client()
 
 HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
 
-OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'treasury_spread': True, 
+OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'use_treasury_spread': True, 
                                        'only_dollar_price_history': False}
 
 
@@ -84,19 +85,19 @@ def upload_predictions(data:pd.DataFrame):
 
 def update_data() -> (pd.DataFrame, datetime, int):
     '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
-    `process_data(...)` or `SEQUENCE_LENGTH_YIELD_SPREAD_MODEL` are changed, then we need to rebuild the entire `processed_data_test.pkl` 
+    `process_data(...)` or `NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL` are changed, then we need to rebuild the entire `processed_data_test.pkl` 
     since that data is will have the old preferences; an easy way to do that is to manually set `last_trade_date` to a 
     date way in the past (the desired start date of the data).'''
     file_name = 'processed_data_test.pkl'
-    using_treasury_spread = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA.get('treasury_spread', False)
+    use_treasury_spread = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA.get('use_treasury_spread', False)
     data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
                                                                                                                                                               'yield_spread', 
                                                                                                                                                               BQ_CLIENT, 
-                                                                                                                                                              using_treasury_spread, 
+                                                                                                                                                              use_treasury_spread, 
                                                                                                                                                               OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'yield_spread')
     print(f'Number of data points after combining new and old data: {len(data)}')
-    data = add_trade_history_derived_features(data, 'yield_spread', using_treasury_spread)
+    data = add_trade_history_derived_features(data, 'yield_spread', use_treasury_spread)
     data.dropna(inplace=True, subset=PREDICTORS)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
@@ -167,7 +168,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     y_test = test_data.new_ys
 
     model = yield_spread_model(x_train, 
-                               SEQUENCE_LENGTH_YIELD_SPREAD_MODEL, 
+                               NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, 
                                num_features_for_each_trade_in_history,
                                CATEGORICAL_FEATURES, 
                                NON_CAT_FEATURES, 
@@ -221,7 +222,7 @@ def send_results_email_table(result_df, last_trade_date, recipients:list, model:
 
 @function_timer
 def main():
-    print(f'automated_training_yield_spread_model.py starting at {datetime.now()}')
+    print(f'automated_training_yield_spread_model.py starting at {datetime.now(EASTERN)} ET')
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('yield_spread', update_data)
     model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 

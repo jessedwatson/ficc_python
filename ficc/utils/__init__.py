@@ -4,7 +4,6 @@ from . import days_in_interest_payment
 from . import diff_in_days
 from . import fill_missing_values
 from . import frequency
-from . import globals
 from . import nelson_siegel_model
 from . import pad_trade_history
 from . import process_features

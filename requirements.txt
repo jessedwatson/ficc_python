@@ -5,6 +5,7 @@ google-cloud
 google-cloud-vision
 google-cloud-storage
 multiprocess
+pytz
 tqdm
 scikit-learn
 google-cloud-bigquery

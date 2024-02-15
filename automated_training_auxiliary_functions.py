@@ -13,6 +13,7 @@ import pandas as pd
 from pandas.tseries.offsets import BDay
 from sklearn import preprocessing
 from pickle5 import pickle
+from pytz import timezone
 import tensorflow as tf
 from tensorflow import keras
 from datetime import datetime
@@ -31,6 +32,8 @@ from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 
+
+EASTERN = timezone('US/Eastern')
 
 SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
 
@@ -69,8 +72,8 @@ def setup_gpus():
             tf.config.experimental.set_memory_growth(gpu, True)
 
 
-SEQUENCE_LENGTH_YIELD_SPREAD_MODEL = 5
-SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL = 2
+NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL = 5
+NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL = 2
 
 CATEGORICAL_FEATURES_VALUES = {'purpose_class' : list(range(53 + 1)),    # possible values for `purpose_class` are 0 through 53
                                'rating' : ['A', 'A+', 'A-', 'AA', 'AA+', 'AA-', 'AAA', 'B', 'B+', 'B-', 'BB', 'BB+', 'BB-',
@@ -283,7 +286,7 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data, last_trade
 
 
 @function_timer
-def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=False, optional_arguments_for_process_data:dict={}):
+def get_new_data(file_name, model:str, bq_client, use_treasury_spread:bool=False, optional_arguments_for_process_data:dict={}):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     query_features = QUERY_FEATURES
     query_conditions = QUERY_CONDITIONS
@@ -295,11 +298,11 @@ def get_new_data(file_name, model:str, bq_client, using_treasury_spread:bool=Fal
     old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
     DATA_QUERY = get_data_query(last_trade_datetime, query_features, query_conditions)
-    file_timestamp = datetime.now().strftime(YEAR_MONTH_DAY + '-%H:%M')
+    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M')
 
-    trade_history_features = get_ys_trade_history_features(using_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
+    trade_history_features = get_ys_trade_history_features(use_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
-    num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
+    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
     raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
     data_from_last_trade_datetime = process_data(DATA_QUERY, 
                                                  bq_client, 
@@ -324,7 +327,7 @@ def combine_new_data_with_old_data(old_data, new_data, model:str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if new_data is not None:    # there is new data since `last_trade_date`
         trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
-        num_trades_in_history = SEQUENCE_LENGTH_YIELD_SPREAD_MODEL if model == 'yield_spread' else SEQUENCE_LENGTH_DOLLAR_PRICE_MODEL
+        num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
         print(f'Restricting history to {num_trades_in_history} trades')
         new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])
         old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
@@ -345,10 +348,10 @@ def combine_new_data_with_old_data(old_data, new_data, model:str):
 
 
 @function_timer
-def add_trade_history_derived_features(data, model:str, using_treasury_spread:bool=False):
+def add_trade_history_derived_features(data, model:str, use_treasury_spread:bool=False):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
-    trade_history_derived_features = trade_history_derived_features_yield_spread(using_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
+    trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
     temp = data[['cusip', trade_history_feature_name, 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
     cols = get_trade_history_columns(model)
@@ -414,7 +417,6 @@ def get_data_and_last_trade_datetime(bucket_name, file_name):
     fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
     with fs.open(f'{bucket_name}/{file_name}') as f:
         data = pd.read_pickle(f)
-    print(f'Data downloaded from {bucket_name}/{file_name}')
     
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
@@ -476,11 +478,11 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
     return encoders, fmax
 
 
-def _trade_history_derived_features(row, model:str, using_treasury_spread:bool=False):
+def _trade_history_derived_features(row, model:str, use_treasury_spread:bool=False):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if model == 'yield_spread':
         variants = YS_VARIANTS
-        trade_history_features = get_ys_trade_history_features(using_treasury_spread)
+        trade_history_features = get_ys_trade_history_features(use_treasury_spread)
     else:
         variants = DP_VARIANTS
         trade_history_features = get_dp_trade_history_features()
@@ -575,8 +577,8 @@ def _trade_history_derived_features(row, model:str, using_treasury_spread:bool=F
     return variant_trade_list
 
 
-def trade_history_derived_features_yield_spread(using_treasury_spread):
-    return lambda row: _trade_history_derived_features(row, 'yield_spread', using_treasury_spread)
+def trade_history_derived_features_yield_spread(use_treasury_spread):
+    return lambda row: _trade_history_derived_features(row, 'yield_spread', use_treasury_spread)
 def trade_history_derived_features_dollar_price(row):
     return _trade_history_derived_features(row, 'dollar_price')
 
@@ -619,7 +621,7 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     suffix = '_dollar_price' if dollar_price_model else ''
     suffix_wo_underscore = 'dollar_price' if dollar_price_model else ''    # need this variable as well since the model naming is missing an underscore
 
-    file_timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M')
+    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
 
     print('Saving encoders and uploading encoders')

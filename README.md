@@ -26,8 +26,8 @@ The process data method takes 6 required and one optional parameter
 
 - ```Query```  A query that will be used to fetch data from BigQuery.
 - ```BigQuery Client```
-- ```SEQUENCE_LENGTH``` the sequence length of the trade history can take 32 as its maximum value. 
-- ``` NUM_FEATURES``` The number of features that the trade history contains.
+- ```num_trades_in_history``` the sequence length of the trade history can take 32 as its maximum value. 
+- ``` num_features_for_each_trade_in_history``` The number of features that the trade history contains.
 - File path to save the raw data grabbed from BigQuery. 
 - The yield curve to use acceptable options ```S&P``` or ```ficc```
 - ```training_features``` A list containing the features that will be used for training. This is an optional parameter
