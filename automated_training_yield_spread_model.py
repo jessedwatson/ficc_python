@@ -97,7 +97,6 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                                                                                                                                               use_treasury_spread, 
                                                                                                                                                               OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'yield_spread')
-    print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'yield_spread', use_treasury_spread)
     data = drop_features_with_null_value(data, PREDICTORS)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)
@@ -141,11 +140,32 @@ def segment_results(data: pd.DataFrame):
 
 def apply_exclusions(data: pd.DataFrame):
     data_before_exclusions = data[:]
+    previous_size = len(data)
+
     data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_call <= 400')
+    previous_size = current_size
+
     data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_refund <= 400')
+    previous_size = current_size
+
     data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_maturity <= 400')
+    previous_size = current_size
+
     data = data[data.days_to_maturity < np.log10(30000)]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having days_to_maturity >= 30000')
+    previous_size = current_size
+
     data = data[~data.last_calc_date.isna()]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having a null value for last_calc_date')
+
     return data, data_before_exclusions
 
 

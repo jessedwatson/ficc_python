@@ -55,7 +55,6 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                                                                                                                                               BQ_CLIENT, 
                                                                                                                                                               optional_arguments_for_process_data=OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'dollar_price')
-    print(f'Number of trades after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'dollar_price')
     data = drop_features_with_null_value(data, PREDICTORS_DOLLAR_PRICE)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)

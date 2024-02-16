@@ -347,6 +347,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 
     data = pd.concat([new_data, old_data])    # concatenating `new_data` to the original `data` dataframe
     if model == 'yield_spread': data['new_ys'] = data['yield'] - data['new_ficc_ycl']
+    print(f'{len(data)} trades after combining new and old data')
     return data
 
 
@@ -371,7 +372,7 @@ def drop_features_with_null_value(df: pd.DataFrame, features: list):
     # df = df.dropna(subset=features)
     for feature in features:    # perform the procedure feature by feature to output how many trades are being removed for each feature
         num_trades_before = len(df)
-        df = df.dropna(subset=feature)
+        df = df.dropna(subset=[feature])
         num_trades_after = len(df)
         if num_trades_before != num_trades_after: print(f'Removed {num_trades_before - num_trades_after} trades for having a null value in feature: {feature}')
     return df
