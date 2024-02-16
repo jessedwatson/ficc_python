@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-13
+ # @ Modified date: 2024-02-15
  '''
 import numpy as np
 import pandas as pd
@@ -26,6 +26,7 @@ from automated_training_auxiliary_functions import NUM_TRADES_IN_HISTORY_YIELD_S
                                                    get_new_data, \
                                                    combine_new_data_with_old_data, \
                                                    add_trade_history_derived_features, \
+                                                   drop_features_with_null_value, \
                                                    save_data, \
                                                    save_update_data_results_to_pickle_files, \
                                                    create_input, \
@@ -71,7 +72,7 @@ def get_table_schema_for_predictions():
     return schema
 
 
-def upload_predictions(data:pd.DataFrame):
+def upload_predictions(data: pd.DataFrame):
     '''Upload the coefficient and scalar dataframeto BigQuery.'''
     job_config = bigquery.LoadJobConfig(schema=get_table_schema_for_predictions(), write_disposition='WRITE_APPEND')
     job = BQ_CLIENT.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE, job_config=job_config)
@@ -96,14 +97,13 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                                                                                                                                               use_treasury_spread, 
                                                                                                                                                               OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'yield_spread')
-    print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'yield_spread', use_treasury_spread)
-    data.dropna(inplace=True, subset=PREDICTORS)
+    data = drop_features_with_null_value(data, PREDICTORS)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
-def segment_results(data):
+def segment_results(data: pd.DataFrame):
     data['delta'] = np.abs(data.predicted_ys - data.new_ys)
     delta = data['delta']
 
@@ -138,28 +138,51 @@ def segment_results(data):
     return result_df
 
 
-def apply_exclusions(data):
+def apply_exclusions(data: pd.DataFrame):
     data_before_exclusions = data[:]
+    previous_size = len(data)
+
     data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_call <= 400')
+    previous_size = current_size
+
     data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_refund <= 400')
+    previous_size = current_size
+
     data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_maturity <= 400')
+    previous_size = current_size
+
     data = data[data.days_to_maturity < np.log10(30000)]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having days_to_maturity >= 30000')
+    previous_size = current_size
+
     data = data[~data.last_calc_date.isna()]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having a null value for last_calc_date')
+
     return data, data_before_exclusions
 
 
 @function_timer
-def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
+def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade_in_history: int):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, 'yield_spread')
 
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=apply_exclusions)
     test_data = data[data.trade_date > last_trade_date]
     test_data, test_data_before_exclusions = apply_exclusions(test_data)
-    if len(test_data) == 0: return None, None, None, None
+    if len(test_data) == 0:
+        print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
+        return None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
-    print(f'Training set contains {len(train_data)} data points (on or before {last_trade_date})')
-    print(f'Test set contains {len(test_data)} data points (after {last_trade_date})')
+    print(f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}')
+    print(f'Test set contains {len(test_data)} trades ranging from trade datetimes of {test_data.trade_datetime.min()} to {test_data.trade_datetime.max()}')
     
     x_train = create_input(train_data, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, 'yield_spread')
     y_train = train_data.new_ys
@@ -205,7 +228,7 @@ def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
     return model, encoders, mae, result_df
 
 
-def send_results_email_table(result_df, last_trade_date, recipients:list, model:str):
+def send_results_email_table(result_df, last_trade_date, recipients: list, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-13
+ # @ Modified date: 2024-02-15
  '''
 import pandas as pd
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -21,6 +21,7 @@ from automated_training_auxiliary_functions import NUM_TRADES_IN_HISTORY_DOLLAR_
                                                    get_new_data, \
                                                    combine_new_data_with_old_data, \
                                                    add_trade_history_derived_features, \
+                                                   drop_features_with_null_value, \
                                                    save_data, \
                                                    save_update_data_results_to_pickle_files, \
                                                    create_input, \
@@ -54,24 +55,25 @@ def update_data() -> (pd.DataFrame, datetime, int):
                                                                                                                                                               BQ_CLIENT, 
                                                                                                                                                               optional_arguments_for_process_data=OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'dollar_price')
-    print(f'Number of data points after combining new and old data: {len(data)}')
     data = add_trade_history_derived_features(data, 'dollar_price')
-    data.dropna(inplace=True, subset=PREDICTORS_DOLLAR_PRICE)
+    data = drop_features_with_null_value(data, PREDICTORS_DOLLAR_PRICE)
     if SAVE_MODEL_AND_DATA: save_data(data, file_name, STORAGE_CLIENT)
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
 @function_timer
-def train_model(data, last_trade_date, num_features_for_each_trade_in_history):
+def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade_in_history: int):
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
 
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data)
     test_data = data[data.trade_date > last_trade_date]
-    if len(test_data) == 0: return None, None, None
+    if len(test_data) == 0:
+        print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
+        return None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
-    print(f'Training set contains {len(train_data)} data points (on or before {last_trade_date})')
-    print(f'Test set contains {len(test_data)} data points (after {last_trade_date})')
+    print(f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}')
+    print(f'Test set contains {len(test_data)} trades ranging from trade datetimes of {test_data.trade_datetime.min()} to {test_data.trade_datetime.max()}')
     
     x_train = create_input(train_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
     y_train = train_data.dollar_price

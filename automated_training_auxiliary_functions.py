@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-05
+ # @ Modified date: 2024-02-15
  '''
 import warnings
 import os
@@ -198,7 +198,7 @@ P_prev = dict()
 S_prev = dict()
 
 
-def get_trade_history_columns(model:str):
+def get_trade_history_columns(model: str):
     '''Creates a list of columns.'''
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     if model == 'yield_spread':
@@ -272,12 +272,12 @@ def add_yield_curve(data):
     return data
 
 
-def decrement_business_days(date, num_business_days:int):
+def decrement_business_days(date, num_business_days: int):
     '''Subtract `num_business_days` from `date`.'''
     return (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
 
 
-def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data, last_trade_date):
+def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFrame, last_trade_date):
     '''Checks whether `last_trade_date` is the same as the date of the earliest trade in `new_data`. This 
     situation arises materialized trade history is created in the middle of the day, and so there are trades 
     on the same day that are still coming in. If we do not account for this case, then the automated training 
@@ -286,7 +286,7 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data, last_trade
 
 
 @function_timer
-def get_new_data(file_name, model:str, bq_client, use_treasury_spread:bool=False, optional_arguments_for_process_data:dict={}):
+def get_new_data(file_name, model: str, bq_client, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = {}):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     query_features = QUERY_FEATURES
     query_conditions = QUERY_CONDITIONS
@@ -323,36 +323,41 @@ def get_new_data(file_name, model:str, bq_client, use_treasury_spread:bool=False
 
 
 @function_timer
-def combine_new_data_with_old_data(old_data, new_data, model:str):
+def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
-    if new_data is not None:    # there is new data since `last_trade_date`
-        trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
-        num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
-        print(f'Restricting history to {num_trades_in_history} trades')
-        new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])
-        old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
+    if new_data is None: return old_data    # there is new data since `last_trade_date`
 
-        new_data = replace_ratings_by_standalone_rating(new_data)
-        new_data['yield'] = new_data['yield'] * 100
-        if model == 'yield_spread': new_data = add_yield_curve(new_data)
-        new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
+    num_trades_in_new_data = len(new_data)
+    print(f'Old data has {len(old_data)} trades. New data has {num_trades_in_new_data} trades')
+    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
+    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
+    print(f'Restricting history to {num_trades_in_history} trades')
+    new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])
+    old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
-        #### removing missing data
-        new_data['trade_history_sum'] = new_data[trade_history_feature_name].parallel_apply(lambda x: np.sum(x))
-        new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
-        new_data.dropna(inplace=True, subset=['trade_history_sum'])
-        data = pd.concat([new_data, old_data])    # concatenating `new_data` to the original `data` dataframe
-        if model == 'yield_spread': data['new_ys'] = data['yield'] - data['new_ficc_ycl']
-        return data
-    return old_data
+    new_data = replace_ratings_by_standalone_rating(new_data)
+    new_data['yield'] = new_data['yield'] * 100
+    if model == 'yield_spread': new_data = add_yield_curve(new_data)
+    new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
+
+    new_data['trade_history_sum'] = new_data[trade_history_feature_name].parallel_apply(lambda x: np.sum(x))
+    new_data.dropna(inplace=True, subset=['trade_history_sum'])
+    print(f'Removed {num_trades_in_new_data - len(new_data)} trades, since these have null values in the trade history')
+    new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
+
+    data = pd.concat([new_data, old_data])    # concatenating `new_data` to the original `data` dataframe
+    if model == 'yield_spread': data['new_ys'] = data['yield'] - data['new_ficc_ycl']
+    print(f'{len(data)} trades after combining new and old data')
+    return data
 
 
 @function_timer
-def add_trade_history_derived_features(data, model:str, use_treasury_spread:bool=False):
+def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
     trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
+    
     temp = data[['cusip', trade_history_feature_name, 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
     cols = get_trade_history_columns(model)
     data[cols] = pd.DataFrame(temp.tolist(), index=data.index)
@@ -363,6 +368,17 @@ def add_trade_history_derived_features(data, model:str, use_treasury_spread:bool
 
 
 @function_timer
+def drop_features_with_null_value(df: pd.DataFrame, features: list):
+    # df = df.dropna(subset=features)
+    for feature in features:    # perform the procedure feature by feature to output how many trades are being removed for each feature
+        num_trades_before = len(df)
+        df = df.dropna(subset=[feature])
+        num_trades_after = len(df)
+        if num_trades_before != num_trades_after: print(f'Removed {num_trades_before - num_trades_after} trades for having a null value in feature: {feature}')
+    return df
+
+
+@function_timer
 def save_data(data, file_name, storage_client):
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
     print(f'Saving data to pickle file with name {file_path}')
@@ -370,7 +386,7 @@ def save_data(data, file_name, storage_client):
     upload_data(storage_client, BUCKET_NAME, file_name, file_path)
 
 
-def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_business_days_to_go_back=10, exclusions_function=None):
+def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_business_days_to_go_back: int = 10, exclusions_function: callable = None):
     '''Iterate backwards on `date` until the data after `date` is non-empty. Go back a maximum of 
     `max_number_of_business_days_to_go_back` days. If `exclusions_function` is not `None`, assumes 
     that the function returns values, where the first item is the data after exclusions, and the 
@@ -392,7 +408,7 @@ def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_b
 
 
 @function_timer
-def create_input(df, encoders, non_cat_features, binary_features, categorical_features, model:str):
+def create_input(df, encoders, non_cat_features, binary_features, categorical_features, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     datalist = []
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
@@ -433,7 +449,7 @@ def get_data_query(last_trade_datetime, features, conditions):
                ORDER BY trade_datetime desc'''
 
 
-def save_update_data_results_to_pickle_files(suffix:str, update_data:callable):
+def save_update_data_results_to_pickle_files(suffix: str, update_data: callable):
     '''The function specified in `update_data` is called, and the 3 return values are stored as pickle files. If 
     testing, then first check whether the pickle files exist, before calling `update_data`. `suffix` is appended 
     to the end of the filename for each pickle file.'''
@@ -456,7 +472,7 @@ def save_update_data_results_to_pickle_files(suffix:str, update_data:callable):
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
-def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
+def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
     '''Fits label encoders to categorical features in the data. For a few of the categorical features, the values 
     don't change for these features we use the pre-defined set of values specified in `CATEGORICAL_FEATURES_VALUES`. 
     Outputs a tuple of dictionaries where the first item is the encoders and the second item is the maximum value 
@@ -478,7 +494,7 @@ def fit_encoders(data:pd.DataFrame, categorical_features:list, model:str):
     return encoders, fmax
 
 
-def _trade_history_derived_features(row, model:str, use_treasury_spread:bool=False):
+def _trade_history_derived_features(row, model: str, use_treasury_spread: bool = False):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if model == 'yield_spread':
         variants = YS_VARIANTS
@@ -676,7 +692,7 @@ def send_email(sender_email, message, recipients):
             server.quit()
 
 
-def send_results_email(mae, last_trade_date, recipients:list, model:str):
+def send_results_email(mae, last_trade_date, recipients: list, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'
@@ -690,7 +706,7 @@ def send_results_email(mae, last_trade_date, recipients:list, model:str):
     send_email(sender_email, msg, recipients)
 
 
-def send_no_new_model_email(last_trade_date, recipients:list, model:str):
+def send_no_new_model_email(last_trade_date, recipients: list, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'
