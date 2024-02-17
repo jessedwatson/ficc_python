@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-15
+ # @ Modified date: 2024-02-16
  '''
 import warnings
 import os
@@ -320,6 +320,13 @@ def get_new_data(file_name, model: str, bq_client, use_treasury_spread: bool = F
         
         if model == 'dollar_price': data_from_last_trade_datetime = data_from_last_trade_datetime.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
     return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
+
+
+def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int):
+    '''Only keep `num_days_to_keep` days from the most recent trade in `data`.'''
+    most_recent_trade_date = data.trade_date.max()
+    days_to_most_recent_trade = diff_in_days_two_dates(most_recent_trade_date, data.trade_date, 'exact')
+    return data[days_to_most_recent_trade < num_days_to_keep]
 
 
 @function_timer
