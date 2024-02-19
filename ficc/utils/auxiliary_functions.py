@@ -7,25 +7,24 @@
  # to process training data
  '''
 import time
-from datetime import datetime, timedelta
 from functools import wraps
+
+import urllib3
+import requests
+
 import pandas as pd
+from datetime import datetime, timedelta
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, YS_BASE_TRADE_HISTORY_FEATURES, DP_BASE_TRADE_HISTORY_FEATURES
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 
 
-'''Quote a string twice: e.g., double_quote_a_string('hello') -> "'hello'". This 
-function is used to put string arguments into formatted string expressions and 
-maintain the quotation.'''
-double_quote_a_string = lambda potential_string: f'"{str(potential_string)}"' if type(potential_string) == str else potential_string
+def remove_fractional_seconds_beyond_3_digits(original_timedelta):
+    return str(original_timedelta)[:-3]    # total of 6 digits after the decimal, so we keep everything but the last 3
 
 
 def function_timer(function_to_time):
     '''This function is to be used as a decorator. It will print out the execution time of `function_to_time`.'''
-    def remove_fractional_seconds_beyond_3_digits(original_timedelta):
-        return str(original_timedelta)[:-3]    # total of 6 digits after the decimal, so we keep everything but the last 3
-
     @wraps(function_to_time)    # used to ensure that the function name is still the same after applying the decorator when running tests: https://stackoverflow.com/questions/6312167/python-unittest-cant-call-decorated-test
     def wrapper(*args, **kwargs):    # using the same formatting from https://docs.python.org/3/library/functools.html
         print(f'BEGIN {function_to_time.__name__}')
@@ -36,6 +35,31 @@ def function_timer(function_to_time):
         print(f'END {function_to_time.__name__}. Execution time: {remove_fractional_seconds_beyond_3_digits(time_elapsed)}')    # remove microseconds beyond 3 decimal places since this level of precision is unnecessary and just adds noise
         return result
     return wrapper
+
+
+def run_multiple_times_before_failing(function):
+    '''This function is to be used as a decorator. It will run `function` over and over again until it does not 
+    raise an Exception for a maximum of `max_runs` (specified below) times. It solves the following problem: GCP 
+    limits how quickly files can be downloaded from buckets and raises an `SSLError` or a `KeyError` when the 
+    buckets are accessed too quickly in succession.'''
+    @wraps(function)    # used to ensure that the function name is still the same after applying the decorator when running tests: https://stackoverflow.com/questions/6312167/python-unittest-cant-call-decorated-test
+    def wrapper(*args, **kwargs):    # using the same formatting from https://docs.python.org/3/library/functools.html
+        max_runs = 10    # NOTE: max_runs = 1 is the same functionality as not having this decorator
+        while max_runs > 0:
+            try:
+                return function(*args, **kwargs)
+            except (KeyError, urllib3.exceptions.SSLError, requests.exceptions.SSLError) as e:    # catches KeyError: 'email', KeyError: 'expires_in', urllib3.exceptions.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad, requests.exceptions.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac 
+                max_runs -= 1
+                if max_runs == 0: raise e
+                time.sleep(1)    # have a one second delay to prevent overloading the server
+    return wrapper
+
+
+def double_quote_a_string(potential_string):
+    '''Quote a string twice: e.g., double_quote_a_string('hello') -> "'hello'". This 
+    function is used to put string arguments into formatted string expressions and 
+    maintain the quotation.'''
+    return f'"{str(potential_string)}"' if type(potential_string) == str else potential_string
 
 
 def sqltodf(sql, bq_client):
