@@ -215,6 +215,7 @@ def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade
     try:
         print(result_df.to_markdown())
     except Exception as e:
+        print('Error:', e)
         print('Need to run `pip install tabulate` on this machine in orer to display the dataframe in an easy to read way')
 
     # uploading predictions to bigquery
