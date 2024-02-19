@@ -2,11 +2,10 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-16
+ # @ Modified date: 2024-02-19
  '''
 import warnings
 import os
-import gcsfs
 import shutil
 import numpy as np
 import pandas as pd
@@ -25,7 +24,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from ficc.utils.gcp_storage_functions import upload_data
+from ficc.utils.gcp_storage_functions import upload_data, download_data
 from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
 from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
@@ -43,6 +42,8 @@ BUCKET_NAME = 'automated_training'
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 HOUR_MIN_SEC = '%H:%M:%S'
+
+EARLIST_TRADE_DATETIME = '2023-01-01T00:00:00'
 
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'    
@@ -286,7 +287,7 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFra
 
 
 @function_timer
-def get_new_data(file_name, model: str, bq_client, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = {}):
+def get_new_data(file_name, model: str, storage_client, bq_client, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = {}):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     query_features = QUERY_FEATURES
     query_conditions = QUERY_CONDITIONS
@@ -295,7 +296,7 @@ def get_new_data(file_name, model: str, bq_client, use_treasury_spread: bool = F
     else:
         query_features = query_features + ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL
     
-    old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
+    old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(storage_client, BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
     DATA_QUERY = get_data_query(last_trade_datetime, query_features, query_conditions)
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M')
@@ -335,12 +336,13 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     if new_data is None: return old_data    # there is new data since `last_trade_date`
 
     num_trades_in_new_data = len(new_data)
-    print(f'Old data has {len(old_data)} trades. New data has {num_trades_in_new_data} trades')
+    num_trades_in_old_data = 0 if old_data is None else len(old_data)
+    print(f'Old data has {num_trades_in_old_data} trades. New data has {num_trades_in_new_data} trades')
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
     print(f'Restricting history to {num_trades_in_history} trades')
     new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])
-    old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
+    if old_data is not None: old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
     new_data = replace_ratings_by_standalone_rating(new_data)
     new_data['yield'] = new_data['yield'] * 100
@@ -352,7 +354,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     print(f'Removed {num_trades_in_new_data - len(new_data)} trades, since these have null values in the trade history')
     new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
 
-    data = pd.concat([new_data, old_data])    # concatenating `new_data` to the original `data` dataframe
+    data = pd.concat([new_data, old_data]) if old_data is not None else new_data    # concatenating `new_data` to the original `data` dataframe
     if model == 'yield_spread': data['new_ys'] = data['yield'] - data['new_ficc_ycl']
     print(f'{len(data)} trades after combining new and old data')
     return data
@@ -434,13 +436,10 @@ def create_input(df, encoders, non_cat_features, binary_features, categorical_fe
     return datalist
 
 
-def get_data_and_last_trade_datetime(bucket_name, file_name):
+def get_data_and_last_trade_datetime(storage_client, bucket_name, file_name):
     '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
-    print(f'Downloading data from {bucket_name}/{file_name}')
-    fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
-    with fs.open(f'{bucket_name}/{file_name}') as f:
-        data = pd.read_pickle(f)
-    
+    data = download_data(storage_client, bucket_name, file_name)
+    if data is None: return None, EARLIST_TRADE_DATETIME, EARLIST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
     return data, last_trade_datetime, last_trade_date
