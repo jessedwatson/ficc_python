@@ -163,11 +163,11 @@ def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
     data = data[data.days_to_maturity < np.log10(30000)]
     current_size = len(data)
     if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having days_to_maturity >= 30000')
-    previous_size = current_size
+    # previous_size = current_size
 
-    data = data[~data.last_calc_date.isna()]
-    current_size = len(data)
-    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having a null value for last_calc_date')
+    # data = data[~data.last_calc_date.isna()]
+    # current_size = len(data)
+    # if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having a null value for last_calc_date')
 
     return data, data_before_exclusions
 
