@@ -7,7 +7,7 @@
  '''
 import pickle5 as pickle
 
-from auxiliary_functions import run_multiple_times_before_failing
+from ficc.utils.auxiliary_functions import run_multiple_times_before_failing
 
 
 def upload_data(storage_client, bucket_name, file_name, file_path:str=None):

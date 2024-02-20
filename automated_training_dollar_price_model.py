@@ -45,11 +45,11 @@ OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'use_treasury_spread': False,
                                        'only_dollar_price_history': True}
 
 
-def update_data() -> tuple[pd.DataFrame, datetime, int]:
-    '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
-    `process_data(...)` or `NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL` are changed, then we need to rebuild the entire 
-    `processed_data_dollar_price.pkl` since that data is will have the old preferences; an easy way to do that 
-    is to manually set `last_trade_date` to a date way in the past (the desired start date of the data).'''
+def update_data():
+    '''Updates the master data file that is used to train and deploy the model. Returns a tuple of (pd.DataFrame, datetime, int).
+    NOTE: if any of the variables in `process_data(...)` or `NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL` are changed, then we need 
+    to rebuild the entire `processed_data_test.pkl` since that data is will have the old preferences; an easy way to do that is 
+    to manually set `last_trade_date` to a date way in the past (the desired start date of the data).'''
     file_name = 'processed_data_dollar_price.pkl'
     data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
                                                                                                                                                               'dollar_price', 

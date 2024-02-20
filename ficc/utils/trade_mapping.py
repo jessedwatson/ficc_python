@@ -7,11 +7,11 @@
  # creatd in order to separate the complex logic of `trade_dict_to_list.py` from these auxiliary 
  # variables.
  '''
-
-'''Returns a dictionary from a list, where the key is the index and the value is 
-the corresponding item in the list. Works when `lst` is a numpy array as well.'''
 def list_to_index_dict(lst):
+    '''Returns a dictionary from a list, where the key is the index and the value is 
+    the corresponding item in the list. Works when `lst` is a numpy array as well.'''
     return {idx: item for idx, item in enumerate(lst)}
+
 
 TRADE_TYPE_MAPPING = {'D': [1, 1],
                       'S': [0, 1], 

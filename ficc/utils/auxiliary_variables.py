@@ -4,7 +4,6 @@
  # @ Modified by: Mitas Ray
  # @ Modified date: 2024-01-08
  '''
-
 NUM_OF_DAYS_IN_YEAR = 360
 
 IS_BOOKKEEPING = 'is_bookkeeping'

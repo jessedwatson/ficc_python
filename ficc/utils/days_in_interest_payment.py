@@ -6,7 +6,6 @@
  # @ Description: This file implements the function that calculates
  #  the number of days in the interest payment period
  '''
-
 from ficc.utils.auxiliary_variables import COUPON_FREQUENCY_TYPE, LARGE_NUMBER
 
 def days_in_interest_payment(trade):

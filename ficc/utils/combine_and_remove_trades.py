@@ -5,7 +5,6 @@
  # @ Modified time: 2021-08-02 14:15:00
  # @ Description: Combining and removing trades to trade data more economically meaningful
  '''
-
 import numpy as np
 import pandas as pd
 

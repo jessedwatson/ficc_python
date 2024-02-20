@@ -5,9 +5,6 @@
  # @ Modified time: 2023-01-19 16:10:44
  # @ Description: Adds flags to trades to provide additional features
  '''
-
-import warnings
-
 import numpy as np
 import pandas as pd
 import multiprocess as mp

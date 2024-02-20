@@ -5,8 +5,6 @@
  # @ Modified time: 2023-10-03 23:14:43
  # @ Description: fill in features with the corresponding default values.
  '''
-
-
 FEATURES_AND_DEFAULT_VALUES = {'purpose_class': 0,    # unknown
                                'call_timing': 0,    # unknown
                                'call_timing_in_part': 0,    # unknown
