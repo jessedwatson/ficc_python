@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-19
+ # @ Modified date: 2024-02-20
  '''
 import numpy as np
 import pandas as pd
@@ -183,7 +183,7 @@ def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade
     test_data, test_data_before_exclusions = apply_exclusions(test_data, 'test_data')
     if len(test_data) == 0:
         print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
-        return None, None, None
+        return None, None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
     print(f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}')
@@ -260,7 +260,7 @@ def main():
     
     if not TESTING and model is None:
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
-        raise RuntimeError('No new data was found. Raising an error so that the shell script terminates.')
+        raise RuntimeError('No new data was found, so the procedure is terminating gracefully and without issue. Raising an error only so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
         try:
