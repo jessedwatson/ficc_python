@@ -327,7 +327,7 @@ def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int):
     '''Only keep `num_days_to_keep` days from the most recent trade in `data`.'''
     most_recent_trade_date = data.trade_date.max()
     days_to_most_recent_trade = diff_in_days_two_dates(most_recent_trade_date, data.trade_date, 'exact')
-    print(f'Removing trades that older than {num_days_to_keep} before {most_recent_trade_date}')
+    print(f'Removing trades older than {num_days_to_keep} before {most_recent_trade_date}')
     return data[days_to_most_recent_trade < num_days_to_keep]
 
 
