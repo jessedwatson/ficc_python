@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-19
+ # @ Modified date: 2024-02-21
  '''
 import warnings
 import os
@@ -323,11 +323,12 @@ def get_new_data(file_name, model: str, storage_client, bq_client, use_treasury_
     return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
-def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int):
+def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, dataset_name: str = None):
     '''Only keep `num_days_to_keep` days from the most recent trade in `data`.'''
+    from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
     most_recent_trade_date = data.trade_date.max()
     days_to_most_recent_trade = diff_in_days_two_dates(most_recent_trade_date, data.trade_date, 'exact')
-    print(f'Removing trades older than {num_days_to_keep} before {most_recent_trade_date}')
+    print(f'Removing trades{from_dataset_name} older than {num_days_to_keep} days before {most_recent_trade_date}')
     return data[days_to_most_recent_trade < num_days_to_keep]
 
 
@@ -391,6 +392,7 @@ def drop_features_with_null_value(df: pd.DataFrame, features: list):
 @function_timer
 def save_data(data, file_name, storage_client):
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
+    data = remove_old_trades(data, 390, dataset_name='entire processed data file')    # 390 = 13 * 30, so we are keeping approximately 13 months of data in the file; decided to keep the last 13 months of data to go beyond one year and allow for future experiments with annual patterns without having to re-create the entire dataset
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
     upload_data(storage_client, BUCKET_NAME, file_name, file_path)

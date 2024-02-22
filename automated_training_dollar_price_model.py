@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-19
+ # @ Modified date: 2024-02-21
  '''
 import pandas as pd
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -65,7 +65,7 @@ def update_data():
 
 @function_timer
 def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade_in_history: int):
-    data = remove_old_trades(data, 240)    # 240 = 8 * 30, so we are using approximately 8 months of data for training
+    data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
 
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data)
