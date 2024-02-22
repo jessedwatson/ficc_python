@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-15
+ # @ Modified date: 2024-02-21
  '''
 import numpy as np
 import pandas as pd
@@ -29,6 +29,7 @@ from automated_training_auxiliary_functions import NUM_TRADES_IN_HISTORY_YIELD_S
                                                    drop_features_with_null_value, \
                                                    save_data, \
                                                    save_update_data_results_to_pickle_files, \
+                                                   remove_old_trades, \
                                                    create_input, \
                                                    get_trade_date_where_data_exists_after_this_date, \
                                                    fit_encoders, \
@@ -84,15 +85,16 @@ def upload_predictions(data: pd.DataFrame):
         raise e
 
 
-def update_data() -> (pd.DataFrame, datetime, int):
-    '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
-    `process_data(...)` or `NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL` are changed, then we need to rebuild the entire `processed_data_test.pkl` 
-    since that data is will have the old preferences; an easy way to do that is to manually set `last_trade_date` to a 
-    date way in the past (the desired start date of the data).'''
+def update_data():
+    '''Updates the master data file that is used to train and deploy the model. Returns a tuple of (pd.DataFrame, datetime, int).
+    NOTE: if any of the variables in `process_data(...)` or `NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL` are changed, then we need 
+    to rebuild the entire `processed_data_test.pkl` since that data is will have the old preferences; an easy way to do that is 
+    to manually set `last_trade_date` to a date way in the past (the desired start date of the data).'''
     file_name = 'processed_data_test.pkl'
     use_treasury_spread = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA.get('use_treasury_spread', False)
     data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
                                                                                                                                                               'yield_spread', 
+                                                                                                                                                              STORAGE_CLIENT, 
                                                                                                                                                               BQ_CLIENT, 
                                                                                                                                                               use_treasury_spread, 
                                                                                                                                                               OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
@@ -138,47 +140,50 @@ def segment_results(data: pd.DataFrame):
     return result_df
 
 
-def apply_exclusions(data: pd.DataFrame):
+def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
+    from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
     data_before_exclusions = data[:]
+    
     previous_size = len(data)
-
     data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
     current_size = len(data)
-    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_call <= 400')
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_call <= 400')
+    
     previous_size = current_size
-
     data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
     current_size = len(data)
-    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_refund <= 400')
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_refund <= 400')
+    
     previous_size = current_size
-
     data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
     current_size = len(data)
-    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having 0 < days_to_maturity <= 400')
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_maturity <= 400')
+    
     previous_size = current_size
-
     data = data[data.days_to_maturity < np.log10(30000)]
     current_size = len(data)
-    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having days_to_maturity >= 30000')
-    previous_size = current_size
-
-    data = data[~data.last_calc_date.isna()]
-    current_size = len(data)
-    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades for having a null value for last_calc_date')
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having days_to_maturity >= 30000')
+    
+    ## null last_calc_date exclusion was removed on 2024-02-19
+    # previous_size = current_size
+    # data = data[~data.last_calc_date.isna()]
+    # current_size = len(data)
+    # if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having a null value for last_calc_date')
 
     return data, data_before_exclusions
 
 
 @function_timer
 def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade_in_history: int):
+    data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, 'yield_spread')
 
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=apply_exclusions)
     test_data = data[data.trade_date > last_trade_date]
-    test_data, test_data_before_exclusions = apply_exclusions(test_data)
+    test_data, test_data_before_exclusions = apply_exclusions(test_data, 'test_data')
     if len(test_data) == 0:
         print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
-        return None, None, None
+        return None, None, None, None
 
     train_data = data[data.trade_date <= last_trade_date]
     print(f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}')
@@ -211,6 +216,7 @@ def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade
     try:
         print(result_df.to_markdown())
     except Exception as e:
+        print('Error:', e)
         print('Need to run `pip install tabulate` on this machine in orer to display the dataframe in an easy to read way')
 
     # uploading predictions to bigquery
@@ -254,7 +260,7 @@ def main():
     
     if not TESTING and model is None:
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
-        raise RuntimeError('No new data was found. Raising an error so that the shell script terminates.')
+        raise RuntimeError('No new data was found, so the procedure is terminating gracefully and without issue. Raising an error only so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
         try:

@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-15
+ # @ Modified date: 2024-02-21
  '''
 import pandas as pd
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -24,6 +24,7 @@ from automated_training_auxiliary_functions import NUM_TRADES_IN_HISTORY_DOLLAR_
                                                    drop_features_with_null_value, \
                                                    save_data, \
                                                    save_update_data_results_to_pickle_files, \
+                                                   remove_old_trades, \
                                                    create_input, \
                                                    get_trade_date_where_data_exists_after_this_date, \
                                                    fit_encoders, \
@@ -44,14 +45,15 @@ OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA = {'use_treasury_spread': False,
                                        'only_dollar_price_history': True}
 
 
-def update_data() -> (pd.DataFrame, datetime, int):
-    '''Updates the master data file that is used to train and deploy the model. NOTE: if any of the variables in 
-    `process_data(...)` or `NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL` are changed, then we need to rebuild the entire 
-    `processed_data_dollar_price.pkl` since that data is will have the old preferences; an easy way to do that 
-    is to manually set `last_trade_date` to a date way in the past (the desired start date of the data).'''
+def update_data():
+    '''Updates the master data file that is used to train and deploy the model. Returns a tuple of (pd.DataFrame, datetime, int).
+    NOTE: if any of the variables in `process_data(...)` or `NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL` are changed, then we need 
+    to rebuild the entire `processed_data_test.pkl` since that data is will have the old preferences; an easy way to do that is 
+    to manually set `last_trade_date` to a date way in the past (the desired start date of the data).'''
     file_name = 'processed_data_dollar_price.pkl'
     data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(file_name, 
                                                                                                                                                               'dollar_price', 
+                                                                                                                                                              STORAGE_CLIENT, 
                                                                                                                                                               BQ_CLIENT, 
                                                                                                                                                               optional_arguments_for_process_data=OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, 'dollar_price')
@@ -63,6 +65,7 @@ def update_data() -> (pd.DataFrame, datetime, int):
 
 @function_timer
 def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade_in_history: int):
+    data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
     encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
 
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data)

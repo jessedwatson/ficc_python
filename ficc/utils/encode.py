@@ -5,8 +5,6 @@
  # @ Modified time: 2023-01-19 17:00:17
  # @ Description: Functions to encode binary and categorical features
  '''
-
-
 import warnings
 
 import numpy as np
