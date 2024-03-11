@@ -3,6 +3,7 @@
 # @ Modified by: Mitas Ray
 # @ Modified date: 2023-03-11
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
+echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
 #!/bin/sh
 who

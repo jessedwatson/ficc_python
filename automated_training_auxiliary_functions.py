@@ -37,6 +37,7 @@ EASTERN = timezone('US/Eastern')
 SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
 
 EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai']    # recieve an email following a successful run of the training script; set to only your email if testing
+EMAIL_RECIPIENTS_FOR_LOGS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai']    # recipients for training logs, which should be a more technical subset of `EMAIL_RECIPIENTS`
 
 BUCKET_NAME = 'automated_training'
 
@@ -200,7 +201,7 @@ P_prev = dict()
 S_prev = dict()
 
 
-def get_trade_history_columns(model: str):
+def get_trade_history_columns(model: str) -> list:
     '''Creates a list of columns.'''
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     if model == 'yield_spread':
@@ -225,7 +226,7 @@ def target_trade_processing_for_attention(row):
     return np.tile(target_trade_features, (1, 1))
 
 
-def replace_ratings_by_standalone_rating(data):
+def replace_ratings_by_standalone_rating(data: pd.DataFrame) -> pd.DataFrame:
     data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
     data.rating = data.rating.astype('str')
     data.sp_stand_alone = data.sp_stand_alone.astype('str')
@@ -274,12 +275,12 @@ def add_yield_curve(data):
     return data
 
 
-def decrement_business_days(date, num_business_days: int):
+def decrement_business_days(date, num_business_days: int) -> str:
     '''Subtract `num_business_days` from `date`.'''
     return (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
 
 
-def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFrame, last_trade_date):
+def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFrame, last_trade_date) -> bool:
     '''Checks whether `last_trade_date` is the same as the date of the earliest trade in `new_data`. This 
     situation arises materialized trade history is created in the middle of the day, and so there are trades 
     on the same day that are still coming in. If we do not account for this case, then the automated training 
@@ -324,7 +325,7 @@ def get_new_data(file_name, model: str, storage_client, bq_client, use_treasury_
     return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
-def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, dataset_name: str = None):
+def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, dataset_name: str = None) -> pd.DataFrame:
     '''Only keep `num_days_to_keep` days from the most recent trade in `data`.'''
     from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
     most_recent_trade_date = data.trade_date.max()
@@ -334,7 +335,7 @@ def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, dataset_name: s
 
 
 @function_timer
-def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str):
+def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str) -> pd.DataFrame:
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if new_data is None: return old_data    # there is new data since `last_trade_date`
 
@@ -364,7 +365,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 
 
 @function_timer
-def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False):
+def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False) -> pd.DataFrame:
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
     trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
@@ -380,7 +381,7 @@ def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treas
 
 
 @function_timer
-def drop_features_with_null_value(df: pd.DataFrame, features: list):
+def drop_features_with_null_value(df: pd.DataFrame, features: list) -> pd.DataFrame:
     # df = df.dropna(subset=features)
     for feature in features:    # perform the procedure feature by feature to output how many trades are being removed for each feature
         num_trades_before = len(df)
@@ -391,7 +392,7 @@ def drop_features_with_null_value(df: pd.DataFrame, features: list):
 
 
 @function_timer
-def save_data(data, file_name, storage_client):
+def save_data(data: pd.DataFrame, file_name: str, storage_client) -> None:
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
     data = remove_old_trades(data, 390, dataset_name='entire processed data file')    # 390 = 13 * 30, so we are keeping approximately 13 months of data in the file; decided to keep the last 13 months of data to go beyond one year and allow for future experiments with annual patterns without having to re-create the entire dataset
     print(f'Saving data to pickle file with name {file_path}')
@@ -399,7 +400,7 @@ def save_data(data, file_name, storage_client):
     upload_data(storage_client, BUCKET_NAME, file_name, file_path)
 
 
-def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_business_days_to_go_back: int = 10, exclusions_function: callable = None):
+def get_trade_date_where_data_exists_after_this_date(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int = 10, exclusions_function: callable = None):
     '''Iterate backwards on `date` until the data after `date` is non-empty. Go back a maximum of 
     `max_number_of_business_days_to_go_back` days. If `exclusions_function` is not `None`, assumes 
     that the function returns values, where the first item is the data after exclusions, and the 
@@ -421,7 +422,7 @@ def get_trade_date_where_data_exists_after_this_date(date, data, max_number_of_b
 
 
 @function_timer
-def create_input(df, encoders, non_cat_features, binary_features, categorical_features, model: str):
+def create_input(df: pd.DataFrame, encoders, non_cat_features: list, binary_features: list, categorical_features: list, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     datalist = []
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
@@ -440,7 +441,7 @@ def create_input(df, encoders, non_cat_features, binary_features, categorical_fe
     return datalist
 
 
-def get_data_and_last_trade_datetime(storage_client, bucket_name, file_name):
+def get_data_and_last_trade_datetime(storage_client, bucket_name: str, file_name: str):
     '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
     data = download_data(storage_client, bucket_name, file_name)
     if data is None: return None, EARLIST_TRADE_DATETIME, EARLIST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
@@ -449,14 +450,14 @@ def get_data_and_last_trade_datetime(storage_client, bucket_name, file_name):
     return data, last_trade_datetime, last_trade_date
 
 
-def get_data_query(last_trade_datetime, features, conditions):
+def get_data_query(last_trade_datetime, features: list, conditions: list) -> str:
     features_as_string = ', '.join(features)
     conditions = conditions + [f'trade_datetime > "{last_trade_datetime}"']
     conditions_as_string = ' AND '.join(conditions)
     return f'''SELECT {features_as_string}
                FROM `eng-reactor-287421.auxiliary_views.materialized_trade_history`
                WHERE {conditions_as_string}
-               ORDER BY trade_datetime desc'''
+               ORDER BY trade_datetime DESC'''
 
 
 def save_update_data_results_to_pickle_files(suffix: str, update_data: callable):
@@ -468,9 +469,10 @@ def save_update_data_results_to_pickle_files(suffix: str, update_data: callable)
     num_features_for_each_trade_in_history_pickle_filepath = f'{WORKING_DIRECTORY}/files/num_features_for_each_trade_in_history_{suffix}.pkl'
 
     if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
- 
+
     if TESTING and os.path.isfile(data_pickle_filepath):
         print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data()')
+        raw_data_filepath = None
         data = pd.read_pickle(data_pickle_filepath)
         with open(last_trade_data_from_update_data_pickle_filepath, 'rb') as file: last_trade_date = pickle.load(file)
         with open(num_features_for_each_trade_in_history_pickle_filepath, 'rb') as file: num_features_for_each_trade_in_history = pickle.load(file)
@@ -504,7 +506,7 @@ def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
     return encoders, fmax
 
 
-def _trade_history_derived_features(row, model: str, use_treasury_spread: bool = False):
+def _trade_history_derived_features(row, model: str, use_treasury_spread: bool = False) -> list:
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     if model == 'yield_spread':
         variants = YS_VARIANTS
@@ -603,9 +605,9 @@ def _trade_history_derived_features(row, model: str, use_treasury_spread: bool =
     return variant_trade_list
 
 
-def trade_history_derived_features_yield_spread(use_treasury_spread):
+def trade_history_derived_features_yield_spread(use_treasury_spread) -> callable:
     return lambda row: _trade_history_derived_features(row, 'yield_spread', use_treasury_spread)
-def trade_history_derived_features_dollar_price(row):
+def trade_history_derived_features_dollar_price(row) -> list:
     return _trade_history_derived_features(row, 'dollar_price')
 
 
@@ -671,7 +673,7 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     os.system(f'rm -r {model_filename}')
 
 
-def remove_file(file_path):
+def remove_file(file_path: str) -> None:
     '''Remove the file at path: `file_path`. 
     Taken directly from ChatGPT from search: "how to remove a file python".'''
     try:
@@ -685,7 +687,8 @@ def remove_file(file_path):
         print(f'Error: {e}')
 
 
-def send_email(sender_email, message, recipients):
+def send_email(sender_email: str, message: str, recipients: list) -> None:
+    '''Send email with `message` to `recipients` from `sender_email`.'''
     smtp_server = 'smtp.gmail.com'
     port = 587
 
@@ -702,7 +705,7 @@ def send_email(sender_email, message, recipients):
             server.quit()
 
 
-def send_results_email(mae, last_trade_date, recipients: list, model: str):
+def send_results_email(mae, last_trade_date, recipients: list, model: str) -> None:
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'
@@ -716,7 +719,7 @@ def send_results_email(mae, last_trade_date, recipients: list, model: str):
     send_email(sender_email, msg, recipients)
 
 
-def send_no_new_model_email(last_trade_date, recipients: list, model: str):
+def send_no_new_model_email(last_trade_date, recipients: list, model: str) -> None:
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     sender_email = 'notifications@ficc.ai'

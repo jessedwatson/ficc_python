@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-21
+ # @ Modified date: 2024-03-11
  '''
 import numpy as np
 import pandas as pd
@@ -255,8 +255,9 @@ def main():
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('yield_spread', update_data)
     model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
-    print(f'Removing {raw_data_filepath} since training is complete')
-    remove_file(raw_data_filepath)
+    if raw_data_filepath is not None:
+        print(f'Removing {raw_data_filepath} since training is complete')
+        remove_file(raw_data_filepath)
     
     if not TESTING and model is None:
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')

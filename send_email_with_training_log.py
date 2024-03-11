@@ -11,7 +11,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 
-from automated_training_auxiliary_functions import EMAIL_RECIPIENTS, send_email
+from automated_training_auxiliary_functions import EMAIL_RECIPIENTS_FOR_LOGS, send_email
 
 
 def send_training_log(attachment_path, recipients:list, model:str, message:str):
@@ -49,4 +49,4 @@ if __name__ == '__main__':
         model = sys.argv[2]
         message = sys.argv[3]
         print(f'Sending email with {filepath}')
-        send_training_log(filepath, EMAIL_RECIPIENTS, model, message)
+        send_training_log(filepath, EMAIL_RECIPIENTS_FOR_LOGS, model, message)
