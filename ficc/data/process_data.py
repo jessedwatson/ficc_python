@@ -102,8 +102,6 @@ def process_data(query,
     # Dropping columns which are not used for training
     # trades_df = drop_extra_columns(trades_df)
     trades_df = convert_dates(trades_df)
-
-    print('Processing features')
     trades_df = process_features(trades_df)
 
     if remove_short_maturity is True:

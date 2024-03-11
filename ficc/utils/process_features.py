@@ -2,12 +2,13 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-13
+ # @ Modified date: 2024-03-11
  # @ Description:
  '''
 import warnings
 
 import numpy as np
+import pandas as pd
 from ficc.utils.auxiliary_variables import COUPON_FREQUENCY_DICT
 from ficc.utils.diff_in_days import diff_in_days
 from ficc.utils.days_in_interest_payment import days_in_interest_payment
@@ -16,6 +17,7 @@ from ficc.utils.auxiliary_functions import calculate_a_over_e
 
 
 def process_features(df):
+    print('Processing features')
     df.interest_payment_frequency.fillna(0, inplace=True)
     df.loc[:, 'interest_payment_frequency'] = df.interest_payment_frequency.apply(lambda x: COUPON_FREQUENCY_DICT[x])
     # TODO: why are some of these features `np.float32` and some are `float`?
@@ -27,12 +29,12 @@ def process_features(df):
     df.max_amount_outstanding = np.log10(1 + df.max_amount_outstanding.astype(float))
     
     # creating binary features
-    df.loc[:,'callable'] = df.is_callable  
-    df.loc[:,'called'] = df.is_called 
-    df.loc[:,'zerocoupon'] = df.coupon == 0
-    df.loc[:,'whenissued'] = df.delivery_date >= df.trade_date
-    df.loc[:,'sinking'] = ~df.next_sink_date.isnull()
-    df.loc[:,'deferred'] = (df.interest_payment_frequency == 'Unknown') | df.zerocoupon
+    df.loc[:, 'callable'] = df.is_callable  
+    df.loc[:, 'called'] = df.is_called 
+    df.loc[:, 'zerocoupon'] = df.coupon == 0
+    df.loc[:, 'whenissued'] = df.delivery_date >= df.trade_date
+    df.loc[:, 'sinking'] = ~df.next_sink_date.isnull()
+    df.loc[:, 'deferred'] = (df.interest_payment_frequency == 'Unknown') | df.zerocoupon
     
     # converting the dates to a number of days from the settlement date
     # only consider trades to be reportedly correctly if the trades are settled within one month of the trade date
@@ -44,22 +46,25 @@ def process_features(df):
     # TODO: why do we not do the -np.inf replacement for `call_to_maturity`?
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', RuntimeWarning)    # ignore `pandas/core/arraylike.py:364: RuntimeWarning: invalid value encountered in log10` since we handle this directly by filling in -np.inf with np.nan
+        warnings.simplefilter('ignore', pd.core.common.SettingWithCopyWarning)    # the following np.log10 assignments cause `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. Try using .loc[row_indexer,col_indexer] = value instead`
         df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days)
         df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days)
         df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.settlement_date).dt.days)
         df.loc[:, 'days_to_par'] = np.log10(1 + (df.par_call_date - df.settlement_date).dt.days)
         df.loc[:, 'call_to_maturity'] = np.log10(1 + (df.maturity_date - df.next_call_date).dt.days)
 
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', pd.core.common.SettingWithCopyWarning)    # inplace replacements raise `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy return self._update_inplace(result)`
         df.days_to_maturity.replace(-np.inf, np.nan, inplace=True)
         df.days_to_call.replace(-np.inf, np.nan, inplace=True)
         df.days_to_refund.replace(-np.inf, np.nan, inplace=True)
         df.days_to_par.replace(-np.inf, np.nan, inplace=True)
 
-    # Adding features from MSRB rule 33G
-    df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type='accrual', axis=1)
-    df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
-    df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360/df['days_in_interest_payment'])
-    df.loc[:, 'A/E'] = df.apply(calculate_a_over_e, axis=1)
+        # Adding features from MSRB rule 33G
+        df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type='accrual', axis=1)
+        df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
+        df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360/df['days_in_interest_payment'])
+        df.loc[:, 'A/E'] = df.apply(calculate_a_over_e, axis=1)
     
     df = fill_missing_values(df)
     return df
