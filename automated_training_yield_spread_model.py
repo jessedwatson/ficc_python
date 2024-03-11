@@ -106,15 +106,16 @@ def update_data():
 
 
 def segment_results(data: pd.DataFrame):
-    data['delta'] = np.abs(data.predicted_ys - data.new_ys)
-    delta = data['delta']
+    delta = np.abs(data.predicted_ys - data.new_ys)
 
-    def get_mae_and_count(condition):
-        return np.round(np.mean(delta[condition]), 3), data[condition].shape[0]    # round mae to 3 digits after the decimal point to reduce noise
+    def get_mae_and_count(condition=None):
+        if condition is not None:
+            delta_cond, data_cond = delta[condition], data[condition]
+        else:
+            delta_cond, data_cond = delta, data
+        return np.round(np.mean(delta_cond), 3), data_cond.shape[0]    # round mae to 3 digits after the decimal point to reduce noise
 
-    investment_grade_ratings = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-']
-    total_mae, total_count = np.mean(delta), data.shape[0] 
-    
+    total_mae, total_count = get_mae_and_count()
     inter_dealer = data.trade_type == 'D'
     dd_mae, dd_count = get_mae_and_count(inter_dealer)
     dealer_purchase = data.trade_type == 'P'
@@ -123,6 +124,7 @@ def segment_results(data: pd.DataFrame):
     ds_mae, ds_count = get_mae_and_count(dealer_sell)
     aaa = data.rating == 'AAA'
     aaa_mae, aaa_count = get_mae_and_count(aaa)
+    investment_grade_ratings = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-']
     investment_grade = data.rating.isin(investment_grade_ratings)
     investment_grade_mae, investment_grade_count = get_mae_and_count(investment_grade)
     par_traded_greater_than_or_equal_to_100k = data.par_traded >= 1e5
