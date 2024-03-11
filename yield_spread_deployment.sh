@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2023-01-30
+# @ Modified date: 2023-03-11
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 
 #!/bin/sh
@@ -15,7 +15,6 @@ TRAINING_LOG_PATH="$HOME/training_logs/yield_spread_training_$DATE_WITH_YEAR.log
 MODEL="yield_spread"
 
 # Changing directory and training the model
-echo "Training model"
 /opt/conda/bin/python $HOME/ficc_python/automated_training_yield_spread_model.py
 if [ $? -ne 0 ]; then
   echo "automated_training_yield_spread_model.py script failed with exit code $?"

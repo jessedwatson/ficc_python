@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-21
+ # @ Modified date: 2024-03-11
  '''
 import warnings
 import os
@@ -67,10 +67,11 @@ def get_bq_client():
 def setup_gpus():
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if len(gpus) == 0:
-        print('No GPUs')
+        warnings.warn('No GPUs found')
     else:
-        for gpu in gpus:    # https://stackoverflow.com/questions/34199233/how-to-prevent-tensorflow-from-allocating-the-totality-of-a-gpu-memory
-            tf.config.experimental.set_memory_growth(gpu, True)
+        print(f'Found {len(gpus)} GPUs: {gpus}')
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)    # used so that multiple models can be trained on the same GPU since TensorFlow by default allocates the entire GPU RAM for a single training instance; https://stackoverflow.com/questions/34199233/how-to-prevent-tensorflow-from-allocating-the-totality-of-a-gpu-memory
 
 
 NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL = 5
