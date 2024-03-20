@@ -2,16 +2,14 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-11
+ # @ Modified date: 2024-03-20
  '''
 import pandas as pd
-from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
 from ficc.utils.auxiliary_functions import function_timer
+from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE
 from datetime import datetime
-from dollar_model import dollar_price_model
 
-from automated_training_auxiliary_functions import NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
-                                                   EASTERN, \
+from automated_training_auxiliary_functions import EASTERN, \
                                                    TESTING, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
@@ -24,14 +22,10 @@ from automated_training_auxiliary_functions import NUM_TRADES_IN_HISTORY_DOLLAR_
                                                    drop_features_with_null_value, \
                                                    save_data, \
                                                    save_update_data_results_to_pickle_files, \
-                                                   remove_old_trades, \
-                                                   create_input, \
-                                                   get_trade_date_where_data_exists_after_this_date, \
-                                                   fit_encoders, \
-                                                   train_and_evaluate_model, \
+                                                   train_model, \
                                                    save_model, \
                                                    remove_file, \
-                                                   send_results_email, \
+                                                   send_results_email_table, \
                                                    send_no_new_model_email
 
 
@@ -64,43 +58,10 @@ def update_data():
 
 
 @function_timer
-def train_model(data: pd.DataFrame, last_trade_date, num_features_for_each_trade_in_history: int):
-    data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
-    encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
-
-    if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data)
-    test_data = data[data.trade_date > last_trade_date]
-    if len(test_data) == 0:
-        print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
-        return None, None, None
-
-    train_data = data[data.trade_date <= last_trade_date]
-    print(f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}')
-    print(f'Test set contains {len(test_data)} trades ranging from trade datetimes of {test_data.trade_datetime.min()} to {test_data.trade_datetime.max()}')
-    
-    x_train = create_input(train_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
-    y_train = train_data.dollar_price
-
-    x_test = create_input(test_data, encoders, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE, 'dollar_price')
-    y_test = test_data.dollar_price
-
-    model = dollar_price_model(x_train, 
-                               NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, 
-                               num_features_for_each_trade_in_history, 
-                               CATEGORICAL_FEATURES_DOLLAR_PRICE, 
-                               NON_CAT_FEATURES_DOLLAR_PRICE, 
-                               BINARY_DOLLAR_PRICE, 
-                               fmax)
-    
-    model, mae, history = train_and_evaluate_model(model, x_train, y_train, x_test, y_test)
-    return model, encoders, mae
-
-
-@function_timer
 def main():
     print(f'automated_training_dollar_price_model.py starting {datetime.now(EASTERN)} ET')
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('dollar_price', update_data)
-    model, encoders, mae = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
+    model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
 
     if raw_data_filepath is not None:
         print(f'Removing {raw_data_filepath} since training is complete')
@@ -111,7 +72,11 @@ def main():
         raise RuntimeError('No new data was found. Raising an error so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=True)
-        if not TESTING: send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS, 'dollar_price')
+        try:
+            if not TESTING: send_results_email_table(result_df, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
+            # send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS, 'dollar_price')
+        except Exception as e:
+            print(e)
 
 
 if __name__ == '__main__':

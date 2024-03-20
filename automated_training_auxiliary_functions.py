@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-11
+ # @ Modified date: 2024-03-20
  '''
 import warnings
 import os
@@ -26,10 +26,13 @@ from email.mime.multipart import MIMEMultipart
 
 from ficc.utils.gcp_storage_functions import upload_data, download_data
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
 from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
+
+from yield_model import yield_spread_model
+from dollar_model import dollar_price_model
 
 
 EASTERN = timezone('US/Eastern')
@@ -47,7 +50,11 @@ HOUR_MIN_SEC = '%H:%M:%S'
 EARLIST_TRADE_DATETIME = '2023-01-01T00:00:00'
 
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
-WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'    
+WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
+
+HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
+
+if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc_treasury_spread')
 
 
 def get_creds():
@@ -63,6 +70,9 @@ def get_storage_client():
 def get_bq_client():
     get_creds()
     return bigquery.Client()
+
+
+BQ_CLIENT = get_bq_client()
 
 
 def setup_gpus():
@@ -192,6 +202,8 @@ if TESTING:
     print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS}')
     print('Check `get_creds(...)` to make sure the credentials filepath is correct')
     print('Check `WORKING_DIRECTORY` to make sure the path is correct')
+    EMAIL_RECIPIENTS = EMAIL_RECIPIENTS_FOR_LOGS = ['mitas@ficc.ai']
+    print(f'Only sending emails to {EMAIL_RECIPIENTS}')
 else:
     print(f'In PRODUCTION mode (to change to TESTING mode, set `TESTING` to `True`); all files and models will be saved and NUM_EPOCHS={NUM_EPOCHS}')
 
@@ -639,6 +651,138 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
     return model, mae, history
 
 
+def segment_results(data: pd.DataFrame, delta: np.array) -> pd.DataFrame:
+    def get_mae_and_count(condition=None):
+        if condition is not None:
+            delta_cond, data_cond = delta[condition], data[condition]
+        else:
+            delta_cond, data_cond = delta, data
+        return np.round(np.mean(delta_cond), 3), data_cond.shape[0]    # round mae to 3 digits after the decimal point to reduce noise
+
+    total_mae, total_count = get_mae_and_count()
+    inter_dealer = data.trade_type == 'D'
+    dd_mae, dd_count = get_mae_and_count(inter_dealer)
+    dealer_purchase = data.trade_type == 'P'
+    dp_mae, dp_count = get_mae_and_count(dealer_purchase)
+    dealer_sell = data.trade_type == 'S'
+    ds_mae, ds_count = get_mae_and_count(dealer_sell)
+    aaa = data.rating == 'AAA'
+    aaa_mae, aaa_count = get_mae_and_count(aaa)
+    investment_grade_ratings = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-']
+    investment_grade = data.rating.isin(investment_grade_ratings)
+    investment_grade_mae, investment_grade_count = get_mae_and_count(investment_grade)
+    par_traded_greater_than_or_equal_to_100k = data.par_traded >= 1e5
+    hundred_k_mae, hundred_k_count = get_mae_and_count(par_traded_greater_than_or_equal_to_100k)
+
+    result_df = pd.DataFrame(data=[[total_mae, total_count],
+                                   [dd_mae, dd_count],
+                                   [dp_mae, dp_count],
+                                   [ds_mae, ds_count], 
+                                   [aaa_mae, aaa_count], 
+                                   [investment_grade_mae, investment_grade_count],
+                                   [hundred_k_mae, hundred_k_count]],
+                             columns=['Mean absolute Error', 'Trade count'],
+                             index=['Entire set', 'Dealer-Dealer', 'Dealer-Purchase', 'Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size >= 100k'])
+    return result_df
+
+
+def get_table_schema_for_predictions():
+    '''Returns the schema required for the bigquery table storing the predictions.'''
+    schema = [
+        bigquery.SchemaField('rtrs_control_number', 'INTEGER', 'REQUIRED'),
+        bigquery.SchemaField('cusip', 'STRING', 'REQUIRED'),
+        bigquery.SchemaField('trade_date', 'DATE', 'REQUIRED'),
+        bigquery.SchemaField('dollar_price', 'FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('yield','FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('new_ficc_ycl', 'FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('new_ys', 'FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('new_ys_prediction', 'FLOAT', 'REQUIRED'),
+        bigquery.SchemaField('prediction_datetime', 'DATETIME', 'REQUIRED')
+    ] 
+    return schema
+
+
+def upload_predictions(data: pd.DataFrame):
+    '''Upload the coefficient and scalar dataframe to BigQuery.'''
+    job_config = bigquery.LoadJobConfig(schema=get_table_schema_for_predictions(), write_disposition='WRITE_APPEND')
+    job = BQ_CLIENT.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE, job_config=job_config)
+    try:
+        job.result()
+        print('Upload Successful')
+    except Exception as e:
+        print('Failed to Upload')
+        raise e
+
+
+@function_timer
+def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_for_each_trade_in_history: int, exclusions_function: callable = None):
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
+    categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
+    encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, model)
+    if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
+    test_data = data[data.trade_date > last_trade_date]
+    if exclusions_function is not None:
+        test_data, test_data_before_exclusions = exclusions_function(test_data, 'test_data')
+    else:
+        test_data_before_exclusions = test_data
+    
+    if len(test_data) == 0:
+        print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
+        return None, None, None, None
+    
+    train_data = data[data.trade_date <= last_trade_date]
+    print(f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}')
+    print(f'Test set contains {len(test_data)} trades ranging from trade datetimes of {test_data.trade_datetime.min()} to {test_data.trade_datetime.max()}')
+
+    non_cat_features = NON_CAT_FEATURES if model == 'yield_spread' else NON_CAT_FEATURES_DOLLAR_PRICE
+    binary = BINARY if model == 'yield_spread' else BINARY_DOLLAR_PRICE
+
+    label_name = 'new_ys' if model == 'yield_spread' else 'dollar_price'
+    x_train = create_input(train_data, encoders, non_cat_features, binary, categorical_features, model)
+    y_train = train_data[label_name]
+    x_test = create_input(test_data, encoders, non_cat_features, binary, categorical_features, model)
+    y_test = test_data[label_name]
+
+    yield_spread_model_or_dollar_price_model = yield_spread_model if model == 'yield_spread' else dollar_price_model
+    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
+    untrained_model = yield_spread_model_or_dollar_price_model(x_train, 
+                                                               num_trades_in_history, 
+                                                               num_features_for_each_trade_in_history, 
+                                                               categorical_features, 
+                                                               non_cat_features, 
+                                                               binary, 
+                                                               fmax)
+    trained_model, mae, history = train_and_evaluate_model(untrained_model, x_train, y_train, x_test, y_test)
+
+    # creating table to send over email
+    try:
+        predictions = model.predict(x_test, batch_size=BATCH_SIZE)
+        test_delta = np.abs(predictions - x_test[label_name])
+        result_df = segment_results(test_data, test_delta)
+    except Exception as e:
+        print('Unable to create results dataframe with `segment_results(...)`. Error:', e)
+        result_df = pd.DataFrame()
+
+    try:
+        print(result_df.to_markdown())
+    except Exception as e:
+        print('Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. Error:', e)
+    
+    # uploading predictions to bigquery (only for yield spread model)
+    if SAVE_MODEL_AND_DATA and model == 'yield_spread':
+        try:
+            test_data_before_exclusions_x_test = create_input(test_data_before_exclusions, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, 'yield_spread')
+            test_data_before_exclusions['new_ys_prediction'] = model.predict(test_data_before_exclusions_x_test, batch_size=BATCH_SIZE)
+            test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
+            test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
+            test_data_before_exclusions['trade_date'] = pd.to_datetime(test_data_before_exclusions['trade_date']).dt.date
+            upload_predictions(test_data_before_exclusions)
+        except Exception as e:
+            print('Failed to upload predictions to BigQuery. Error:', e)
+    return trained_model, encoders, mae, result_df
+
+
 @function_timer
 def save_model(model, encoders, storage_client, dollar_price_model):
     '''`dollar_price_model` is a boolean flag that indicates whether we are 
@@ -716,6 +860,21 @@ def send_results_email(mae, last_trade_date, recipients: list, model: str) -> No
 
     message = MIMEText(f'The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae, 3)}.', 'plain')
     msg.attach(message)
+    send_email(sender_email, msg, recipients)
+
+
+def send_results_email_table(result_df, last_trade_date, recipients: list, model: str):
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    print(f'Sending email to {recipients}')
+    sender_email = 'notifications@ficc.ai'
+    
+    msg = MIMEMultipart()
+    msg['Subject'] = f'Mae for {model} model trained till {last_trade_date}'
+    msg['From'] = sender_email
+
+    html_table = result_df.to_html(index=True)
+    body = MIMEText(html_table, 'html')
+    msg.attach(body)
     send_email(sender_email, msg, recipients)
 
 
