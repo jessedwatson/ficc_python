@@ -2,14 +2,14 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-20
+ # @ Modified date: 2024-03-21
  '''
 import warnings
 import os
 import shutil
 import numpy as np
 import pandas as pd
-from pandas.tseries.offsets import BDay
+from pandas.tseries.offsets import BusinessDay
 from sklearn import preprocessing
 from pickle5 import pickle
 from pytz import timezone
@@ -43,6 +43,8 @@ EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc
 EMAIL_RECIPIENTS_FOR_LOGS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai']    # recipients for training logs, which should be a more technical subset of `EMAIL_RECIPIENTS`
 
 BUCKET_NAME = 'automated_training'
+MODEL_FOLDERS = ('yield_spread_model', 'dollar_price_models')
+MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK = 10
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 HOUR_MIN_SEC = '%H:%M:%S'
@@ -289,7 +291,7 @@ def add_yield_curve(data):
 
 def decrement_business_days(date, num_business_days: int) -> str:
     '''Subtract `num_business_days` from `date`.'''
-    return (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
+    return (datetime.strptime(date, YEAR_MONTH_DAY) - BusinessDay(num_business_days)).strftime(YEAR_MONTH_DAY)
 
 
 def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFrame, last_trade_date) -> bool:
@@ -434,7 +436,7 @@ def get_trade_date_where_data_exists_after_this_date(date, data: pd.DataFrame, m
 
 
 @function_timer
-def create_input(df: pd.DataFrame, encoders, non_cat_features: list, binary_features: list, categorical_features: list, model: str):
+def create_input(df: pd.DataFrame, encoders, non_cat_features: list, binary_features: list, categorical_features: list, model: str) -> list:
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     datalist = []
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
@@ -714,6 +716,57 @@ def upload_predictions(data: pd.DataFrame):
         raise e
 
 
+def load_model_from_date(date: str, folder: str, bucket: str):
+    '''Taken almost directly from `point_in_time_pricing_timestamp.py`.
+    When using the `cache_output` decorator, we should not have any optional arguments as this may interfere with 
+    how the cache lookup is done (optional arguments may not be put into the args set).'''
+    assert folder in MODEL_FOLDERS
+    if len(date) == 10: date = date[5:]    # remove the year and the hypen from `date`, i.e., remove 'YYYY-' from `date`, if the date is 10 characters which we assume to mean that it is in YYYY-MM-DD format 
+    model_prefix = '' if folder == 'yield_spread_model' else 'dollar-'
+    bucket_folder_model_path = os.path.join(os.path.join(bucket, folder), f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<folder>/<model>
+    base_model_path = os.path.join(bucket, f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<model>
+    for model_path in (bucket_folder_model_path, base_model_path):    # iterate over possible paths and try to load the model
+        print(f'Attempting to load model from {model_path}')
+        try:
+            model = keras.models.load_model(model_path)
+            print(f'Model loaded from {model_path}')
+            return model
+        except Exception as e:
+            print(f'Model failed to load from {model_path} with exception: {e}')
+
+
+@function_timer
+def load_model(date_of_interest: str, folder: str, max_num_business_days_in_the_past_to_check: int = MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, bucket: str = 'gs://'+BUCKET_NAME):
+    '''Taken almost directly from `point_in_time_pricing_timestamp.py`.
+    This function finds the appropriate model, either in the automated_training directory, or in a special directory. 
+    TODO: clean up the way we store models on cloud storage by unifying the folders and naming convention and adding the 
+    year to the name.'''
+    for num_business_days_in_the_past in range(max_num_business_days_in_the_past_to_check):
+        model_date_string = (pd.to_datetime(date_of_interest) - BusinessDay(num_business_days_in_the_past)).strftime('%Y-%m-%d')
+        model = load_model_from_date(model_date_string, folder, bucket)
+        if model is not None: return model
+    raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
+    
+
+def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list):
+    '''Creates a dataframe that can be sent as a table over email for the performance of `model` on 
+    `inputs` validated on `labels`. `inputs` and `labels` are transformed using `create_input(...)` 
+    from `data` to be able to be used by the `model` for inference.'''
+    try:
+        predictions = model.predict(inputs, batch_size=BATCH_SIZE)
+        delta = np.abs(predictions - labels)
+        result_df = segment_results(data, delta)
+    except Exception as e:
+        print('Unable to create results dataframe with `segment_results(...)`. Error:', e)
+        result_df = pd.DataFrame()
+
+    try:
+        print(result_df.to_markdown())
+    except Exception as e:
+        print('Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. Error:', e)
+    return result_df
+
+
 @function_timer
 def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_for_each_trade_in_history: int, exclusions_function: callable = None):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
@@ -755,19 +808,9 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
                                                                fmax)
     trained_model, mae, history = train_and_evaluate_model(untrained_model, x_train, y_train, x_test, y_test)
 
-    # creating table to send over email
-    try:
-        predictions = model.predict(x_test, batch_size=BATCH_SIZE)
-        test_delta = np.abs(predictions - x_test[label_name])
-        result_df = segment_results(test_data, test_delta)
-    except Exception as e:
-        print('Unable to create results dataframe with `segment_results(...)`. Error:', e)
-        result_df = pd.DataFrame()
-
-    try:
-        print(result_df.to_markdown())
-    except Exception as e:
-        print('Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. Error:', e)
+    create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
+    result_df = create_summary_of_results_for_test_data(trained_model)
+    result_df_using_previous_day_model = create_summary_of_results_for_test_data(load_model(last_trade_date))
     
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and model == 'yield_spread':
