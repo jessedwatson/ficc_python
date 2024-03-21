@@ -31,6 +31,7 @@ from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 
+from automated_training_auxiliary_variables import BATCH_SIZE, NUM_EPOCHS
 from yield_model import yield_spread_model
 from dollar_model import dollar_price_model
 
@@ -193,10 +194,6 @@ QUERY_CONDITIONS = ['par_traded >= 10000',
                     'msrb_valid_to_date > current_date',    # condition to remove cancelled trades
                     'settlement_date IS NOT NULL']
 ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL = ['yield IS NOT NULL', 'yield > 0']
-
-NUM_EPOCHS = 100
-BATCH_SIZE = 1000
-DROPOUT = 0.01
 
 TESTING = False
 if TESTING:

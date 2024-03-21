@@ -10,7 +10,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 
-from automated_training_auxiliary_functions import BATCH_SIZE, DROPOUT
+from automated_training_auxiliary_variables import BATCH_SIZE, DROPOUT
 
 
 tf.keras.utils.set_random_seed(10)
