@@ -39,6 +39,7 @@ EASTERN = timezone('US/Eastern')
 
 SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
 
+SENDER_EMAIL = 'notifications@ficc.ai'
 EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai']    # recieve an email following a successful run of the training script; set to only your email if testing
 EMAIL_RECIPIENTS_FOR_LOGS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai']    # recipients for training logs, which should be a more technical subset of `EMAIL_RECIPIENTS`
 
@@ -289,7 +290,7 @@ def add_yield_curve(data):
     return data
 
 
-def decrement_business_days(date, num_business_days: int) -> str:
+def decrement_business_days(date: str, num_business_days: int) -> str:
     '''Subtract `num_business_days` from `date`.'''
     return (datetime.strptime(date, YEAR_MONTH_DAY) - BusinessDay(num_business_days)).strftime(YEAR_MONTH_DAY)
 
@@ -436,23 +437,28 @@ def get_trade_date_where_data_exists_after_this_date(date, data: pd.DataFrame, m
 
 
 @function_timer
-def create_input(df: pd.DataFrame, encoders, non_cat_features: list, binary_features: list, categorical_features: list, model: str) -> list:
+def create_input(data: pd.DataFrame, encoders, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     datalist = []
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
-    datalist.append(np.stack(df[trade_history_feature_name].to_numpy()))
-    datalist.append(np.stack(df['target_attention_features'].to_numpy()))
+    datalist.append(np.stack(data[trade_history_feature_name].to_numpy()))
+    datalist.append(np.stack(data['target_attention_features'].to_numpy()))
+
+    categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
+    non_cat_features = NON_CAT_FEATURES if model == 'yield_spread' else NON_CAT_FEATURES_DOLLAR_PRICE
+    binary = BINARY if model == 'yield_spread' else BINARY_DOLLAR_PRICE
 
     noncat_and_binary = []
-    for f in non_cat_features + binary_features:
-        noncat_and_binary.append(np.expand_dims(df[f].to_numpy().astype('float32'), axis=1))
+    for feature in non_cat_features + binary:
+        noncat_and_binary.append(np.expand_dims(data[feature].to_numpy().astype('float32'), axis=1))
     datalist.append(np.concatenate(noncat_and_binary, axis=-1))
     
-    for f in categorical_features:
-        encoded = encoders[f].transform(df[f])
+    for feature in categorical_features:
+        encoded = encoders[feature].transform(data[feature])
         datalist.append(encoded.astype('float32'))
 
-    return datalist
+    label_name = 'new_ys' if model == 'yield_spread' else 'dollar_price'
+    return datalist, data[label_name]
 
 
 def get_data_and_last_trade_datetime(storage_client, bucket_name: str, file_name: str):
@@ -683,7 +689,7 @@ def segment_results(data: pd.DataFrame, delta: np.array) -> pd.DataFrame:
                                    [aaa_mae, aaa_count], 
                                    [investment_grade_mae, investment_grade_count],
                                    [hundred_k_mae, hundred_k_count]],
-                             columns=['Mean absolute Error', 'Trade count'],
+                             columns=['Mean Absolute Error', 'Trade Count'],
                              index=['Entire set', 'Dealer-Dealer', 'Dealer-Purchase', 'Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size >= 100k'])
     return result_df
 
@@ -742,7 +748,7 @@ def load_model(date_of_interest: str, folder: str, max_num_business_days_in_the_
     TODO: clean up the way we store models on cloud storage by unifying the folders and naming convention and adding the 
     year to the name.'''
     for num_business_days_in_the_past in range(max_num_business_days_in_the_past_to_check):
-        model_date_string = (pd.to_datetime(date_of_interest) - BusinessDay(num_business_days_in_the_past)).strftime('%Y-%m-%d')
+        model_date_string = decrement_business_days(date_of_interest, num_business_days_in_the_past)
         model = load_model_from_date(model_date_string, folder, bucket)
         if model is not None: return model
     raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
@@ -772,7 +778,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
     categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
-    encoders, fmax = fit_encoders(data, CATEGORICAL_FEATURES, model)
+    encoders, fmax = fit_encoders(data, categorical_features, model)
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
     test_data = data[data.trade_date > last_trade_date]
     if exclusions_function is not None:
@@ -791,11 +797,8 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     non_cat_features = NON_CAT_FEATURES if model == 'yield_spread' else NON_CAT_FEATURES_DOLLAR_PRICE
     binary = BINARY if model == 'yield_spread' else BINARY_DOLLAR_PRICE
 
-    label_name = 'new_ys' if model == 'yield_spread' else 'dollar_price'
-    x_train = create_input(train_data, encoders, non_cat_features, binary, categorical_features, model)
-    y_train = train_data[label_name]
-    x_test = create_input(test_data, encoders, non_cat_features, binary, categorical_features, model)
-    y_test = test_data[label_name]
+    x_train, y_train = create_input(train_data, encoders, model)
+    x_test, y_test = create_input(train_data, encoders, model)
 
     yield_spread_model_or_dollar_price_model = yield_spread_model if model == 'yield_spread' else dollar_price_model
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
@@ -810,12 +813,13 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
 
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
-    result_df_using_previous_day_model = create_summary_of_results_for_test_data(load_model(last_trade_date))
+    previous_business_date_model = load_model(last_trade_date)
+    result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
     
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and model == 'yield_spread':
         try:
-            test_data_before_exclusions_x_test = create_input(test_data_before_exclusions, encoders, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, 'yield_spread')
+            test_data_before_exclusions_x_test, _ = create_input(test_data_before_exclusions, encoders, 'yield_spread')
             test_data_before_exclusions['new_ys_prediction'] = model.predict(test_data_before_exclusions_x_test, batch_size=BATCH_SIZE)
             test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
             test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
@@ -823,7 +827,20 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
             upload_predictions(test_data_before_exclusions)
         except Exception as e:
             print('Failed to upload predictions to BigQuery. Error:', e)
-    return trained_model, encoders, mae, result_df
+    return trained_model, previous_business_date_model, encoders, mae, (result_df, result_df_using_previous_day_model)
+
+
+@function_timer
+def get_model_results(data: pd.DataFrame, trade_date: str, model: str, loaded_model, exclusions_function: callable = None) -> pd.DataFrame:
+    '''NOTE: `model` is a string that denotes whether we are working with the yield spread model or 
+    the dollar price model, and `loaded_model` is an actual keras model. This may cause confusion.
+    If `exclusions_function` is not `None`, assumes that the function returns values, where the first 
+    item is the data after exclusions, and the second item is the data before exclusions.'''
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    data_on_trade_date = data[data.trade_date == trade_date]
+    if exclusions_function is not None: data_on_trade_date, _ = exclusions_function(data_on_trade_date)
+    inputs, labels = create_input(data_on_trade_date, model)
+    return create_summary_of_results(loaded_model, data_on_trade_date, inputs, labels)
 
 
 @function_timer
@@ -892,41 +909,62 @@ def send_email(sender_email: str, message: str, recipients: list) -> None:
             server.quit()
 
 
+def _get_email_subject(last_trade_date: str, model: str) -> str:
+    return f'MAE for {model} model trained till {last_trade_date}'
+
+
 def send_results_email(mae, last_trade_date, recipients: list, model: str) -> None:
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
-    sender_email = 'notifications@ficc.ai'
     
     msg = MIMEMultipart()
-    msg['Subject'] = f'Mae for {model} model trained till {last_trade_date}'
-    msg['From'] = sender_email
+    msg['Subject'] = _get_email_subject(last_trade_date, model)
+    msg['From'] = SENDER_EMAIL
 
     message = MIMEText(f'The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae, 3)}.', 'plain')
     msg.attach(message)
-    send_email(sender_email, msg, recipients)
+    send_email(SENDER_EMAIL, msg, recipients)
 
 
 def send_results_email_table(result_df, last_trade_date, recipients: list, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
-    sender_email = 'notifications@ficc.ai'
-    
     msg = MIMEMultipart()
-    msg['Subject'] = f'Mae for {model} model trained till {last_trade_date}'
-    msg['From'] = sender_email
+    msg['Subject'] = _get_email_subject(last_trade_date, model)
+    msg['From'] = SENDER_EMAIL
 
     html_table = result_df.to_html(index=True)
     body = MIMEText(html_table, 'html')
     msg.attach(body)
-    send_email(sender_email, msg, recipients)
+    send_email(SENDER_EMAIL, msg, recipients)
+
+
+def send_results_email_multiple_tables(df_list: list, text_list: list, last_trade_date, recipients: list, model: str):
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    print(f'Sending email to {recipients}')
+    msg = MIMEMultipart()
+    msg['Subject'] = _get_email_subject(last_trade_date, model)
+    msg['From'] = SENDER_EMAIL
+
+    def html_text_for_single_df(text, df):
+        return f'''{text}<br>{df.to_html(index=True)}'''
+
+    html_text = f'''
+    <html>
+    <body>
+    {'<hr>'.join([html_text_for_single_df(text, df) for text, df in zip(text_list, df_list)])}
+    </body>
+    </html>
+    '''
+    body = MIMEText(html_text, 'html')
+    msg.attach(body)
+    send_email(SENDER_EMAIL, msg, recipients)
 
 
 def send_no_new_model_email(last_trade_date, recipients: list, model: str) -> None:
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
-    sender_email = 'notifications@ficc.ai'
-    
     msg = MIMEMultipart()
     msg['Subject'] = f'No new data was found on {last_trade_date}, so no new {model} model was trained'
-    msg['From'] = sender_email
-    send_email(sender_email, msg, recipients)
+    msg['From'] = SENDER_EMAIL
+    send_email(SENDER_EMAIL, msg, recipients)

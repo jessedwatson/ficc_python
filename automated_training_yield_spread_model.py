@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-20
+ # @ Modified date: 2024-03-21
  '''
 import numpy as np
 import pandas as pd
@@ -24,6 +24,7 @@ from automated_training_auxiliary_functions import EASTERN, \
                                                    save_data, \
                                                    save_update_data_results_to_pickle_files, \
                                                    train_model, \
+                                                   get_model_results, \
                                                    save_model, \
                                                    remove_file, \
                                                    send_results_email_table, \
@@ -101,7 +102,9 @@ def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
 def main():
     print(f'automated_training_yield_spread_model.py starting at {datetime.now(EASTERN)} ET')
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('yield_spread', update_data)
-    model, encoders, mae, result_df = train_model(data, last_trade_date, num_features_for_each_trade_in_history, apply_exclusions)
+    model, last_trade_date_model, encoders, mae, result_df_list = train_model(data, last_trade_date, num_features_for_each_trade_in_history, apply_exclusions)
+    current_date_data_current_date_model_result_df, last_trade_date_data_current_date_model_result_df = result_df_list
+    last_trade_date_data_last_trade_date_model_result_df = get_model_results(data, last_trade_date, 'yield_spread', last_trade_date_model, apply_exclusions)
 
     if raw_data_filepath is not None:
         print(f'Removing {raw_data_filepath} since training is complete')
@@ -113,10 +116,10 @@ def main():
     else:
         if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=False)
         try:
-            if not TESTING: send_results_email_table(result_df, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
+            send_results_email_table(current_date_data_current_date_model_result_df, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
             # send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
         except Exception as e:
-            print(e)
+            print('Error:', e)
 
 
 if __name__ == '__main__':
