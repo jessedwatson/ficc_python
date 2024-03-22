@@ -747,7 +747,7 @@ def load_model(date_of_interest: str, folder: str, max_num_business_days_in_the_
     for num_business_days_in_the_past in range(max_num_business_days_in_the_past_to_check):
         model_date_string = decrement_business_days(date_of_interest, num_business_days_in_the_past)
         model = load_model_from_date(model_date_string, folder, bucket)
-        if model is not None: return model
+        if model is not None: return model, model_date_string
     raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
     
 
@@ -811,7 +811,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
     models_folder = 'yield_spread_model' if model == 'yield_spread' else 'dollar_price_models'
-    previous_business_date_model = load_model(last_trade_date, models_folder)
+    previous_business_date_model, previous_business_date_model_date = load_model(last_trade_date, models_folder)
     result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
     
     # uploading predictions to bigquery (only for yield spread model)
@@ -825,7 +825,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
             upload_predictions(test_data_before_exclusions)
         except Exception as e:
             print('Failed to upload predictions to BigQuery. Error:', e)
-    return trained_model, previous_business_date_model, encoders, mae, (result_df, result_df_using_previous_day_model)
+    return trained_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, (result_df, result_df_using_previous_day_model)
 
 
 @function_timer
