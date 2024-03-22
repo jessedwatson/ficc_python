@@ -11,12 +11,14 @@ from ficc.utils.auxiliary_variables import PREDICTORS
 from datetime import datetime
 
 from automated_training_auxiliary_functions import EASTERN, \
+                                                   YEAR_MONTH_DAY, \
                                                    TESTING, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
                                                    get_bq_client, \
                                                    setup_gpus, \
+                                                   decrement_business_days, \
                                                    get_new_data, \
                                                    combine_new_data_with_old_data, \
                                                    add_trade_history_derived_features, \
@@ -100,9 +102,13 @@ def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
 
 @function_timer
 def main():
-    print(f'automated_training_yield_spread_model.py starting at {datetime.now(EASTERN)} ET')
+    current_datetime = datetime.now(EASTERN)
+    print(f'automated_training_yield_spread_model.py starting at {current_datetime} ET')
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('yield_spread', update_data)
-    model, previous_business_date_model, previous_business_date_model_date, encoders, mae, result_df_list = train_model(data, last_trade_date, 'yield_spread', num_features_for_each_trade_in_history, apply_exclusions)
+    
+    current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
+    previous_business_date = decrement_business_days(current_date, 11)
+    model, previous_business_date_model, previous_business_date_model_date, encoders, mae, result_df_list = train_model(data, last_trade_date, 'yield_spread', num_features_for_each_trade_in_history, previous_business_date, apply_exclusions)
     current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = result_df_list
     last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, 'yield_spread', previous_business_date_model, encoders, apply_exclusions)
 
@@ -118,8 +124,8 @@ def main():
         try:
             result_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, last_trade_date_data_previous_business_date_model_result_df]
             description_list = [f'The below table shows the accuracy of the newly trained model for the trades that occurred after {last_trade_date}', 
-                                f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {last_trade_date} for the trades that occurred after {last_trade_date} (same data as first table but different model)', 
-                                f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {last_trade_date} for the trades that occurred on {last_trade_date} (same model as second table but different data)']
+                                f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date} (same data as first table but different model)', 
+                                f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date} (same model as second table but different data)']
             send_results_email_multiple_tables(result_df_list, description_list, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
             # send_results_email_table(current_date_data_current_date_model_result_df, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
             # send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')

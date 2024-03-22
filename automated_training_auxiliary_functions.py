@@ -771,7 +771,7 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
 
 
 @function_timer
-def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_for_each_trade_in_history: int, exclusions_function: callable = None):
+def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
     categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
@@ -811,7 +811,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
     models_folder = 'yield_spread_model' if model == 'yield_spread' else 'dollar_price_models'
-    previous_business_date_model, previous_business_date_model_date = load_model(last_trade_date, models_folder)
+    previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, models_folder)
     result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
     
     # uploading predictions to bigquery (only for yield spread model)
@@ -908,7 +908,8 @@ def send_email(sender_email: str, message: str, recipients: list) -> None:
 
 
 def _get_email_subject(last_trade_date: str, model: str) -> str:
-    return f'MAE for {model} model trained till {last_trade_date}'
+    testing_addendum = '' if not TESTING else 'TESTING: '
+    return f'{testing_addendum}MAE for {model} model trained till {last_trade_date}'
 
 
 def send_results_email(mae, last_trade_date, recipients: list, model: str) -> None:

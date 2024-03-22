@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2023-01-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-21
+ # @ Modified date: 2024-03-22
  '''
 import pandas as pd
 from ficc.utils.auxiliary_functions import function_timer
@@ -10,12 +10,14 @@ from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE
 from datetime import datetime
 
 from automated_training_auxiliary_functions import EASTERN, \
+                                                   YEAR_MONTH_DAY, \
                                                    TESTING, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    EMAIL_RECIPIENTS, \
                                                    get_storage_client, \
                                                    get_bq_client, \
                                                    setup_gpus, \
+                                                   decrement_business_days, \
                                                    get_new_data, \
                                                    combine_new_data_with_old_data, \
                                                    add_trade_history_derived_features, \
@@ -60,9 +62,13 @@ def update_data():
 
 @function_timer
 def main():
-    print(f'automated_training_dollar_price_model.py starting {datetime.now(EASTERN)} ET')
+    current_datetime = datetime.now(EASTERN)
+    print(f'automated_training_dollar_price_model.py starting {current_datetime} ET')
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('dollar_price', update_data)
-    model, previous_business_date_model, previous_business_date_model_date, encoders, mae, result_df_list = train_model(data, last_trade_date, 'dollar_price', num_features_for_each_trade_in_history)
+
+    current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
+    previous_business_date = decrement_business_days(current_date, 1)
+    model, previous_business_date_model, previous_business_date_model_date, encoders, mae, result_df_list = train_model(data, last_trade_date, 'dollar_price', num_features_for_each_trade_in_history, previous_business_date)
     current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = result_df_list
     last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, 'dollar_price', previous_business_date_model, encoders)
 
@@ -78,8 +84,8 @@ def main():
         try:
             result_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, last_trade_date_data_previous_business_date_model_result_df]
             description_list = [f'The below table shows the accuracy of the newly trained model for the trades that occurred after {last_trade_date}', 
-                                f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {last_trade_date} for the trades that occurred after {last_trade_date} (same data as above table but different model)', 
-                                f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {last_trade_date} for the trades that occurred on {last_trade_date} (same model as second table but different data)']
+                                f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date} (same data as above table but different model)', 
+                                f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date} (same model as second table but different data)']
             send_results_email_multiple_tables(result_df_list, description_list, last_trade_date, EMAIL_RECIPIENTS, 'dollar_price')
             # send_results_email_table(current_date_data_current_date_model_result_df, last_trade_date, EMAIL_RECIPIENTS, 'dollar_price')
             # send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS, 'dollar_price')
