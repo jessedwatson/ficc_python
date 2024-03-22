@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2023-03-11
+# @ Modified date: 2023-03-22
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -33,7 +33,7 @@ ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOIN
 # Unzip model and uploading it to automated training bucket
 MODEL_NAME='dollar-model'-${DATE_WITHOUT_YEAR}
 echo "Unzipping model $MODEL_NAME"
-gsutil cp -r gs://ahmad_data/model_dollar_price.zip $TRAINED_MODELS_PATH/model_dollar_price.zip
+gsutil cp -r gs://automated_training/model_dollar_price.zip $TRAINED_MODELS_PATH/model_dollar_price.zip
 unzip $TRAINED_MODELS_PATH/model_dollar_price.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
