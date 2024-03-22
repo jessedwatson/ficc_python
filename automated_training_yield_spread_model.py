@@ -102,9 +102,9 @@ def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
 def main():
     print(f'automated_training_yield_spread_model.py starting at {datetime.now(EASTERN)} ET')
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('yield_spread', update_data)
-    model, last_trade_date_model, encoders, mae, result_df_list = train_model(data, last_trade_date, num_features_for_each_trade_in_history, apply_exclusions)
+    model, last_trade_date_model, encoders, mae, result_df_list = train_model(data, last_trade_date, 'yield_spread', num_features_for_each_trade_in_history, apply_exclusions)
     current_date_data_current_date_model_result_df, last_trade_date_data_current_date_model_result_df = result_df_list
-    last_trade_date_data_last_trade_date_model_result_df = get_model_results(data, last_trade_date, 'yield_spread', last_trade_date_model, apply_exclusions)
+    last_trade_date_data_last_trade_date_model_result_df = get_model_results(data, last_trade_date, 'yield_spread', last_trade_date_model, encoders, apply_exclusions)
 
     if raw_data_filepath is not None:
         print(f'Removing {raw_data_filepath} since training is complete')

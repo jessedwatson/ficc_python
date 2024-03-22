@@ -434,7 +434,7 @@ def get_trade_date_where_data_exists_after_this_date(date, data: pd.DataFrame, m
 
 
 @function_timer
-def create_input(data: pd.DataFrame, encoders, model: str):
+def create_input(data: pd.DataFrame, encoders: dict, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     datalist = []
     trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
@@ -756,7 +756,7 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
     `inputs` validated on `labels`. `inputs` and `labels` are transformed using `create_input(...)` 
     from `data` to be able to be used by the `model` for inference.'''
     try:
-        predictions = model.predict(inputs, batch_size=BATCH_SIZE)
+        predictions = model.predict(inputs, batch_size=BATCH_SIZE).flatten()
         delta = np.abs(predictions - labels)
         result_df = segment_results(data, delta)
     except Exception as e:
@@ -795,7 +795,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     binary = BINARY if model == 'yield_spread' else BINARY_DOLLAR_PRICE
 
     x_train, y_train = create_input(train_data, encoders, model)
-    x_test, y_test = create_input(train_data, encoders, model)
+    x_test, y_test = create_input(test_data, encoders, model)
 
     yield_spread_model_or_dollar_price_model = yield_spread_model if model == 'yield_spread' else dollar_price_model
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
@@ -810,7 +810,8 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
 
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
-    previous_business_date_model = load_model(last_trade_date)
+    models_folder = 'yield_spread_model' if model == 'yield_spread' else 'dollar_price_models'
+    previous_business_date_model = load_model(last_trade_date, models_folder)
     result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
     
     # uploading predictions to bigquery (only for yield spread model)
@@ -828,7 +829,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
 
 
 @function_timer
-def get_model_results(data: pd.DataFrame, trade_date: str, model: str, loaded_model, exclusions_function: callable = None) -> pd.DataFrame:
+def get_model_results(data: pd.DataFrame, trade_date: str, model: str, loaded_model, encoders: dict, exclusions_function: callable = None) -> pd.DataFrame:
     '''NOTE: `model` is a string that denotes whether we are working with the yield spread model or 
     the dollar price model, and `loaded_model` is an actual keras model. This may cause confusion.
     If `exclusions_function` is not `None`, assumes that the function returns values, where the first 
@@ -836,7 +837,7 @@ def get_model_results(data: pd.DataFrame, trade_date: str, model: str, loaded_mo
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     data_on_trade_date = data[data.trade_date == trade_date]
     if exclusions_function is not None: data_on_trade_date, _ = exclusions_function(data_on_trade_date)
-    inputs, labels = create_input(data_on_trade_date, model)
+    inputs, labels = create_input(data_on_trade_date, encoders, model)
     return create_summary_of_results(loaded_model, data_on_trade_date, inputs, labels)
 
 

@@ -62,9 +62,9 @@ def update_data():
 def main():
     print(f'automated_training_dollar_price_model.py starting {datetime.now(EASTERN)} ET')
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('dollar_price', update_data)
-    model, last_trade_date_model, encoders, mae, result_df_list = train_model(data, last_trade_date, num_features_for_each_trade_in_history)
+    model, last_trade_date_model, encoders, mae, result_df_list = train_model(data, last_trade_date, 'dollar_price', num_features_for_each_trade_in_history)
     current_date_data_current_date_model_result_df, last_trade_date_data_current_date_model_result_df = result_df_list
-    last_trade_date_data_last_trade_date_model_result_df = get_model_results(data, last_trade_date, 'dollar_price', last_trade_date_model)
+    last_trade_date_data_last_trade_date_model_result_df = get_model_results(data, last_trade_date, 'dollar_price', last_trade_date_model, encoders)
 
     if raw_data_filepath is not None:
         print(f'Removing {raw_data_filepath} since training is complete')
