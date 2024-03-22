@@ -4,6 +4,7 @@
  # @ Modified by: Mitas Ray
  # @ Modified date: 2024-03-22
  '''
+import sys
 import pandas as pd
 from ficc.utils.auxiliary_functions import function_timer
 from ficc.utils.auxiliary_variables import PREDICTORS_DOLLAR_PRICE
@@ -67,7 +68,12 @@ def main():
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files('dollar_price', update_data)
 
     current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
+    if len(sys.argv) == 2:
+        current_date = sys.argv[1]
+        print(f'Using the argument when calling the function as the date: {current_date}')
+        last_trade_date = decrement_business_days(current_date, 2)
     previous_business_date = decrement_business_days(current_date, 1)
+    
     model, previous_business_date_model, previous_business_date_model_date, encoders, mae, result_df_list = train_model(data, last_trade_date, 'dollar_price', num_features_for_each_trade_in_history, previous_business_date)
     current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = result_df_list
     last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, 'dollar_price', previous_business_date_model, encoders)

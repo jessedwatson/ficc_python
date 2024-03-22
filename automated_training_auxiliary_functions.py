@@ -39,6 +39,7 @@ from dollar_model import dollar_price_model
 EASTERN = timezone('US/Eastern')
 
 SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
+USE_PICKLED_DATA = False    # boolean indicating whether the data used to train the model will be loaded from a local pickle file; set to `True` if testing
 
 SENDER_EMAIL = 'notifications@ficc.ai'
 EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai']    # recieve an email following a successful run of the training script; set to only your email if testing
@@ -198,6 +199,7 @@ ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL = ['yield IS NOT NULL', 'yiel
 TESTING = False
 if TESTING:
     SAVE_MODEL_AND_DATA = False
+    USE_PICKLED_DATA = True
     NUM_EPOCHS = 2
     print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS}')
     print('Check `get_creds(...)` to make sure the credentials filepath is correct')
@@ -487,7 +489,7 @@ def save_update_data_results_to_pickle_files(suffix: str, update_data: callable)
 
     if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
 
-    if TESTING and os.path.isfile(data_pickle_filepath):
+    if USE_PICKLED_DATA and os.path.isfile(data_pickle_filepath):
         print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data()')
         raw_data_filepath = None
         data = pd.read_pickle(data_pickle_filepath)
@@ -778,6 +780,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     encoders, fmax = fit_encoders(data, categorical_features, model)
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
     test_data = data[data.trade_date > last_trade_date]
+    test_data = test_data[test_data.trade_date == test_data.trade_date.min()]    # restrict `test_data` to have only one day of trades
     if exclusions_function is not None:
         test_data, test_data_before_exclusions = exclusions_function(test_data, 'test_data')
     else:
