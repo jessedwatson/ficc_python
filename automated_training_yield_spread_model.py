@@ -110,7 +110,7 @@ def main():
     current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
     if len(sys.argv) == 2:
         current_date = sys.argv[1]
-        print(f'Using the argument when calling the function as the date: {current_date}')
+        print(f'Using the argument when calling the script as the current date: {current_date}')
         last_trade_date = decrement_business_days(current_date, 2)
     previous_business_date = decrement_business_days(current_date, 1)
     

@@ -63,7 +63,7 @@ if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc
 
 
 def get_creds():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/mitas/ficc/ficc/mitas_creds.json'    # '/home/shayaan/ficc_python/ahmad_creds.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/mitas/ficc/mitas_creds.json'    # '/home/shayaan/ficc_python/ahmad_creds.json'
     return None
 
 
@@ -866,8 +866,9 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     upload_data(storage_client, BUCKET_NAME, encoders_filename, encoders_filepath)
 
     print('Saving and uploading model')
+    folder = 'dollar_price_models' if dollar_price_model else 'yield_spread_models'
     if not os.path.isdir(f'{HOME_DIRECTORY}/trained_models'): os.mkdir(f'{HOME_DIRECTORY}/trained_models')
-    model_filename = f'{HOME_DIRECTORY}/trained_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
+    model_filename = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
     model.save(model_filename)
     
     model_zip_filename = f'model{suffix}'
@@ -876,7 +877,7 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     # shutil.make_archive(f'saved_model_{file_timestamp}', 'zip', f'saved_model_{file_timestamp}')
     
     upload_data(storage_client, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
-    # upload_data(storage_client, f'{BUCKET_NAME}/yield_spread_models', f'saved_model_{file_timestamp}.zip')
+    # upload_data(storage_client, f'{BUCKET_NAME}/{folder}', f'saved_model_{file_timestamp}.zip')
     # os.system(f'rm -r {model_filename}')
 
 
