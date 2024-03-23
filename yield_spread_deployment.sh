@@ -15,7 +15,7 @@ DATE_WITHOUT_YEAR=$(date +%m-%d)
 TRAINING_LOG_PATH="$HOME/training_logs/yield_spread_training_$DATE_WITH_YEAR.log"
 MODEL="yield_spread"
 
-# Changing directory and training the model
+# Training the model
 /opt/conda/bin/python $HOME/ficc_python/automated_training_yield_spread_model.py
 if [ $? -ne 0 ]; then
   echo "automated_training_yield_spread_model.py script failed with exit code $?"

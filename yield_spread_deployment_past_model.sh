@@ -10,7 +10,7 @@ who
 HOME='/home/mitas'
 TRAINED_MODELS_PATH="$HOME/trained_models/yield_spread_models"
 
-DATE_STRINGS="2024-01-26 2024-02-02"
+DATE_STRINGS="2024-01-26 2024-02-02 2024-02-09 2024-02-16 2024-02-23 2024-03-01 2024-03-08 2024-03-15"
 
 for DATE_STRING in $DATE_STRINGS; do
   DATE_WITH_YEAR=$(date -d "$DATE_STRING" +%Y-%m-%d)
@@ -18,7 +18,7 @@ for DATE_STRING in $DATE_STRINGS; do
   TRAINING_LOG_PATH="$HOME/training_logs/retrain-yield_spread_training.log"
   MODEL="yield_spread"
 
-  # Changing directory and training the model
+  # Training the model
   /opt/conda/bin/python $HOME/ficc_python/automated_training_yield_spread_model.py $DATE_WITH_YEAR
   if [ $? -ne 0 ]; then
     echo "automated_training_yield_spread_model.py script failed with exit code $?"

@@ -15,7 +15,7 @@ DATE_WITHOUT_YEAR=$(date +%m-%d)
 TRAINING_LOG_PATH="$HOME/training_logs/dollar_price_training_$DATE_WITH_YEAR.log"
 MODEL="dollar_price"
 
-# Changing directory and training the model
+# Training the model
 /opt/conda/bin/python $HOME/ficc_python/automated_training_dollar_price_model.py
 if [ $? -ne 0 ]; then
   echo "automated_training_dollar_price_model.py script failed with exit code $?"
