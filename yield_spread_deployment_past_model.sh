@@ -1,16 +1,17 @@
-# @ Author: Ahmad Shayaan
-# @ Create date: 2023-07-28
+# @ Author: Mitas Ray
+# @ Create date: 2024-03-24
 # @ Modified by: Mitas Ray
-# @ Modified date: 2023-03-22
+# @ Modified date: 2024-03-24
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
+echo "Set USE_PICKLED_DATA to True in automated_training_auxiliary_functions.py to use saved data instead of re-running the query every time"
 
 #!/bin/sh
 who
 HOME='/home/mitas'
 TRAINED_MODELS_PATH="$HOME/trained_models/yield_spread_models"
 
-DATE_STRINGS="2024-01-26 2024-02-02 2024-02-09 2024-02-16 2024-02-23 2024-03-01 2024-03-08 2024-03-15"
+DATE_STRINGS="2024-01-30 2024-01-31"
 
 for DATE_STRING in $DATE_STRINGS; do
   DATE_WITH_YEAR=$(date -d "$DATE_STRING" +%Y-%m-%d)
