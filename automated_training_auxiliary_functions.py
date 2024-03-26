@@ -341,10 +341,10 @@ def get_new_data(file_name, model: str, storage_client, bq_client, use_treasury_
     return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
-def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, dataset_name: str = None) -> pd.DataFrame:
+def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_trade_date: str = None, dataset_name: str = None) -> pd.DataFrame:
     '''Only keep `num_days_to_keep` days from the most recent trade in `data`.'''
     from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
-    most_recent_trade_date = data.trade_date.max()
+    if most_recent_trade_date is None: most_recent_trade_date = data.trade_date.max()
     days_to_most_recent_trade = diff_in_days_two_dates(most_recent_trade_date, data.trade_date, 'exact')
     print(f'Removing trades{from_dataset_name} older than {num_days_to_keep} days before {most_recent_trade_date}')
     return data[days_to_most_recent_trade < num_days_to_keep]
@@ -780,7 +780,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     which provides transparency on the training procedure.'''
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     train_model_text_list = []
-    data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
+    data = remove_old_trades(data, 240, last_trade_date, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
     categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
     encoders, fmax = fit_encoders(data, categorical_features, model)
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
