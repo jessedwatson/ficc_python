@@ -913,29 +913,29 @@ def send_email(sender_email: str, message: str, recipients: list) -> None:
             server.quit()
 
 
-def _get_email_subject(last_trade_date: str, model: str) -> str:
+def _get_email_subject(model_train_date: str, model: str) -> str:
     testing_addendum = '' if not TESTING else 'TESTING: '
-    return f'{testing_addendum}MAE for {model} model trained till {last_trade_date}'
+    return f'{testing_addendum}MAE for {model} model trained on {model_train_date}'
 
 
-def send_results_email(mae, last_trade_date, recipients: list, model: str) -> None:
+def send_results_email(mae, model_train_date: str, recipients: list, model: str) -> None:
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     
     msg = MIMEMultipart()
-    msg['Subject'] = _get_email_subject(last_trade_date, model)
+    msg['Subject'] = _get_email_subject(model_train_date, model)
     msg['From'] = SENDER_EMAIL
 
-    message = MIMEText(f'The MAE for the model on trades that occurred on {last_trade_date} is {np.round(mae, 3)}.', 'plain')
+    message = MIMEText(f'The MAE for the model on trades that occurred on {model_train_date} is {np.round(mae, 3)}.', 'plain')
     msg.attach(message)
     send_email(SENDER_EMAIL, msg, recipients)
 
 
-def send_results_email_table(result_df, last_trade_date, recipients: list, model: str):
+def send_results_email_table(result_df, model_train_date: str, recipients: list, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
-    msg['Subject'] = _get_email_subject(last_trade_date, model)
+    msg['Subject'] = _get_email_subject(model_train_date, model)
     msg['From'] = SENDER_EMAIL
 
     html_table = result_df.to_html(index=True)
@@ -944,11 +944,11 @@ def send_results_email_table(result_df, last_trade_date, recipients: list, model
     send_email(SENDER_EMAIL, msg, recipients)
 
 
-def send_results_email_multiple_tables(df_list: list, text_list: list, last_trade_date, recipients: list, model: str):
+def send_results_email_multiple_tables(df_list: list, text_list: list, model_train_date: str, recipients: list, model: str):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
-    msg['Subject'] = _get_email_subject(last_trade_date, model)
+    msg['Subject'] = _get_email_subject(model_train_date, model)
     msg['From'] = SENDER_EMAIL
 
     def html_text_for_single_df(text, df):

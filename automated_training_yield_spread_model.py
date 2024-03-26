@@ -132,9 +132,9 @@ def main():
             description_list = [f'The below table shows the accuracy of the newly trained model for the trades that occurred after {last_trade_date}', 
                                 f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date} (same data as first table but different model)', 
                                 f'The below table shows the accuracy of the model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date} (same model as second table but different data)']
-            send_results_email_multiple_tables(result_df_list, description_list, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
-            # send_results_email_table(current_date_data_current_date_model_result_df, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
-            # send_results_email(mae, last_trade_date, EMAIL_RECIPIENTS, 'yield_spread')
+            send_results_email_multiple_tables(result_df_list, description_list, current_date, EMAIL_RECIPIENTS, 'yield_spread')
+            # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, 'yield_spread')
+            # send_results_email(mae, current_date, EMAIL_RECIPIENTS, 'yield_spread')
         except Exception as e:
             print('Error:', e)
 
