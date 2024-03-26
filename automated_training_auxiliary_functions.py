@@ -77,6 +77,7 @@ def get_bq_client():
     return bigquery.Client()
 
 
+STORAGE_CLIENT = get_storage_client()
 BQ_CLIENT = get_bq_client()
 
 
@@ -893,6 +894,44 @@ def remove_file(file_path: str) -> None:
         print(f"PermissionError: Unable to remove '{file_path}'.")
     except Exception as e:
         print(f'Error: {e}')
+
+
+def train_save_evaluate_model(model: str, update_data: callable, current_date: str = None):
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    current_datetime = datetime.now(EASTERN)
+    print(f'automated_training_{model}_model.py starting at {current_datetime} ET')
+
+    data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model, update_data)
+    if current_date is None:
+        current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
+    else:
+        print(f'Using the argument when calling the script as the current date: {current_date}')
+        last_trade_date = decrement_business_days(current_date, 2)
+    previous_business_date = decrement_business_days(current_date, 1)
+
+    current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date)
+    current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
+    last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders)
+
+    if raw_data_filepath is not None:
+        print(f'Removing {raw_data_filepath} since {model} training is complete')
+        remove_file(raw_data_filepath)
+
+    if not TESTING and current_date_model is None:
+        send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, model)
+        raise RuntimeError(f'No new data was found for {model} training, so the procedure is terminating gracefully and without issue. Raising an error only so that the shell script terminates.')
+    else:
+        if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=(model == 'dollar_price'))
+        try:
+            mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, last_trade_date_data_previous_business_date_model_result_df]
+            description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred after {last_trade_date}', 
+                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date} (same data as above table but different model)', 
+                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date} (same model as second table but different data)']
+            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model)
+            # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
+            # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
+        except Exception as e:
+            print('Error:', e)
 
 
 def send_email(sender_email: str, message: str, recipients: list) -> None:
