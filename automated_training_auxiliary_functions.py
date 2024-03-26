@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-22
+ # @ Modified date: 2024-03-26
  '''
 import warnings
 import os
@@ -821,7 +821,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     if SAVE_MODEL_AND_DATA and model == 'yield_spread':
         try:
             test_data_before_exclusions_x_test, _ = create_input(test_data_before_exclusions, encoders, 'yield_spread')
-            test_data_before_exclusions['new_ys_prediction'] = model.predict(test_data_before_exclusions_x_test, batch_size=BATCH_SIZE)
+            test_data_before_exclusions['new_ys_prediction'] = trained_model.predict(test_data_before_exclusions_x_test, batch_size=BATCH_SIZE)
             test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
             test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
             test_data_before_exclusions['trade_date'] = pd.to_datetime(test_data_before_exclusions['trade_date']).dt.date
