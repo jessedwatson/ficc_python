@@ -776,7 +776,10 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
 
 @function_timer
 def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
+    '''The final return value is a string that should be in the beginning of the email that is sent out 
+    which provides transparency on the training procedure.'''
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    train_model_text_list = []
     data = remove_old_trades(data, 240, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
     categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
     encoders, fmax = fit_encoders(data, categorical_features, model)
@@ -790,11 +793,14 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     
     if len(test_data) == 0:
         print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
-        return None, None, None, None
+        return None, None, None, None, ''
     
     train_data = data[data.trade_date <= last_trade_date]
-    print(f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}')
-    print(f'Test set contains {len(test_data)} trades ranging from trade datetimes of {test_data.trade_datetime.min()} to {test_data.trade_datetime.max()}')
+    training_set_info = f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}'
+    test_set_info = f'Test set contains {len(test_data)} trades ranging from trade datetimes of {test_data.trade_datetime.min()} to {test_data.trade_datetime.max()}'
+    print(training_set_info)
+    print(test_set_info)
+    train_model_text_list.extend([training_set_info, test_set_info])
 
     non_cat_features = NON_CAT_FEATURES if model == 'yield_spread' else NON_CAT_FEATURES_DOLLAR_PRICE
     binary = BINARY if model == 'yield_spread' else BINARY_DOLLAR_PRICE
@@ -837,7 +843,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
             upload_predictions(test_data_before_exclusions)
         except Exception as e:
             print(f'Failed to upload predictions to BigQuery. {type(e)}:', e)
-    return trained_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, (result_df, result_df_using_previous_day_model)
+    return trained_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, (result_df, result_df_using_previous_day_model), '<br>'.join(train_model_text_list)    # use '<br>' for the separator since this will create a new line in the HTML body that will be sent out by email
 
 
 @function_timer
@@ -917,7 +923,7 @@ def train_save_evaluate_model(model: str, update_data: callable, current_date: s
         last_trade_date = decrement_business_days(current_date, 2)
     previous_business_date = decrement_business_days(current_date, 1)
 
-    current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date)
+    current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date)
     current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
     try:
         last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders)
@@ -942,7 +948,7 @@ def train_save_evaluate_model(model: str, update_data: callable, current_date: s
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date} (same data as above table but different model)', 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date} (same model as second table but different data)']
             mae_df_list, description_list = list(zip*[(mae_df, description) for (mae_df, description) in zip(mae_df_list, description_list) if mae_df is not None])    # only keep the (`mae_df`, `description`) pair if the `mae_df` is not None, and then put them into separate lists
-            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model)
+            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text)
             # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
             # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
         except Exception as e:
@@ -998,7 +1004,7 @@ def send_results_email_table(result_df, model_train_date: str, recipients: list,
     send_email(SENDER_EMAIL, msg, recipients)
 
 
-def send_results_email_multiple_tables(df_list: list, text_list: list, model_train_date: str, recipients: list, model: str):
+def send_results_email_multiple_tables(df_list: list, text_list: list, model_train_date: str, recipients: list, model: str, intro_text: str = ''):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
@@ -1008,9 +1014,11 @@ def send_results_email_multiple_tables(df_list: list, text_list: list, model_tra
     def html_text_for_single_df(text, df):
         return f'''{text}<br>{df.to_html(index=True)}'''
 
+    if intro_text != '': intro_text = intro_text + '<hr>'
     html_text = f'''
     <html>
     <body>
+    {intro_text}
     {'<hr>'.join([html_text_for_single_df(text, df) for text, df in zip(text_list, df_list)])}
     </body>
     </html>
