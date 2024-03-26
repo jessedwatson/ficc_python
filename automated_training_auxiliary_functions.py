@@ -5,6 +5,7 @@
  # @ Modified date: 2024-03-26
  '''
 import warnings
+import traceback    # used to print out the stack trace when there is an error
 import os
 import shutil
 import numpy as np
@@ -763,13 +764,13 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
         delta = np.abs(predictions - labels)
         result_df = segment_results(data, delta)
     except Exception as e:
-        print('Unable to create results dataframe with `segment_results(...)`. Error:', e)
+        print(f'Unable to create results dataframe with `segment_results(...)`. {type(e)}:', e)
         result_df = pd.DataFrame()
 
     try:
         print(result_df.to_markdown())
     except Exception as e:
-        print('Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. Error:', e)
+        print(f'Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. {type(e)}:', e)
     return result_df
 
 
@@ -814,9 +815,16 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
 
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
-    models_folder = 'yield_spread_model' if model == 'yield_spread' else 'dollar_price_models'
-    previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, models_folder)
-    result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
+    try:
+        models_folder = 'yield_spread_model' if model == 'yield_spread' else 'dollar_price_models'
+        previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, models_folder)
+        result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
+    except Exception as e:
+        print(f'Unable to create the dataframe for the model evaluation email due to {type(e)}: {e}')
+        print('Stack trace:')
+        print(traceback.format_exc())
+        result_df_using_previous_day_model = None
+        if previous_business_date_model not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
     
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and model == 'yield_spread':
@@ -828,7 +836,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
             test_data_before_exclusions['trade_date'] = pd.to_datetime(test_data_before_exclusions['trade_date']).dt.date
             upload_predictions(test_data_before_exclusions)
         except Exception as e:
-            print('Failed to upload predictions to BigQuery. Error:', e)
+            print(f'Failed to upload predictions to BigQuery. {type(e)}:', e)
     return trained_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, (result_df, result_df_using_previous_day_model)
 
 
@@ -893,7 +901,7 @@ def remove_file(file_path: str) -> None:
     except PermissionError:
         print(f"PermissionError: Unable to remove '{file_path}'.")
     except Exception as e:
-        print(f'Error: {e}')
+        print(f'{type(e)}: {e}')
 
 
 def train_save_evaluate_model(model: str, update_data: callable, current_date: str = None):
@@ -911,7 +919,13 @@ def train_save_evaluate_model(model: str, update_data: callable, current_date: s
 
     current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date)
     current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
-    last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders)
+    try:
+        last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders)
+    except Exception as e:
+        print(f'Unable to create the third dataframe used in the model evaluation email due to {type(e)}: {e}')
+        print('Stack trace:')
+        print(traceback.format_exc())
+        last_trade_date_data_previous_business_date_model_result_df = None
 
     if raw_data_filepath is not None:
         print(f'Removing {raw_data_filepath} since {model} training is complete')
@@ -927,11 +941,12 @@ def train_save_evaluate_model(model: str, update_data: callable, current_date: s
             description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred after {last_trade_date}', 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date} (same data as above table but different model)', 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date} (same model as second table but different data)']
+            mae_df_list, description_list = list(zip*[(mae_df, description) for (mae_df, description) in zip(mae_df_list, description_list) if mae_df is not None])    # only keep the (`mae_df`, `description`) pair if the `mae_df` is not None, and then put them into separate lists
             send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model)
             # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
             # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
         except Exception as e:
-            print('Error:', e)
+            print(f'{type(e)}:', e)
 
 
 def send_email(sender_email: str, message: str, recipients: list) -> None:
