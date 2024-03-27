@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2023-03-22
+# @ Modified date: 2023-03-26
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -68,6 +68,10 @@ if [ $? -ne 0 ]; then
   /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
   exit 1
 fi
+
+# removing temporary files
+rm $TRAINED_MODELS_PATH/model.zip
+gsutil rm -r gs://automated_training/model.zip
 
 /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
 
