@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-26
+ # @ Modified date: 2024-03-27
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -941,7 +941,7 @@ def train_save_evaluate_model(model: str, update_data: callable, exclusions_func
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, model)
         raise RuntimeError(f'No new data was found for {model} training, so the procedure is terminating gracefully and without issue. Raising an error only so that the shell script terminates.')
     else:
-        if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=(model == 'dollar_price'))
+        if SAVE_MODEL_AND_DATA: save_model(current_date_model, encoders, STORAGE_CLIENT, dollar_price_model=(model == 'dollar_price'))
         try:
             mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, last_trade_date_data_previous_business_date_model_result_df]
             description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred after {last_trade_date}.', 
