@@ -793,7 +793,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     
     if len(test_data) == 0:
         print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
-        return None, None, None, None, ''
+        return None, None, None, None, None, None, ''
     
     train_data = data[data.trade_date <= last_trade_date]
     training_set_info = f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}'
@@ -924,8 +924,9 @@ def train_save_evaluate_model(model: str, update_data: callable, exclusions_func
     previous_business_date = decrement_business_days(current_date, 1)
 
     current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date, exclusions_function)
-    current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
+    if mae_df_list is not None: current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
     try:
+        assert previous_business_date_model is not None, f'Raising an AssertionError since previous_business_date_model is `None` to enter the except clause'
         last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders, exclusions_function)
     except Exception as e:
         print(f'Unable to create the third dataframe used in the model evaluation email due to {type(e)}: {e}')
