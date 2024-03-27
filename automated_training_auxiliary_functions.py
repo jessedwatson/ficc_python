@@ -344,7 +344,7 @@ def get_new_data(file_name, model: str, storage_client, bq_client, use_treasury_
 def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_trade_date: str = None, dataset_name: str = None) -> pd.DataFrame:
     '''Only keep `num_days_to_keep` days from the most recent trade in `data`.'''
     from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
-    if most_recent_trade_date is None: most_recent_trade_date = data.trade_date.max()
+    most_recent_trade_date = data.trade_date.max() if most_recent_trade_date is None else pd.to_datetime(most_recent_trade_date)
     days_to_most_recent_trade = diff_in_days_two_dates(most_recent_trade_date, data.trade_date, 'exact')
     print(f'Removing trades{from_dataset_name} older than {num_days_to_keep} days before {most_recent_trade_date}')
     return data[days_to_most_recent_trade < num_days_to_keep]
@@ -947,7 +947,7 @@ def train_save_evaluate_model(model: str, update_data: callable, current_date: s
             description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred after {last_trade_date}.', 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date}. If there are three tables in this email, then this one evaluates on the same test dataset as the first table but older model). If the accuracy on this table is better than the first table, this may mean that the older model is more accurate. Note, however, that the model has not been (cannot be) evaluated yet on the trades that will occur today.', 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date}. If there are three tables in this email, then this one evaluates the same model as the second table but on a different (previous business day) test dataset. If the accuracy on this table is better than the second table, this may mean that the trades on test set used for the first two tables is more challenging (harder to predict) than the one used for this table.']
-            mae_df_list, description_list = list(zip*[(mae_df, description) for (mae_df, description) in zip(mae_df_list, description_list) if mae_df is not None])    # only keep the (`mae_df`, `description`) pair if the `mae_df` is not None, and then put them into separate lists
+            mae_df_list, description_list = list(zip(*[(mae_df, description) for (mae_df, description) in zip(mae_df_list, description_list) if mae_df is not None]))    # only keep the (`mae_df`, `description`) pair if the `mae_df` is not None, and then put them into separate lists
             send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text)
             # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
             # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
