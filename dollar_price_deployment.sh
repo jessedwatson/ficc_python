@@ -69,6 +69,10 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+# removing temporary files
+rm $TRAINED_MODELS_PATH/model_dollar_price.zip
+gsutil rm -r gs://automated_training/model_dollar_price.zip
+
 /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
 
 sudo shutdown -h now
