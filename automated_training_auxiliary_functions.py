@@ -910,7 +910,7 @@ def remove_file(file_path: str) -> None:
         print(f'{type(e)}: {e}')
 
 
-def train_save_evaluate_model(model: str, update_data: callable, current_date: str = None):
+def train_save_evaluate_model(model: str, update_data: callable, exclusions_function: callable = None, current_date: str = None):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     current_datetime = datetime.now(EASTERN)
     print(f'automated_training_{model}_model.py starting at {current_datetime} ET')
@@ -923,10 +923,10 @@ def train_save_evaluate_model(model: str, update_data: callable, current_date: s
         last_trade_date = decrement_business_days(current_date, 2)
     previous_business_date = decrement_business_days(current_date, 1)
 
-    current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date)
+    current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date, exclusions_function)
     current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
     try:
-        last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders)
+        last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders, exclusions_function)
     except Exception as e:
         print(f'Unable to create the third dataframe used in the model evaluation email due to {type(e)}: {e}')
         print('Stack trace:')
@@ -945,8 +945,8 @@ def train_save_evaluate_model(model: str, update_data: callable, current_date: s
         try:
             mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, last_trade_date_data_previous_business_date_model_result_df]
             description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred after {last_trade_date}.', 
-                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date}. If there are three tables in this email, then this one evaluates on the same test dataset as the first table but older model). If the accuracy on this table is better than the first table, this may mean that the older model is more accurate. Note, however, that the model has not been (cannot be) evaluated yet on the trades that will occur today.', 
-                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date}. If there are three tables in this email, then this one evaluates the same model as the second table but on a different (previous business day) test dataset. If the accuracy on this table is better than the second table, this may mean that the trades on test set used for the first two tables is more challenging (harder to predict) than the one used for this table.']
+                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date}. If there are three tables in this email, then this one evaluates on the same test dataset as the first table but with a different (previous business day) model. If the accuracy on this table is better than the first table, this may imply that the older model is more accurate. Note, however, that the model has not been (and, cannot be) evaluated yet on the trades that will occur today.', 
+                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date}. If there are three tables in this email, then this one evaluates the same model as the second table but on a different (previous business day) test dataset. If the accuracy on this table is better than the second table, this may mean that the trades in the test set used for the first two tables are more challenging (harder to predict) than the trades from the test set used for this table.']
             mae_df_list, description_list = list(zip(*[(mae_df, description) for (mae_df, description) in zip(mae_df_list, description_list) if mae_df is not None]))    # only keep the (`mae_df`, `description`) pair if the `mae_df` is not None, and then put them into separate lists
             send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text)
             # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)

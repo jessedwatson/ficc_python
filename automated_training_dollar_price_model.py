@@ -52,7 +52,7 @@ def update_data():
 @function_timer
 def main():
     current_date_passed_in = sys.argv[1] if len(sys.argv) == 2 else None
-    train_save_evaluate_model('dollar_price', update_data, current_date_passed_in)
+    train_save_evaluate_model('dollar_price', update_data, current_date=current_date_passed_in)
 
 
 if __name__ == '__main__':
