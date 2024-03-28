@@ -416,25 +416,43 @@ def save_data(data: pd.DataFrame, file_name: str, storage_client) -> None:
     upload_data(storage_client, BUCKET_NAME, file_name, file_path)
 
 
-def get_trade_date_where_data_exists_after_this_date(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int = 10, exclusions_function: callable = None):
+def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int, exclusions_function: callable, on_or_after: str = 'after'):
     '''Iterate backwards on `date` until the data after `date` is non-empty. Go back a maximum of 
     `max_number_of_business_days_to_go_back` days. If `exclusions_function` is not `None`, assumes 
     that the function returns values, where the first item is the data after exclusions, and the 
     second item is the data before exclusions.'''
-    if not TESTING: return date
+    valid_values_for_on_or_after = ('on', 'after')
+    assert on_or_after in valid_values_for_on_or_after, f'Invalid value for `on_or_after`: {on_or_after}. Must be one of {valid_values_for_on_or_after}'
+
+    def get_data_on_or_after_date(date_of_interest: str) -> pd.DataFrame:
+        if on_or_after == 'after':
+            data_for_date = data[data.trade_date > date_of_interest]
+        else:
+            data_for_date = data[data.trade_date == date_of_interest]
+        return data_for_date
+    
     previous_date = date
-    data_after_date = data[data.trade_date > previous_date]
-    if exclusions_function is not None: data_after_date, _ = exclusions_function(data_after_date)
+    data_for_date = get_data_on_or_after_date(data, previous_date)
+    if exclusions_function is not None: data_for_date, _ = exclusions_function(data_for_date)
     business_days_gone_back = 0
-    while len(data_after_date) == 0 and business_days_gone_back < max_number_of_business_days_to_go_back:
+    while len(data_for_date) == 0 and business_days_gone_back < max_number_of_business_days_to_go_back:
         business_days_gone_back += 1
         previous_date = decrement_business_days(date, business_days_gone_back)
-        data_after_date = data[data.trade_date > previous_date]
-        if exclusions_function is not None: data_after_date, _ = exclusions_function(data_after_date)
+        data_for_date = get_data_on_or_after_date(data, previous_date)
+        if exclusions_function is not None: data_for_date, _ = exclusions_function(data_for_date)
     if business_days_gone_back == max_number_of_business_days_to_go_back:
         print(f'Went back {business_days_gone_back} and could not find any data; not going back any further, so returning the original `date`')
         return date
     return previous_date
+
+
+def get_trade_date_where_data_exists_after_this_date(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int = 10, exclusions_function: callable = None):
+    if not TESTING: return date
+    return _get_trade_date_where_data_exists(date, data, max_number_of_business_days_to_go_back, exclusions_function, 'after')
+
+
+def get_trade_date_where_data_exists_on_this_date(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int = 10, exclusions_function: callable = None):
+    return _get_trade_date_where_data_exists(date, data, max_number_of_business_days_to_go_back, exclusions_function, 'on')
 
 
 @function_timer
@@ -918,10 +936,11 @@ def train_save_evaluate_model(model: str, update_data: callable, exclusions_func
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model, update_data)
     if current_date is None:
         current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
+        previous_business_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(current_date, 1), data)    # ensures that the business day has trades on it
     else:
         print(f'Using the argument when calling the script as the current date: {current_date}')
-        last_trade_date = decrement_business_days(current_date, 2)
-    previous_business_date = decrement_business_days(current_date, 1)
+        previous_business_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(current_date, 1), data)    # ensures that the business day has trades on it
+        last_trade_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(previous_business_date, 1), data)    # ensures that the business day has trades on it
 
     current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date, exclusions_function)
     current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
