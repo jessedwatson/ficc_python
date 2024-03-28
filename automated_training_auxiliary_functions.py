@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-27
+ # @ Modified date: 2024-03-28
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -432,13 +432,13 @@ def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_bu
         return data_for_date
     
     previous_date = date
-    data_for_date = get_data_on_or_after_date(data, previous_date)
+    data_for_date = get_data_on_or_after_date(previous_date)
     if exclusions_function is not None: data_for_date, _ = exclusions_function(data_for_date)
     business_days_gone_back = 0
     while len(data_for_date) == 0 and business_days_gone_back < max_number_of_business_days_to_go_back:
         business_days_gone_back += 1
         previous_date = decrement_business_days(date, business_days_gone_back)
-        data_for_date = get_data_on_or_after_date(data, previous_date)
+        data_for_date = get_data_on_or_after_date(previous_date)
         if exclusions_function is not None: data_for_date, _ = exclusions_function(data_for_date)
     if business_days_gone_back == max_number_of_business_days_to_go_back:
         print(f'Went back {business_days_gone_back} and could not find any data; not going back any further, so returning the original `date`')
