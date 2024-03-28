@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-26
+ # @ Modified date: 2024-03-27
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -811,7 +811,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     
     if len(test_data) == 0:
         print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
-        return None, None, None, None, ''
+        return None, None, None, None, None, None, ''
     
     train_data = data[data.trade_date <= last_trade_date]
     training_set_info = f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}'
@@ -943,8 +943,9 @@ def train_save_evaluate_model(model: str, update_data: callable, exclusions_func
         last_trade_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(previous_business_date, 1), data)    # ensures that the business day has trades on it
 
     current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date, exclusions_function)
-    current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
+    if mae_df_list is not None: current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
     try:
+        assert previous_business_date_model is not None, f'Raising an AssertionError since previous_business_date_model is `None` to enter the except clause'
         last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders, exclusions_function)
     except Exception as e:
         print(f'Unable to create the third dataframe used in the model evaluation email due to {type(e)}: {e}')
@@ -960,7 +961,7 @@ def train_save_evaluate_model(model: str, update_data: callable, exclusions_func
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, model)
         raise RuntimeError(f'No new data was found for {model} training, so the procedure is terminating gracefully and without issue. Raising an error only so that the shell script terminates.')
     else:
-        if SAVE_MODEL_AND_DATA: save_model(model, encoders, STORAGE_CLIENT, dollar_price_model=(model == 'dollar_price'))
+        if SAVE_MODEL_AND_DATA: save_model(current_date_model, encoders, STORAGE_CLIENT, dollar_price_model=(model == 'dollar_price'))
         try:
             mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, last_trade_date_data_previous_business_date_model_result_df]
             description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred after {last_trade_date}.', 
