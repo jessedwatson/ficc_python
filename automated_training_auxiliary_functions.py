@@ -13,7 +13,6 @@ import pandas as pd
 from pandas.tseries.offsets import BusinessDay
 from sklearn import preprocessing
 from pickle5 import pickle
-from pytz import timezone
 import tensorflow as tf
 from tensorflow import keras
 from datetime import datetime
@@ -27,44 +26,59 @@ from email.mime.multipart import MIMEMultipart
 
 from ficc.utils.gcp_storage_functions import upload_data, download_data
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, NON_CAT_FEATURES, BINARY, CATEGORICAL_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY_DOLLAR_PRICE, CATEGORICAL_FEATURES_DOLLAR_PRICE
 from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 
-from automated_training_auxiliary_variables import BATCH_SIZE, NUM_EPOCHS
+from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR,\
+                                                   CATEGORICAL_FEATURES,\
+                                                   CATEGORICAL_FEATURES_DOLLAR_PRICE, \
+                                                   NON_CAT_FEATURES, \
+                                                   NON_CAT_FEATURES_DOLLAR_PRICE, \
+                                                   BINARY, \
+                                                   BINARY_DOLLAR_PRICE, \
+                                                   PREDICTORS, \
+                                                   PREDICTORS_DOLLAR_PRICE, \
+                                                   YS_VARIANTS, \
+                                                   YS_FEATS, \
+                                                   DP_VARIANTS, \
+                                                   DP_FEATS, \
+                                                   YEAR_MONTH_DAY, \
+                                                   HOUR_MIN_SEC, \
+                                                   QUERY_FEATURES, \
+                                                   QUERY_CONDITIONS, \
+                                                   ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
+                                                   ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
+                                                   EASTERN, \
+                                                   NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
+                                                   NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
+                                                   CATEGORICAL_FEATURES_VALUES, \
+                                                   SAVE_MODEL_AND_DATA, \
+                                                   HOME_DIRECTORY, \
+                                                   WORKING_DIRECTORY, \
+                                                   BUCKET_NAME, \
+                                                   MODEL_FOLDERS, \
+                                                   MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, \
+                                                   EARLIST_TRADE_DATETIME, \
+                                                   CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD, \
+                                                   CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE, \
+                                                   OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
+                                                   OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
+                                                   TTYPE_DICT, \
+                                                   LONG_TIME_AGO_IN_NUM_SECONDS, \
+                                                   HISTORICAL_PREDICTION_TABLE, \
+                                                   EMAIL_RECIPIENTS, \
+                                                   SENDER_EMAIL, \
+                                                   BATCH_SIZE, \
+                                                   NUM_EPOCHS, \
+                                                   TESTING, \
+                                                   USE_PICKLED_DATA
 from yield_model import yield_spread_model
 from dollar_model import dollar_price_model
 
 
-EASTERN = timezone('US/Eastern')
-
-SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model will be saved to google cloud storage; set to `False` if testing
-USE_PICKLED_DATA = False    # boolean indicating whether the data used to train the model will be loaded from a local pickle file; set to `True` if testing
-
-SENDER_EMAIL = 'notifications@ficc.ai'
-EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 'myles@ficc.ai']    # recieve an email following a successful run of the training script; set to only your email if testing
-EMAIL_RECIPIENTS_FOR_LOGS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai']    # recipients for training logs, which should be a more technical subset of `EMAIL_RECIPIENTS`
-
-BUCKET_NAME = 'automated_training'
-MODEL_FOLDERS = ('yield_spread_model', 'dollar_price_models')
-MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK = 10
-
-YEAR_MONTH_DAY = '%Y-%m-%d'
-HOUR_MIN_SEC = '%H:%M:%S'
-
-EARLIST_TRADE_DATETIME = '2023-01-01T00:00:00'
-
-HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
-WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
-
-HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
-
-if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc_treasury_spread')
-
-
 def get_creds():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/mitas/ficc/mitas_creds.json'    # '/home/shayaan/ficc_python/ahmad_creds.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/mitas/ficc/mitas_creds.json'
     return None
 
 
@@ -90,126 +104,6 @@ def setup_gpus():
         print(f'Found {len(gpus)} GPUs: {gpus}')
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)    # used so that multiple models can be trained on the same GPU since TensorFlow by default allocates the entire GPU RAM for a single training instance; https://stackoverflow.com/questions/34199233/how-to-prevent-tensorflow-from-allocating-the-totality-of-a-gpu-memory
-
-
-NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL = 5
-NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL = 2
-
-CATEGORICAL_FEATURES_VALUES = {'purpose_class' : list(range(53 + 1)),    # possible values for `purpose_class` are 0 through 53
-                               'rating' : ['A', 'A+', 'A-', 'AA', 'AA+', 'AA-', 'AAA', 'B', 'B+', 'B-', 'BB', 'BB+', 'BB-',
-                                           'BBB', 'BBB+', 'BBB-', 'CC', 'CCC', 'CCC+', 'CCC-' , 'D', 'NR', 'MR'],
-                               'trade_type' : ['D', 'S', 'P'],
-                               'incorporated_state_code' : ['AK', 'AL', 'AR', 'AS', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'GU',
-                                                            'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME', 'MI', 'MN',
-                                                            'MO', 'MP', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM', 'NV', 'NY', 'OH',
-                                                            'OK', 'OR', 'PA', 'PR', 'RI', 'SC', 'SD', 'TN', 'TX', 'US', 'UT', 'VA', 'VI',
-                                                            'VT', 'WA', 'WI', 'WV', 'WY'] }
-
-TTYPE_DICT = {(0, 0): 'D', (0, 1): 'S', (1, 0): 'P'}
-
-_VARIANTS = ['max_qty', 'min_ago', 'D_min_ago', 'P_min_ago', 'S_min_ago']
-YS_VARIANTS = ['max_ys', 'min_ys'] + _VARIANTS
-DP_VARIANTS = ['max_dp', 'min_dp'] + _VARIANTS
-_FEATS = ['_ttypes', '_ago', '_qdiff']
-YS_FEATS = ['_ys'] + _FEATS
-DP_FEATS = ['_dp'] + _FEATS
-
-LONG_TIME_AGO_IN_NUM_SECONDS = 9    # default `num_seconds_ago` value to signify that the trade was a long time ago (9 is a large value since the `num_seconds_ago` is log10 transformed)
-
-QUERY_FEATURES = ['rtrs_control_number',
-                  'cusip',
-                  'yield',
-                  'is_callable',
-                  'refund_date',
-                  'accrual_date',
-                  'dated_date',
-                  'next_sink_date',
-                  'coupon',
-                  'delivery_date',
-                  'trade_date',
-                  'trade_datetime',
-                  'par_call_date',
-                  'interest_payment_frequency',
-                  'is_called',
-                  'is_non_transaction_based_compensation',
-                  'is_general_obligation',
-                  'callable_at_cav',
-                  'extraordinary_make_whole_call',
-                  'make_whole_call',
-                  'has_unexpired_lines_of_credit',
-                  'escrow_exists',
-                  'incorporated_state_code',
-                  'trade_type',
-                  'par_traded',
-                  'maturity_date',
-                  'settlement_date',
-                  'next_call_date',
-                  'issue_amount',
-                  'maturity_amount',
-                  'issue_price',
-                  'orig_principal_amount',
-                  'max_amount_outstanding',
-                  'recent',
-                  'dollar_price',
-                  'calc_date',
-                  'purpose_sub_class',
-                  'called_redemption_type',
-                  'calc_day_cat',
-                  'previous_coupon_payment_date',
-                  'instrument_primary_name',
-                  'purpose_class',
-                  'call_timing',
-                  'call_timing_in_part',
-                  'sink_frequency',
-                  'sink_amount_type',
-                  'issue_text',
-                  'state_tax_status',
-                  'series_name',
-                  'transaction_type',
-                  'next_call_price',
-                  'par_call_price',
-                  'when_issued',
-                  'min_amount_outstanding',
-                  'original_yield',
-                  'par_price',
-                  'default_indicator',
-                  'sp_stand_alone',
-                  'sp_long',
-                  'moodys_long',
-                  'coupon_type',
-                  'federal_tax_status',
-                  'use_of_proceeds',
-                  'muni_security_type',
-                  'muni_issue_type',
-                  'capital_type',
-                  'other_enhancement_type',
-                  'next_coupon_payment_date',
-                  'first_coupon_date',
-                  'last_period_accrues_from_date']
-ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL = ['refund_price', 'publish_datetime', 'maturity_description_code']    # these features were used for testing, but are not needed, nonetheless, we keep them since the previous data files have these fields and `pd.concat(...)` will fail if the column set is different
-
-QUERY_CONDITIONS = ['par_traded >= 10000', 
-                    'coupon_type in (8, 4, 10, 17)', 
-                    'capital_type <> 10', 
-                    'default_exists <> TRUE', 
-                    'most_recent_default_event IS NULL', 
-                    'default_indicator IS FALSE', 
-                    'msrb_valid_to_date > current_date',    # condition to remove cancelled trades
-                    'settlement_date IS NOT NULL']
-ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL = ['yield IS NOT NULL', 'yield > 0']
-
-TESTING = False
-if TESTING:
-    SAVE_MODEL_AND_DATA = False
-    USE_PICKLED_DATA = True
-    NUM_EPOCHS = 2
-    print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS}')
-    print('Check `get_creds(...)` to make sure the credentials filepath is correct')
-    print('Check `WORKING_DIRECTORY` to make sure the path is correct')
-    EMAIL_RECIPIENTS = EMAIL_RECIPIENTS_FOR_LOGS = ['mitas@ficc.ai']
-    print(f'Only sending emails to {EMAIL_RECIPIENTS}')
-else:
-    print(f'In PRODUCTION mode (to change to TESTING mode, set `TESTING` to `True`); all files and models will be saved and NUM_EPOCHS={NUM_EPOCHS}')
 
 
 D_prev = dict()
@@ -264,19 +158,17 @@ def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_paramet
 @function_timer
 def add_yield_curve(data):
     '''Add 'new_ficc_ycl' field to `data`.'''
-    bq_client = get_bq_client()
-
-    nelson_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc', bq_client)
+    nelson_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc', BQ_CLIENT)
     nelson_params.set_index('date', drop=True, inplace=True)
     nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
     nelson_params = nelson_params.transpose().to_dict()
 
-    scalar_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc', bq_client)
+    scalar_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc', BQ_CLIENT)
     scalar_params.set_index('date', drop=True, inplace=True)
     scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
     scalar_params = scalar_params.transpose().to_dict()
 
-    shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', bq_client)
+    shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', BQ_CLIENT)
     shape_parameter.set_index('Date', drop=True, inplace=True)
     shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
     shape_parameter = shape_parameter.transpose().to_dict()
@@ -305,7 +197,7 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFra
 
 
 @function_timer
-def get_new_data(file_name, model: str, storage_client, bq_client, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = {}):
+def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = {}):
     assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
     query_features = QUERY_FEATURES
     query_conditions = QUERY_CONDITIONS
@@ -314,7 +206,7 @@ def get_new_data(file_name, model: str, storage_client, bq_client, use_treasury_
     else:
         query_features = query_features + ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL
     
-    old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(storage_client, BUCKET_NAME, file_name)
+    old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
     DATA_QUERY = get_data_query(last_trade_datetime, query_features, query_conditions)
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M')
@@ -324,7 +216,7 @@ def get_new_data(file_name, model: str, storage_client, bq_client, use_treasury_
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
     raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
     data_from_last_trade_datetime = process_data(DATA_QUERY, 
-                                                 bq_client, 
+                                                 BQ_CLIENT, 
                                                  num_trades_in_history, 
                                                  num_features_for_each_trade_in_history, 
                                                  raw_data_filepath, 
@@ -408,12 +300,12 @@ def drop_features_with_null_value(df: pd.DataFrame, features: list) -> pd.DataFr
 
 
 @function_timer
-def save_data(data: pd.DataFrame, file_name: str, storage_client) -> None:
+def save_data(data: pd.DataFrame, file_name: str) -> None:
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
     data = remove_old_trades(data, 390, dataset_name='entire processed data file')    # 390 = 13 * 30, so we are keeping approximately 13 months of data in the file; decided to keep the last 13 months of data to go beyond one year and allow for future experiments with annual patterns without having to re-create the entire dataset
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
-    upload_data(storage_client, BUCKET_NAME, file_name, file_path)
+    upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name, file_path)
 
 
 def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int, exclusions_function: callable, on_or_after: str = 'after'):
@@ -480,9 +372,9 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str):
     return datalist, data[label_name]
 
 
-def get_data_and_last_trade_datetime(storage_client, bucket_name: str, file_name: str):
+def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
-    data = download_data(storage_client, bucket_name, file_name)
+    data = download_data(STORAGE_CLIENT, bucket_name, file_name)
     if data is None: return None, EARLIST_TRADE_DATETIME, EARLIST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
@@ -499,24 +391,44 @@ def get_data_query(last_trade_datetime, features: list, conditions: list) -> str
                ORDER BY trade_datetime DESC'''
 
 
-def save_update_data_results_to_pickle_files(suffix: str, update_data: callable):
+def update_data(model: str):
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    filename = CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD if model == 'yield_spread' else CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE
+    optional_arguments_for_process_data = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD if model == 'yield_spread' else OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE
+    use_treasury_spread = optional_arguments_for_process_data.get('use_treasury_spread', False)
+    data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(filename, 
+                                                                                                                                                              model, 
+                                                                                                                                                              use_treasury_spread=use_treasury_spread, 
+                                                                                                                                                              optional_arguments_for_process_data=optional_arguments_for_process_data)
+    data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
+    data = add_trade_history_derived_features(data, 'dollar_price', use_treasury_spread)
+
+    predictors = PREDICTORS if model == 'yield_spread' else PREDICTORS_DOLLAR_PRICE
+    data = drop_features_with_null_value(data, predictors)
+    if SAVE_MODEL_AND_DATA: save_data(data, filename)
+    return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
+
+
+
+def save_update_data_results_to_pickle_files(model: str):
     '''The function specified in `update_data` is called, and the 3 return values are stored as pickle files. If 
     testing, then first check whether the pickle files exist, before calling `update_data`. `suffix` is appended 
     to the end of the filename for each pickle file.'''
-    data_pickle_filepath = f'{WORKING_DIRECTORY}/files/data_from_update_data_{suffix}.pkl'
-    last_trade_data_from_update_data_pickle_filepath = f'{WORKING_DIRECTORY}/files/last_trade_data_from_update_data_{suffix}.pkl'
-    num_features_for_each_trade_in_history_pickle_filepath = f'{WORKING_DIRECTORY}/files/num_features_for_each_trade_in_history_{suffix}.pkl'
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    data_pickle_filepath = f'{WORKING_DIRECTORY}/files/data_from_update_data_{model}.pkl'
+    last_trade_data_from_update_data_pickle_filepath = f'{WORKING_DIRECTORY}/files/last_trade_data_from_update_data_{model}.pkl'
+    num_features_for_each_trade_in_history_pickle_filepath = f'{WORKING_DIRECTORY}/files/num_features_for_each_trade_in_history_{model}.pkl'
 
     if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
 
     if USE_PICKLED_DATA and os.path.isfile(data_pickle_filepath):
-        print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data()')
+        print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data(...)')
         raw_data_filepath = None
         data = pd.read_pickle(data_pickle_filepath)
         with open(last_trade_data_from_update_data_pickle_filepath, 'rb') as file: last_trade_date = pickle.load(file)
         with open(num_features_for_each_trade_in_history_pickle_filepath, 'rb') as file: num_features_for_each_trade_in_history = pickle.load(file)
     else:
-        data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = update_data()
+        data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = update_data(model)
         data.to_pickle(data_pickle_filepath)
         with open(last_trade_data_from_update_data_pickle_filepath, 'wb') as file: pickle.dump(last_trade_date, file)
         with open(num_features_for_each_trade_in_history_pickle_filepath, 'wb') as file: pickle.dump(num_features_for_each_trade_in_history, file)
@@ -878,14 +790,15 @@ def get_model_results(data: pd.DataFrame, trade_date: str, model: str, loaded_mo
 
 
 @function_timer
-def save_model(model, encoders, storage_client, dollar_price_model):
-    '''`dollar_price_model` is a boolean flag that indicates whether we are 
-    working with the dollar price model instead of the yield spread model.'''
-    if model is None:
-        print('model is `None` and so not saving it to storage')
+def save_model(trained_model, encoders, model: str):
+    '''NOTE: `model` is a string that denotes whether we are working with the yield spread model or 
+    the dollar price model, and `trained_model` is an actual keras model. This may cause confusion.'''
+    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    if trained_model is None:
+        print('trained_model is `None` and so not saving it to storage')
         return None
-    suffix = '_dollar_price' if dollar_price_model else ''
-    suffix_wo_underscore = 'dollar_price' if dollar_price_model else ''    # need this variable as well since the model naming is missing an underscore
+    suffix = '_dollar_price' if model == 'dollar_price' else ''
+    suffix_wo_underscore = 'dollar_price' if model == 'dolar_price' else ''    # need this variable as well since past implementations of this function have model naming missing an underscore
 
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
@@ -896,21 +809,21 @@ def save_model(model, encoders, storage_client, dollar_price_model):
     if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
     with open(encoders_filepath, 'wb') as file:
         pickle.dump(encoders, file)    
-    upload_data(storage_client, BUCKET_NAME, encoders_filename, encoders_filepath)
+    upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
 
     print('Saving and uploading model')
-    folder = 'dollar_price_models' if dollar_price_model else 'yield_spread_models'
+    folder = 'dollar_price_models' if model == 'dollar_price' else 'yield_spread_models'
     if not os.path.isdir(f'{HOME_DIRECTORY}/trained_models'): os.mkdir(f'{HOME_DIRECTORY}/trained_models')
     model_filename = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
-    model.save(model_filename)
+    trained_model.save(model_filename)
     
     model_zip_filename = f'model{suffix}'
     model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
     shutil.make_archive(model_zip_filepath, 'zip', model_filename)
     # shutil.make_archive(f'saved_model_{file_timestamp}', 'zip', f'saved_model_{file_timestamp}')
     
-    upload_data(storage_client, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
-    # upload_data(storage_client, f'{BUCKET_NAME}/{folder}', f'saved_model_{file_timestamp}.zip')
+    upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
+    # upload_data(STORAGE_CLIENT, f'{BUCKET_NAME}/{folder}', f'saved_model_{file_timestamp}.zip')
     # os.system(f'rm -r {model_filename}')
 
 
@@ -928,12 +841,12 @@ def remove_file(file_path: str) -> None:
         print(f'{type(e)}: {e}')
 
 
-def train_save_evaluate_model(model: str, update_data: callable, exclusions_function: callable = None, current_date: str = None):
+def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     current_datetime = datetime.now(EASTERN)
     print(f'automated_training_{model}_model.py starting at {current_datetime} ET')
 
-    data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model, update_data)
+    data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model)
     if current_date is None:
         current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
         previous_business_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(current_date, 1), data)    # ensures that the business day has trades on it
@@ -961,7 +874,7 @@ def train_save_evaluate_model(model: str, update_data: callable, exclusions_func
         send_no_new_model_email(last_trade_date, EMAIL_RECIPIENTS, model)
         raise RuntimeError(f'No new data was found for {model} training, so the procedure is terminating gracefully and without issue. Raising an error only so that the shell script terminates.')
     else:
-        if SAVE_MODEL_AND_DATA: save_model(current_date_model, encoders, STORAGE_CLIENT, dollar_price_model=(model == 'dollar_price'))
+        if SAVE_MODEL_AND_DATA: save_model(current_date_model, encoders, model)
         try:
             mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, last_trade_date_data_previous_business_date_model_result_df]
             description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred after {last_trade_date}.', 
