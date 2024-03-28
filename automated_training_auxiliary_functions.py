@@ -705,7 +705,7 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
 
 
 @function_timer
-def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
+def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
     '''The final return value is a string that should be in the beginning of the email that is sent out 
     which provides transparency on the training procedure.'''
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
@@ -713,9 +713,12 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     data = remove_old_trades(data, 240, last_trade_date, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
     categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
     encoders, fmax = fit_encoders(data, categorical_features, model)
+    
     if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
     test_data = data[data.trade_date > last_trade_date]
-    test_data = test_data[test_data.trade_date == test_data.trade_date.min()]    # restrict `test_data` to have only one day of trades
+    test_data_date = test_data.trade_date.min()
+    test_data = test_data[test_data.trade_date == test_data_date]    # restrict `test_data` to have only one day of trades
+    test_data_date = test_data_date.strftime(YEAR_MONTH_DAY)
     if exclusions_function is not None:
         test_data, test_data_before_exclusions = exclusions_function(test_data, 'test_data')
     else:
@@ -723,7 +726,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
     
     if len(test_data) == 0:
         print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
-        return None, None, None, None, None, None, ''
+        return None, None, None, None, None, None, None, ''
     
     train_data = data[data.trade_date <= last_trade_date]
     training_set_info = f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}'
@@ -773,7 +776,7 @@ def train_model(data: pd.DataFrame, last_trade_date, model: str, num_features_fo
             upload_predictions(test_data_before_exclusions)
         except Exception as e:
             print(f'Failed to upload predictions to BigQuery. {type(e)}:', e)
-    return trained_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, (result_df, result_df_using_previous_day_model), '<br>'.join(train_model_text_list)    # use '<br>' for the separator since this will create a new line in the HTML body that will be sent out by email
+    return trained_model, test_data_date, previous_business_date_model, previous_business_date_model_date, encoders, mae, (result_df, result_df_using_previous_day_model), '<br>'.join(train_model_text_list)    # use '<br>' for the separator since this will create a new line in the HTML body that will be sent out by email
 
 
 @function_timer
@@ -855,16 +858,18 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
         previous_business_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(current_date, 1), data)    # ensures that the business day has trades on it
         last_trade_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(previous_business_date, 1), data)    # ensures that the business day has trades on it
 
-    current_date_model, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date, exclusions_function)
+    current_date_model, test_data_date, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date, exclusions_function)
     if mae_df_list is not None: current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
     try:
-        assert previous_business_date_model is not None, f'Raising an AssertionError since previous_business_date_model is `None` to enter the except clause'
-        last_trade_date_data_previous_business_date_model_result_df = get_model_results(data, last_trade_date, model, previous_business_date_model, encoders, exclusions_function)
+        business_date_before_test_data_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(test_data_date, 1), data)    # ensures that the business day has trades on it
+        assert previous_business_date_model is not None, f'Raising an AssertionError since previous_business_date_model is `None`, which will run the cleanup logic in the `except` clause'
+        business_date_before_test_data_date_data_previous_business_date_model_result_df = get_model_results(data, business_date_before_test_data_date, model, previous_business_date_model, encoders, exclusions_function)
     except Exception as e:
         print(f'Unable to create the third dataframe used in the model evaluation email due to {type(e)}: {e}')
         print('Stack trace:')
         print(traceback.format_exc())
-        last_trade_date_data_previous_business_date_model_result_df = None
+        business_date_before_test_data_date = None
+        business_date_before_test_data_date_data_previous_business_date_model_result_df = None
 
     if raw_data_filepath is not None:
         print(f'Removing {raw_data_filepath} since {model} training is complete')
@@ -876,10 +881,10 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
     else:
         if SAVE_MODEL_AND_DATA: save_model(current_date_model, encoders, model)
         try:
-            mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, last_trade_date_data_previous_business_date_model_result_df]
-            description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred after {last_trade_date}.', 
-                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred after {last_trade_date}. If there are three tables in this email, then this one evaluates on the same test dataset as the first table but with a different (previous business day) model. If the accuracy on this table is better than the first table, this may imply that the older model is more accurate. Note, however, that the model has not been (and, cannot be) evaluated yet on the trades that will occur today.', 
-                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {last_trade_date}. If there are three tables in this email, then this one evaluates the same model as the second table but on a different (previous business day) test dataset. If the accuracy on this table is better than the second table, this may mean that the trades in the test set used for the first two tables are more challenging (harder to predict) than the trades from the test set used for this table.']
+            mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, business_date_before_test_data_date_data_previous_business_date_model_result_df]
+            description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred on {test_data_date}.', 
+                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {test_data_date}. If there are three tables in this email, then this one evaluates on the same test dataset as the first table but with a different (previous business day) model. If the accuracy on this table is better than the first table, this may imply that the older model is more accurate. Note, however, that the model has not been (and, cannot be) evaluated yet on the trades that will occur today.', 
+                                f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {business_date_before_test_data_date}. If there are three tables in this email, then this one evaluates the same model as the second table but on a different (previous business day) test dataset. If the accuracy on this table is better than the second table, this may mean that the trades in the test set used for the first two tables are more challenging (harder to predict) than the trades from the test set used for this table.']
             mae_df_list, description_list = list(zip(*[(mae_df, description) for (mae_df, description) in zip(mae_df_list, description_list) if mae_df is not None]))    # only keep the (`mae_df`, `description`) pair if the `mae_df` is not None, and then put them into separate lists
             send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text)
             # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
