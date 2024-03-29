@@ -401,7 +401,7 @@ def update_data(model: str):
                                                                                                                                                               use_treasury_spread=use_treasury_spread, 
                                                                                                                                                               optional_arguments_for_process_data=optional_arguments_for_process_data)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
-    data = add_trade_history_derived_features(data, 'dollar_price', use_treasury_spread)
+    data = add_trade_history_derived_features(data, model, use_treasury_spread)
 
     predictors = PREDICTORS if model == 'yield_spread' else PREDICTORS_DOLLAR_PRICE
     data = drop_features_with_null_value(data, predictors)
