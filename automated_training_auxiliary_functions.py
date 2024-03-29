@@ -321,7 +321,7 @@ def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_bu
         if on_or_after == 'after':
             data_for_date = data[data.trade_date > date_of_interest]
             data_for_date_earliest_date = data_for_date.trade_date.min()
-            data_for_date = data_for_date[data_for_date.trade_date == data_for_date_earliest_date]
+            data_for_date = data_for_date[data_for_date.trade_date == data_for_date_earliest_date]    # restrict `data_for_date` to have only one day of trades
         else:
             data_for_date = data[data.trade_date == date_of_interest]
         return data_for_date
