@@ -59,6 +59,7 @@ YS_FEATS = ['_ys'] + _FEATS
 DP_FEATS = ['_dp'] + _FEATS
 
 LONG_TIME_AGO_IN_NUM_SECONDS = 9    # default `num_seconds_ago` value to signify that the trade was a long time ago (9 is a large value since the `num_seconds_ago` is log10 transformed)
+MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY = 10000    # used to determine the minimum number of trades needed to be considered a "day of trades"; setting this value to 1 would check if any trades occurred that day
 
 QUERY_FEATURES = ['rtrs_control_number',
                   'cusip',

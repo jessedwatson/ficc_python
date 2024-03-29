@@ -30,8 +30,8 @@ from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 
-from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR,\
-                                                   CATEGORICAL_FEATURES,\
+from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
+                                                   CATEGORICAL_FEATURES, \
                                                    CATEGORICAL_FEATURES_DOLLAR_PRICE, \
                                                    NON_CAT_FEATURES, \
                                                    NON_CAT_FEATURES_DOLLAR_PRICE, \
@@ -66,6 +66,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR,\
                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
                                                    TTYPE_DICT, \
                                                    LONG_TIME_AGO_IN_NUM_SECONDS, \
+                                                   MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
                                                    HISTORICAL_PREDICTION_TABLE, \
                                                    EMAIL_RECIPIENTS, \
                                                    SENDER_EMAIL, \
@@ -319,6 +320,8 @@ def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_bu
     def get_data_on_or_after_date(date_of_interest: str) -> pd.DataFrame:
         if on_or_after == 'after':
             data_for_date = data[data.trade_date > date_of_interest]
+            data_for_date_earliest_date = data_for_date.trade_date.min()
+            data_for_date = data_for_date[data_for_date.trade_date == data_for_date_earliest_date]
         else:
             data_for_date = data[data.trade_date == date_of_interest]
         return data_for_date
@@ -327,7 +330,7 @@ def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_bu
     data_for_date = get_data_on_or_after_date(previous_date)
     if exclusions_function is not None: data_for_date, _ = exclusions_function(data_for_date)
     business_days_gone_back = 0
-    while len(data_for_date) == 0 and business_days_gone_back < max_number_of_business_days_to_go_back:
+    while len(data_for_date) < MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY and business_days_gone_back < max_number_of_business_days_to_go_back:
         business_days_gone_back += 1
         previous_date = decrement_business_days(date, business_days_gone_back)
         data_for_date = get_data_on_or_after_date(previous_date)
