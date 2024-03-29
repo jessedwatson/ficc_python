@@ -727,8 +727,8 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     else:
         test_data_before_exclusions = test_data
     
-    if len(test_data) == 0:
-        print(f'No model is trained since there are no trades in `test_data`; `train_model(...)` is terminated')
+    if len(test_data) < MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY:
+        print(f'No model is trained since there are only {len(test_data)} trades in `test_data`, which is less than our chosen threshold of {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY}; `train_model(...)` is terminated')
         return None, None, None, None, None, None, None, ''
     
     train_data = data[data.trade_date <= last_trade_date]
@@ -973,6 +973,6 @@ def send_no_new_model_email(last_trade_date, recipients: list, model: str) -> No
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
-    msg['Subject'] = f'No new data was found on {last_trade_date}, so no new {model} model was trained'
+    msg['Subject'] = f'Not enough new data was found on {last_trade_date}, so no new {model} model was trained; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model'
     msg['From'] = SENDER_EMAIL
     send_email(SENDER_EMAIL, msg, recipients)
