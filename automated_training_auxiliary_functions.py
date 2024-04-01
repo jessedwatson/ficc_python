@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-29
+ # @ Modified date: 2024-04-01
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -707,6 +707,12 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
     return result_df
 
 
+def not_enough_trades_in_test_data(test_data, min_trades_to_use_test_data):
+    '''Return `None` for the number of arguments that `train_model(...)` returns.'''
+    print(f'No model is trained since there are only {len(test_data)} trades in `test_data`, which is less than our chosen threshold of {min_trades_to_use_test_data}; `train_model(...)` is terminated')
+    return None, None, None, None, None, None, None, ''
+
+
 @function_timer
 def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
     '''The final return value is a string that should be in the beginning of the email that is sent out 
@@ -721,15 +727,12 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     test_data = data[data.trade_date > last_trade_date]
     test_data_date = test_data.trade_date.min()
     test_data = test_data[test_data.trade_date == test_data_date]    # restrict `test_data` to have only one day of trades
+    if len(test_data) < MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY: return not_enough_trades_in_test_data(test_data, MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY)
     test_data_date = test_data_date.strftime(YEAR_MONTH_DAY)
     if exclusions_function is not None:
         test_data, test_data_before_exclusions = exclusions_function(test_data, 'test_data')
     else:
         test_data_before_exclusions = test_data
-    
-    if len(test_data) < MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY:
-        print(f'No model is trained since there are only {len(test_data)} trades in `test_data`, which is less than our chosen threshold of {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY}; `train_model(...)` is terminated')
-        return None, None, None, None, None, None, None, ''
     
     train_data = data[data.trade_date <= last_trade_date]
     training_set_info = f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}'
