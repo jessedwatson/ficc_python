@@ -412,7 +412,7 @@ def update_data(model: str):
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
-
+@function_timer
 def save_update_data_results_to_pickle_files(model: str):
     '''The function specified in `update_data` is called, and the 3 return values are stored as pickle files. If 
     testing, then first check whether the pickle files exist, before calling `update_data`. `suffix` is appended 
@@ -865,17 +865,18 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
         last_trade_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(previous_business_date, 1), data)    # ensures that the business day has trades on it
 
     current_date_model, test_data_date, previous_business_date_model, previous_business_date_model_date, encoders, mae, mae_df_list, email_intro_text = train_model(data, last_trade_date, model, num_features_for_each_trade_in_history, previous_business_date, exclusions_function)
-    if mae_df_list is not None: current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
-    try:
-        business_date_before_test_data_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(test_data_date, 1), data)    # ensures that the business day has trades on it
-        assert previous_business_date_model is not None, f'Raising an AssertionError since previous_business_date_model is `None`, which will run the cleanup logic in the `except` clause'
-        business_date_before_test_data_date_data_previous_business_date_model_result_df = get_model_results(data, business_date_before_test_data_date, model, previous_business_date_model, encoders, exclusions_function)
-    except Exception as e:
-        print(f'Unable to create the third dataframe used in the model evaluation email due to {type(e)}: {e}')
-        print('Stack trace:')
-        print(traceback.format_exc())
-        business_date_before_test_data_date = None
-        business_date_before_test_data_date_data_previous_business_date_model_result_df = None
+    if mae_df_list is not None:
+        current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df = mae_df_list
+        try:
+            business_date_before_test_data_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(test_data_date, 1), data)    # ensures that the business day has trades on it
+            assert previous_business_date_model is not None, f'Raising an AssertionError since previous_business_date_model is `None`, which will run the cleanup logic in the `except` clause'
+            business_date_before_test_data_date_data_previous_business_date_model_result_df = get_model_results(data, business_date_before_test_data_date, model, previous_business_date_model, encoders, exclusions_function)
+        except Exception as e:
+            print(f'Unable to create the third dataframe used in the model evaluation email due to {type(e)}: {e}')
+            print('Stack trace:')
+            print(traceback.format_exc())
+            business_date_before_test_data_date = None
+            business_date_before_test_data_date_data_previous_business_date_model_result_df = None
 
     if raw_data_filepath is not None:
         print(f'Removing {raw_data_filepath} since {model} training is complete')

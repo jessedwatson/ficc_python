@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2023-03-26
+# @ Modified date: 2023-04-01
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -19,7 +19,7 @@ MODEL="yield_spread"
 /opt/conda/bin/python $HOME/ficc_python/automated_training_yield_spread_model.py
 if [ $? -ne 0 ]; then
   echo "automated_training_yield_spread_model.py script failed with exit code $?"
-  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details."
+  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details. However, if there is not enough new trades on the previous business day, then this is the desired behavior."
   exit 1
 fi
 echo "Model trained"
