@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2023-03-11
+# @ Modified date: 2023-04-01
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -15,11 +15,11 @@ DATE_WITHOUT_YEAR=$(date +%m-%d)
 TRAINING_LOG_PATH="$HOME/training_logs/dollar_price_training_$DATE_WITH_YEAR.log"
 MODEL="dollar_price"
 
-# Changing directory and training the model
+# Training the model
 /opt/conda/bin/python $HOME/ficc_python/automated_training_dollar_price_model.py
 if [ $? -ne 0 ]; then
   echo "automated_training_dollar_price_model.py script failed with exit code $?"
-  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details."
+  /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details. However, if there is not enough new trades on the previous business day, then this is the desired behavior."
   exit 1
 fi
 echo "Model trained"
@@ -27,13 +27,10 @@ echo "Model trained"
 # Cleaning the logs to make more readable
 /opt/conda/bin/python $HOME/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
 
-# Getting the endpoint ID we want to deploy the model on
-ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
-
 # Unzip model and uploading it to automated training bucket
 MODEL_NAME='dollar-model'-${DATE_WITHOUT_YEAR}
 echo "Unzipping model $MODEL_NAME"
-gsutil cp -r gs://ahmad_data/model_dollar_price.zip $TRAINED_MODELS_PATH/model_dollar_price.zip
+gsutil cp -r gs://automated_training/model_dollar_price.zip $TRAINED_MODELS_PATH/model_dollar_price.zip
 unzip $TRAINED_MODELS_PATH/model_dollar_price.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
@@ -48,6 +45,9 @@ if [ $? -ne 0 ]; then
   /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Uploading model to bucket failed. See attached logs for more details."
   exit 1
 fi
+
+# Getting the endpoint ID we want to deploy the model on
+ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
 
 echo "ENDPOINT_ID $ENDPOINT_ID"
 echo "MODEL_NAME $MODEL_NAME"
@@ -68,6 +68,10 @@ if [ $? -ne 0 ]; then
   /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
   exit 1
 fi
+
+# removing temporary files
+rm $TRAINED_MODELS_PATH/model_dollar_price.zip
+gsutil rm -r gs://automated_training/model_dollar_price.zip
 
 /opt/conda/bin/python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
 
