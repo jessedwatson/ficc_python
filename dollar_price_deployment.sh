@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2023-04-09
+# @ Modified date: 2023-04-10
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -18,6 +18,7 @@ MODEL="dollar_price"
 # Activate the virtual environment for Python3.10 (/usr/local/bin/python3.10) that contains all of the packages; to see all versions of Python use command `whereis python`
 # If venv_py310 does not exist in `ficc_python/`, then in `ficc_python/` run `/usr/local/python3.10 -m venv venv_py310` and `source venv_py310/bin/activate` followed by `pip install -r requirements_py310.txt`
 source $HOME/ficc_python/venv_py310/bin/activate
+python --version
 
 # Training the model
 python $HOME/ficc_python/automated_training_dollar_price_model.py
