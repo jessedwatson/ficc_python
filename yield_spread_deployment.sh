@@ -17,7 +17,8 @@ MODEL="yield_spread"
 
 # Activate the virtual environment for Python3.10 (/usr/local/bin/python3.10) that contains all of the packages; to see all versions of Python use command `whereis python`
 # If venv_py310 does not exist in `ficc_python/`, then in `ficc_python/` run `/usr/local/python3.10 -m venv venv_py310` and `source venv_py310/bin/activate` followed by `pip install -r requirements_py310.txt`
-source $HOME/ficc_python/venv_py310/bin/activate
+# NOTE: for sh script (which is different than bash script), we must use the '.' operator instead of 'source' to activate the virtual environment
+. $HOME/ficc_python/venv_py310/bin/activate
 python --version
 
 # Training the model
