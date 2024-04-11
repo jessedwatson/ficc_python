@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-10
+ # @ Modified date: 2024-04-11
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -594,12 +594,13 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
     return model, mae, history
 
 
-def segment_results(data: pd.DataFrame, delta: np.array) -> pd.DataFrame:
+def segment_results(data: pd.DataFrame, absolute_difference: np.array) -> pd.DataFrame:
+    '''Return a dataframe that has the MAE and count for specific slices of `data`.'''
     def get_mae_and_count(condition=None):
         if condition is not None:
-            delta_cond, data_cond = delta[condition], data[condition]
+            delta_cond, data_cond = absolute_difference[condition], data[condition]
         else:
-            delta_cond, data_cond = delta, data
+            delta_cond, data_cond = absolute_difference, data
         return np.round(np.mean(delta_cond), 3), data_cond.shape[0]    # round mae to 3 digits after the decimal point to reduce noise
 
     total_mae, total_count = get_mae_and_count()
