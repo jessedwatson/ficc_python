@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-11
+ # @ Modified date: 2024-04-10
  # @ Description:
  '''
 import warnings
@@ -46,7 +46,7 @@ def process_features(df):
     # TODO: why do we not do the -np.inf replacement for `call_to_maturity`?
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', RuntimeWarning)    # ignore `pandas/core/arraylike.py:364: RuntimeWarning: invalid value encountered in log10` since we handle this directly by filling in -np.inf with np.nan
-        warnings.simplefilter('ignore', pd.core.common.SettingWithCopyWarning)    # the following np.log10 assignments cause `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. Try using .loc[row_indexer,col_indexer] = value instead`
+        warnings.simplefilter('ignore', pd.errors.SettingWithCopyWarning)    # the following np.log10 assignments cause `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. Try using .loc[row_indexer,col_indexer] = value instead`
         df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days)
         df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days)
         df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.settlement_date).dt.days)
@@ -54,7 +54,7 @@ def process_features(df):
         df.loc[:, 'call_to_maturity'] = np.log10(1 + (df.maturity_date - df.next_call_date).dt.days)
 
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore', pd.core.common.SettingWithCopyWarning)    # inplace replacements raise `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy return self._update_inplace(result)`
+        warnings.simplefilter('ignore', pd.errors.SettingWithCopyWarning)    # inplace replacements raise `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy return self._update_inplace(result)`
         df.days_to_maturity.replace(-np.inf, np.nan, inplace=True)
         df.days_to_call.replace(-np.inf, np.nan, inplace=True)
         df.days_to_refund.replace(-np.inf, np.nan, inplace=True)

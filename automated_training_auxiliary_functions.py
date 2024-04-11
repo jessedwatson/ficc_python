@@ -2,11 +2,12 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-01
+ # @ Modified date: 2024-04-10
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
 import os
+import sys
 import shutil
 import numpy as np
 import pandas as pd
@@ -852,6 +853,7 @@ def remove_file(file_path: str) -> None:
 
 def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None):
     assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    print(f'Python version: {sys.version}')
     current_datetime = datetime.now(EASTERN)
     print(f'automated_training_{model}_model.py starting at {current_datetime} ET')
 

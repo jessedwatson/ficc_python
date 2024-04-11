@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2023-03-11
+ # @ Modified date: 2024-04-10
  # @ Description: fill in features with the corresponding default values.
  '''
 import warnings
@@ -47,7 +47,7 @@ FEATURES_AND_DEFAULT_VALUES = {'purpose_class': 0,    # unknown
 
 def replace_nan_with_value(df, feature, default_value):
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore', pd.core.common.SettingWithCopyWarning)    # inplace replacements raise `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy return self._update_inplace(result)`
+        warnings.simplefilter('ignore', pd.errors.SettingWithCopyWarning)    # inplace replacements raise `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy return self._update_inplace(result)`
         if callable(default_value):    # checks whether the default_value is a function that needs to be called on the dataframe
             df[feature].fillna(default_value(df), inplace=True)
         else:
