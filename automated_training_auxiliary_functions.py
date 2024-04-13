@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-11
+ # @ Modified date: 2024-04-12
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -626,7 +626,7 @@ def segment_results(data: pd.DataFrame, absolute_difference: np.array) -> pd.Dat
                                    [investment_grade_mae, investment_grade_count],
                                    [hundred_k_mae, hundred_k_count]],
                              columns=['Mean Absolute Error', 'Trade Count'],
-                             index=['Entire set', 'Dealer-Dealer', 'Dealer-Purchase', 'Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size >= 100k'])
+                             index=['Entire set', 'Dealer-Dealer', 'Bid Side / Dealer-Purchase', 'Offered Side / Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size >= 100k'])
     return result_df
 
 
