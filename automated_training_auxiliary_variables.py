@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-28
+ # @ Modified date: 2024-04-15
  '''
 import os
 from pytz import timezone
@@ -35,6 +35,10 @@ HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historica
 
 CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD = 'processed_data_test.pkl'
 CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE = 'processed_data_dollar_price.pkl'
+CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD_WITH_SIMILAR_TRADES = 'processed_data_yield_spread_with_similar_trades.pkl'
+MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME = {'yield_spread': CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD, 
+                                            'dollar_price': CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE, 
+                                            'yield_spread_with_similar_trades': CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD_WITH_SIMILAR_TRADES}
 
 NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL = 5
 NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL = 2

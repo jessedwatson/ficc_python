@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-14
+ # @ Modified date: 2024-04-15
  # @ Description: Source code to process trade history from BigQuery
  '''
 import warnings
@@ -42,6 +42,7 @@ def process_data(query,
                  add_rtrs_in_history=False, 
                  only_dollar_price_history=False, 
                  save_data=True, 
+                 process_similar_trades_history=False, 
                  **kwargs):
     if len(kwargs) != 0: warnings.warn(f'**kwargs is not empty and has following arguments: {kwargs.keys()}', category=RuntimeWarning)
         
@@ -72,7 +73,8 @@ def process_data(query,
                                       nelson_params, 
                                       scalar_params, 
                                       shape_parameter, 
-                                      save_data)
+                                      save_data, 
+                                      process_similar_trades_history)
     
     if trades_df is None: return None    # no new trades
 
