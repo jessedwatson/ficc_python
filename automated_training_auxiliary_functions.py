@@ -478,8 +478,8 @@ def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
         fmax[feature] = np.max(fprep.transform(fprep.classes_))
         encoders[feature] = fprep
     
-    filename = 'encoders.pkl' if 'yield_spread' in model else 'encoders_dollar_price.pkl'
-    with open(f'{WORKING_DIRECTORY}/{filename}', 'wb') as file:
+    encoders_filename = get_encoders_filename(model)
+    with open(f'{WORKING_DIRECTORY}/{encoders_filename}', 'wb') as file:
         pickle.dump(encoders, file)
     return encoders, fmax
 
@@ -493,7 +493,8 @@ def _trade_history_derived_features(row, model: str, use_treasury_spread: bool =
         variants = DP_VARIANTS
         trade_history_features = get_dp_trade_history_features()
 
-    ys_or_dp_idx = trade_history_features.index(model)
+    label_feature = 'yield_spread' if 'yield_spread' in model else 'dollar_price'
+    ys_or_dp_idx = trade_history_features.index(label_feature)
     par_traded_idx = trade_history_features.index('par_traded')
     trade_type1_idx = trade_history_features.index('trade_type1')
     trade_type2_idx = trade_history_features.index('trade_type2')
@@ -755,7 +756,8 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     test_data = data[data.trade_date > last_trade_date]    # `test_data` can only contain trades after `last_trade_date`
     test_data_date = test_data.trade_date.min()
     test_data = test_data[test_data.trade_date == test_data_date]    # restrict `test_data` to have only one day of trades
-    if len(test_data) < MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY: return not_enough_trades_in_test_data(test_data, MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY)
+    if len(test_data) < MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY:
+        return not_enough_trades_in_test_data(test_data, MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY)
     test_data_date = test_data_date.strftime(YEAR_MONTH_DAY)
     if exclusions_function is not None:
         test_data, test_data_before_exclusions = exclusions_function(test_data, 'test_data')
@@ -825,6 +827,34 @@ def get_model_results(data: pd.DataFrame, trade_date: str, model: str, loaded_mo
     return create_summary_of_results(loaded_model, data_on_trade_date, inputs, labels)
 
 
+def _get_model_suffix(model: str, wo_underscore: bool = False):
+    '''Return the model suffix for creating filenames to store encoders and trained models for `model`. 
+    This function is used as a subprocedure in `get_encoders_filename(...)` and `get_model_zip_filename(...). 
+    `wo_underscore` is an optional boolean argument that removes the first character of the suffix which 
+    is expected to be the underscore.'''
+    if model == 'yield_spread':
+        suffix = ''
+    elif model == 'yield_spread_with_similar_trades':
+        suffix = '_similar_trades'
+    else:
+        suffix = '_dollar_price'
+    if wo_underscore:
+        suffix = suffix[1:] if suffix != '' else suffix    # assumes that the underscore to remove is the first character
+    return suffix
+
+
+def get_encoders_filename(model: str):
+    '''Return the filename of the pickle file that stores the encoders for `model`.'''
+    suffix = _get_model_suffix(model)
+    return f'encoders{suffix}.pkl'
+
+
+def get_model_zip_filename(model: str):
+    '''Return the filename of the zip file that stores the trained model for `model`.'''
+    suffix = _get_model_suffix(model)
+    return f'model{suffix}'
+
+
 @function_timer
 def save_model(trained_model, encoders, model: str):
     '''NOTE: `model` is a string that denotes whether we are working with the yield spread model, 
@@ -835,18 +865,11 @@ def save_model(trained_model, encoders, model: str):
         print('trained_model is `None` and so not saving it to storage')
         return None
     
-    # need `suffix_wo_underscore` variable as well since past implementations of this function have model naming missing an underscore
-    if model == 'yield_spread':
-        suffix, suffix_wo_underscore = '', ''
-    elif model == 'yield_spread_with_similar_trades':
-        suffix, suffix_wo_underscore = '_similar_trades', 'similar_trades'
-    else:
-        suffix, suffix_wo_underscore = '_dollar_price', 'dollar_price'
-
+    suffix_wo_underscore = _get_model_suffix(model, True)    # need `suffix_wo_underscore` variable as well since past implementations of this function have model naming missing an underscore
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
 
-    encoders_filename = f'encoders{suffix}.pkl'
+    encoders_filename = get_encoders_filename(model)
     encoders_filepath = f'{WORKING_DIRECTORY}/files/{encoders_filename}'
     print(f'Uploading encoders from {encoders_filepath}')
     if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
@@ -860,7 +883,7 @@ def save_model(trained_model, encoders, model: str):
     print(f'Uploading model to {model_filename}')
     trained_model.save(model_filename)
     
-    model_zip_filename = f'model{suffix}'
+    model_zip_filename = get_model_zip_filename(model)
     model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
     shutil.make_archive(model_zip_filepath, 'zip', model_filename)
     # shutil.make_archive(f'saved_model_{file_timestamp}', 'zip', f'saved_model_{file_timestamp}')
@@ -966,7 +989,7 @@ def send_results_email(mae, model_train_date: str, recipients: list, model: str)
     msg['Subject'] = _get_email_subject(model_train_date, model)
     msg['From'] = SENDER_EMAIL
 
-    message = MIMEText(f'The MAE for the model on trades that occurred on {model_train_date} is {np.round(mae, 3)}.', 'plain')
+    message = MIMEText(f'MAE for {model} model on trades that occurred on {model_train_date} is {np.round(mae, 3)}.', 'plain')
     msg.attach(message)
     send_email(SENDER_EMAIL, msg, recipients)
 
