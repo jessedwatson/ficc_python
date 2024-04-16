@@ -114,23 +114,22 @@ S_prev = dict()
 
 def check_that_model_is_supported(model: str):
     '''Raises an AssertionError if `model` is not supported.'''
-    assert model in ('yield_spread', 'yield_spread_with_similar_trades', 'dollar_price'), f'Model should be either yield_spread or yield_spread_with_similar_trades or dollar_price, but was instead: {model}'
+    supported_models = ['yield_spread', 'yield_spread_with_similar_trades', 'dollar_price']
+    assert model in supported_models, f'Model should be {" or ".join(supported_models)}, but was instead: {model}'
     return model
 
 
 def get_trade_history_columns(model: str) -> list:
     '''Creates a list of columns.'''
     check_that_model_is_supported(model)
-    if model == 'yield_spread':
-        variants = YS_VARIANTS
-        feats = YS_FEATS
+    if 'yield_spread' in model:
+        variants, features = YS_VARIANTS, YS_FEATS
     else:
-        variants = DP_VARIANTS
-        feats = DP_FEATS
+        variants, features = DP_VARIANTS, DP_FEATS
     
     columns = []
     for prefix in variants:
-        for suffix in feats:
+        for suffix in features:
             columns.append(prefix + suffix)
     return columns
 
@@ -211,9 +210,9 @@ def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optio
     DATA_QUERY = get_data_query(last_trade_datetime, model)
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M')
 
-    trade_history_features = get_ys_trade_history_features(use_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
+    trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
-    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
+    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
     raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
     data_from_last_trade_datetime = process_data(DATA_QUERY, 
                                                  BQ_CLIENT, 
@@ -259,8 +258,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     print(f'Restricting history to {num_trades_in_history} trades')
     for trade_history_feature_name in trade_history_feature_names:
         new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda history: history[:num_trades_in_history])    # this line is redundant because this procedure is done in `process_data(...)`, but keeping it for now in case that functionality changes to no longer truncate upstream
-    if old_data is not None:
-        for trade_history_feature_name in trade_history_feature_names:
+        if old_data is not None:
             old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda history: history[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
     new_data = replace_ratings_by_standalone_rating(new_data)
@@ -480,7 +478,7 @@ def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
         fmax[feature] = np.max(fprep.transform(fprep.classes_))
         encoders[feature] = fprep
     
-    filename = 'encoders.pkl' if model == 'yield_spread' else 'encoders_dollar_price.pkl'
+    filename = 'encoders.pkl' if 'yield_spread' in model else 'encoders_dollar_price.pkl'
     with open(f'{WORKING_DIRECTORY}/{filename}', 'wb') as file:
         pickle.dump(encoders, file)
     return encoders, fmax
@@ -514,7 +512,7 @@ def _trade_history_derived_features(row, model: str, use_treasury_spread: bool =
     global S_prev
     global P_prev
     
-    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
+    trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
     trade_history = row[trade_history_feature_name]
     most_recent_trade = trade_history[0]
     
@@ -673,6 +671,7 @@ def get_table_schema_for_predictions():
 
 def upload_predictions(data: pd.DataFrame, model: str) -> str:
     '''Upload the coefficient and scalar dataframe to BigQuery. Returns the table name.'''
+    assert model in HISTORICAL_PREDICTION_TABLE, f'Trying to upload predictions for {model}, but can only upload predictions for the following models: {list(HISTORICAL_PREDICTION_TABLE.keys())}'
     table_name = HISTORICAL_PREDICTION_TABLE[model]
     job_config = bigquery.LoadJobConfig(schema=get_table_schema_for_predictions(), write_disposition='WRITE_APPEND')
     job = BQ_CLIENT.load_table_from_dataframe(data, table_name, job_config=job_config)
@@ -972,7 +971,7 @@ def send_results_email(mae, model_train_date: str, recipients: list, model: str)
     send_email(SENDER_EMAIL, msg, recipients)
 
 
-def send_results_email_table(result_df, model_train_date: str, recipients: list, model: str):
+def send_results_email_table(result_df, model_train_date: str, recipients: list, model: str) -> str:
     check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
@@ -983,9 +982,10 @@ def send_results_email_table(result_df, model_train_date: str, recipients: list,
     body = MIMEText(html_table, 'html')
     msg.attach(body)
     send_email(SENDER_EMAIL, msg, recipients)
+    return html_table
 
 
-def send_results_email_multiple_tables(df_list: list, text_list: list, model_train_date: str, recipients: list, model: str, intro_text: str = ''):
+def send_results_email_multiple_tables(df_list: list, text_list: list, model_train_date: str, recipients: list, model: str, intro_text: str = '') -> str:
     check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
@@ -1007,6 +1007,7 @@ def send_results_email_multiple_tables(df_list: list, text_list: list, model_tra
     body = MIMEText(html_text, 'html')
     msg.attach(body)
     send_email(SENDER_EMAIL, msg, recipients)
+    return html_text
 
 
 def send_no_new_model_email(last_trade_date, recipients: list, model: str) -> None:
