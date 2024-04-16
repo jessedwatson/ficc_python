@@ -2,12 +2,16 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-15
+ # @ Modified date: 2024-04-16
  '''
 import os
 from pytz import timezone
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `automated_training_auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `automated_training_auxiliary_functions.py`
+
+from yield_model import yield_spread_model
+from yield_with_similiar_trades_model import yield_spread_with_similar_trades_model
+from dollar_model import dollar_price_model
 
 
 EASTERN = timezone('US/Eastern')
@@ -31,7 +35,9 @@ EARLIST_TRADE_DATETIME = '2023-01-01T00:00:00'
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
 
-HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
+PROJECT_ID = 'eng-reactor-287421'
+HISTORICAL_PREDICTION_TABLE = {'yield_spread': f'{PROJECT_ID}.historic_predictions.historical_predictions', 
+                               'yield_spread_with_similar_trades': f'{PROJECT_ID}.historic_predictions.historical_predictions_similar_trades'}
 
 CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD = 'processed_data_test.pkl'
 CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE = 'processed_data_dollar_price.pkl'
@@ -164,6 +170,16 @@ if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc
 NUM_EPOCHS = 100
 BATCH_SIZE = 1000
 DROPOUT = 0.01
+
+
+MODEL_NAME_TO_KERAS_MODEL = {'yield_spread': yield_spread_model, 
+                             'dollar_price': dollar_price_model, 
+                             'yield_spread_with_similiar_trades': yield_spread_with_similar_trades_model}
+
+
+MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER = {'yield_spread': 'yield_spread_model', 
+                                       'dollar_price': 'dollar_price_models', 
+                                       'yield_spread_with_similar_trades': 'yield_spread_with_similar_trades_model'}
 
 
 # setting variables for when `TESTING` is `True`
