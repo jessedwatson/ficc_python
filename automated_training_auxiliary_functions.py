@@ -410,7 +410,7 @@ def get_data_query(last_trade_datetime, model: str) -> str:
     features_as_string = ', '.join(query_features)
     query_conditions = query_conditions + [f'trade_datetime > "{last_trade_datetime}"']
     conditions_as_string = ' AND '.join(query_conditions)
-    table_name = '`eng-reactor-287421.jesse_tests.trade_history_same_issue_5_yr_mat_bucket_1`' if model == 'yield_spread_with_similar_trades' else '`eng-reactor-287421.auxiliary_views.materialized_trade_history`'
+    table_name = '`eng-reactor-287421.jesse_tests.trade_history_same_issue_5_yr_mat_bucket_1_materialized`' if model == 'yield_spread_with_similar_trades' else '`eng-reactor-287421.auxiliary_views.materialized_trade_history`'
     return f'''SELECT {features_as_string}
                FROM {table_name}
                WHERE {conditions_as_string}
