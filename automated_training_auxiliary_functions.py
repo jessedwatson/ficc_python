@@ -828,30 +828,37 @@ def get_model_results(data: pd.DataFrame, trade_date: str, model: str, loaded_mo
 
 @function_timer
 def save_model(trained_model, encoders, model: str):
-    '''NOTE: `model` is a string that denotes whether we are working with the yield spread model or 
-    the dollar price model, and `trained_model` is an actual keras model. This may cause confusion.'''
+    '''NOTE: `model` is a string that denotes whether we are working with the yield spread model, 
+    yield spread with similar trades model, or the dollar price model, and `trained_model` is an 
+    actual keras model. This may cause confusion.'''
     check_that_model_is_supported(model)
     if trained_model is None:
         print('trained_model is `None` and so not saving it to storage')
         return None
-    suffix = '_dollar_price' if model == 'dollar_price' else ''
-    suffix_wo_underscore = 'dollar_price' if model == 'dolar_price' else ''    # need this variable as well since past implementations of this function have model naming missing an underscore
+    
+    # need `suffix_wo_underscore` variable as well since past implementations of this function have model naming missing an underscore
+    if model == 'yield_spread':
+        suffix, suffix_wo_underscore = '', ''
+    elif model == 'yield_spread_with_similar_trades':
+        suffix, suffix_wo_underscore = '_similar_trades', 'similar_trades'
+    else:
+        suffix, suffix_wo_underscore = '_dollar_price', 'dollar_price'
 
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
 
-    print('Saving encoders and uploading encoders')
     encoders_filename = f'encoders{suffix}.pkl'
     encoders_filepath = f'{WORKING_DIRECTORY}/files/{encoders_filename}'
+    print(f'Uploading encoders from {encoders_filepath}')
     if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
     with open(encoders_filepath, 'wb') as file:
         pickle.dump(encoders, file)    
     upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
 
-    print('Saving and uploading model')
-    folder = 'dollar_price_models' if model == 'dollar_price' else 'yield_spread_models'
+    folder = f'{model}_models'
     if not os.path.isdir(f'{HOME_DIRECTORY}/trained_models'): os.mkdir(f'{HOME_DIRECTORY}/trained_models')
     model_filename = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
+    print(f'Uploading model to {model_filename}')
     trained_model.save(model_filename)
     
     model_zip_filename = f'model{suffix}'
