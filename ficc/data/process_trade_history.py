@@ -130,7 +130,7 @@ def process_trade_history(query: str,
     trades_df = restrict_number_of_trades_and_pad_trade_history(trades_df, processed_trade_history_column_name, num_trades_in_history, min_trades_in_history, num_features_for_each_trade_in_history)
     trade_history_features = [processed_trade_history_column_name]
 
-    if process_similar_trades_history is False:
+    if process_similar_trades_history is True:
         print('Creating similar trade history')
         processed_trade_history_column_name = 'similar_trade_history'
         last_features_column_name = 'temp_last_similar_features'
