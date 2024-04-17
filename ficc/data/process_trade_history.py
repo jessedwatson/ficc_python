@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-15
+ # @ Modified date: 2024-04-17
  # @ Description:
  '''
 import os
@@ -24,7 +24,8 @@ def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
         else:
             raise Exception (f'Saved query is incorrect:\n{q}')
     
-    print(f'Grabbing data from BigQuery')
+    print(f'Grabbing data from BigQuery with query:')
+    print(query)
     trades_df = sqltodf(query, client)
 
     if save_data:

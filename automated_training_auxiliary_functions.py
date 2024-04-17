@@ -77,7 +77,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    TESTING, \
                                                    USE_PICKLED_DATA
 from yield_model import yield_spread_model
-from yield_with_similiar_trades_model import yield_spread_with_similar_trades_model
+from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
 
 
