@@ -2,16 +2,12 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-16
+ # @ Modified date: 2024-04-17
  '''
 import os
 from pytz import timezone
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `automated_training_auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `automated_training_auxiliary_functions.py`
-
-from yield_model import yield_spread_model
-from yield_with_similiar_trades_model import yield_spread_with_similar_trades_model
-from dollar_model import dollar_price_model
 
 
 EASTERN = timezone('US/Eastern')
@@ -30,7 +26,7 @@ MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK = 10
 YEAR_MONTH_DAY = '%Y-%m-%d'
 HOUR_MIN_SEC = '%H:%M:%S'
 
-EARLIST_TRADE_DATETIME = '2023-01-01T00:00:00'
+EARLIEST_TRADE_DATETIME = '2023-01-01T00:00:00'
 
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
@@ -170,11 +166,6 @@ if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc
 NUM_EPOCHS = 100
 BATCH_SIZE = 1000
 DROPOUT = 0.01
-
-
-MODEL_NAME_TO_KERAS_MODEL = {'yield_spread': yield_spread_model, 
-                             'dollar_price': dollar_price_model, 
-                             'yield_spread_with_similiar_trades': yield_spread_with_similar_trades_model}
 
 
 MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER = {'yield_spread': 'yield_spread_model', 

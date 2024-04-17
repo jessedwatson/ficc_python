@@ -61,7 +61,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    BUCKET_NAME, \
                                                    MODEL_FOLDERS, \
                                                    MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, \
-                                                   EARLIST_TRADE_DATETIME, \
+                                                   EARLIEST_TRADE_DATETIME, \
                                                    MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
@@ -73,10 +73,18 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    SENDER_EMAIL, \
                                                    BATCH_SIZE, \
                                                    NUM_EPOCHS, \
-                                                   MODEL_NAME_TO_KERAS_MODEL, \
                                                    MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
                                                    TESTING, \
                                                    USE_PICKLED_DATA
+from yield_model import yield_spread_model
+from yield_with_similiar_trades_model import yield_spread_with_similar_trades_model
+from dollar_model import dollar_price_model
+
+
+# this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
+MODEL_NAME_TO_KERAS_MODEL = {'yield_spread': yield_spread_model, 
+                             'dollar_price': dollar_price_model, 
+                             'yield_spread_with_similiar_trades': yield_spread_with_similar_trades_model}
 
 
 def get_creds():
@@ -393,7 +401,7 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str):
 def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
     data = download_data(STORAGE_CLIENT, bucket_name, file_name)
-    if data is None: return None, EARLIST_TRADE_DATETIME, EARLIST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
+    if data is None: return None, EARLIEST_TRADE_DATETIME, EARLIEST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
     return data, last_trade_datetime, last_trade_date
