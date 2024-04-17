@@ -179,7 +179,8 @@ if TESTING:
     SAVE_MODEL_AND_DATA = False
     USE_PICKLED_DATA = True
     NUM_EPOCHS = 2
-    print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS}')
+    EARLIEST_TRADE_DATETIME = '2024-03-01T00:00:00'
+    print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS} and EARLIEST_TRADE_DATETIME={EARLIEST_TRADE_DATETIME}')
     print('Check `get_creds(...)` to make sure the credentials filepath is correct')
     print('Check `WORKING_DIRECTORY` to make sure the path is correct')
     EMAIL_RECIPIENTS = EMAIL_RECIPIENTS_FOR_LOGS = ['mitas@ficc.ai']
