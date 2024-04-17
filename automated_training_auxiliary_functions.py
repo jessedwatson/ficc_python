@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-16
+ # @ Modified date: 2024-04-17
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -57,6 +57,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    HOME_DIRECTORY, \
                                                    WORKING_DIRECTORY, \
+                                                   PROJECT_ID, \
                                                    BUCKET_NAME, \
                                                    MODEL_FOLDERS, \
                                                    MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, \
@@ -164,17 +165,17 @@ def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_paramet
 @function_timer
 def add_yield_curve(data):
     '''Add 'new_ficc_ycl' field to `data`.'''
-    nelson_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc', BQ_CLIENT)
+    nelson_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.nelson_siegel_coef_daily` order by date desc', BQ_CLIENT)
     nelson_params.set_index('date', drop=True, inplace=True)
     nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
     nelson_params = nelson_params.transpose().to_dict()
 
-    scalar_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc', BQ_CLIENT)
+    scalar_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.standardscaler_parameters_daily` order by date desc', BQ_CLIENT)
     scalar_params.set_index('date', drop=True, inplace=True)
     scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
     scalar_params = scalar_params.transpose().to_dict()
 
-    shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', BQ_CLIENT)
+    shape_parameter = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.shape_parameters` order by Date desc', BQ_CLIENT)
     shape_parameter.set_index('Date', drop=True, inplace=True)
     shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
     shape_parameter = shape_parameter.transpose().to_dict()
@@ -410,9 +411,9 @@ def get_data_query(last_trade_datetime, model: str) -> str:
     features_as_string = ', '.join(query_features)
     query_conditions = query_conditions + [f'trade_datetime > "{last_trade_datetime}"']
     conditions_as_string = ' AND '.join(query_conditions)
-    table_name = '`eng-reactor-287421.jesse_tests.trade_history_same_issue_5_yr_mat_bucket_1_materialized`' if model == 'yield_spread_with_similar_trades' else '`eng-reactor-287421.auxiliary_views.materialized_trade_history`'
+    table_name = f'trade_history_same_issue_5_yr_mat_bucket_1_materialized' if model == 'yield_spread_with_similar_trades' else f'materialized_trade_history'
     return f'''SELECT {features_as_string}
-               FROM {table_name}
+               FROM `{PROJECT_ID}.auxiliary_views.{table_name}`
                WHERE {conditions_as_string}
                ORDER BY trade_datetime DESC'''
 
