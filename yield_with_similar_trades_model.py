@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-04-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2023-04-16
+ # @ Modified date: 2023-04-17
  '''
 import numpy as np
 import tensorflow as tf
@@ -60,9 +60,9 @@ def model_definition(trade_history_normalizer,
                                                shape=(num_trades_in_history, num_features_for_each_trade_in_history), 
                                                dtype=tf.float32)
     
-    target_attention_input_for_similar_trade_history = layers.Input(name='target_attention_input_for_similar_trade_history', 
-                                                                    shape=(1, 3), 
-                                                                    dtype=tf.float32) 
+    # target_attention_input_for_similar_trade_history = layers.Input(name='target_attention_input_for_similar_trade_history', 
+    #                                                                 shape=(1, 3), 
+    #                                                                 dtype=tf.float32) 
     
     trade_history_input = layers.Input(name='trade_history_input', 
                                        shape=(num_trades_in_history, num_features_for_each_trade_in_history), 
@@ -74,7 +74,7 @@ def model_definition(trade_history_normalizer,
 
 
     inputs.append(similar_trade_history_input)
-    inputs.append(target_attention_input_for_similar_trade_history)
+    # inputs.append(target_attention_input_for_similar_trade_history)
     inputs.append(trade_history_input)
     inputs.append(target_attention_input)
 
@@ -109,15 +109,15 @@ def model_definition(trade_history_normalizer,
     similar_trade_history_features = lstm_layer_similar_trades_2(similar_trade_history_features)
 
 
-    similar_trade_history_attention_sequence = layers.Dense(200, activation='relu', name='similar_trade_history_attention_dense')(target_attention_input)
-    similar_trade_history_attention = layers.Dot(axes=[2, 2])([similar_trade_history_features, similar_trade_history_attention_sequence])
-    similar_trade_history_attention = layers.Activation('softmax')(similar_trade_history_attention)
+    # similar_trade_history_attention_sequence = layers.Dense(200, activation='relu', name='similar_trade_history_attention_dense')(target_attention_input_for_similar_trade_history)
+    # similar_trade_history_attention = layers.Dot(axes=[2, 2])([similar_trade_history_features, similar_trade_history_attention_sequence])
+    # similar_trade_history_attention = layers.Activation('softmax')(similar_trade_history_attention)
 
-    similar_trade_history_context_vector = layers.Dot(axes=[1, 1])([similar_trade_history_features, similar_trade_history_attention])
-    similar_trade_history_context_vector = layers.Flatten(name='similar_trade_history_context_vector_flatten')(similar_trade_history_context_vector)
+    # similar_trade_history_context_vector = layers.Dot(axes=[1, 1])([similar_trade_history_features, similar_trade_history_attention])
+    # similar_trade_history_context_vector = layers.Flatten(name='similar_trade_history_context_vector_flatten')(similar_trade_history_context_vector)
 
-    similar_trade_history_context_vector = layers.BatchNormalization()(similar_trade_history_context_vector)
-    similar_trade_history_output = layers.Dense(100, activation='relu')(similar_trade_history_context_vector)
+    similar_trade_history_features = layers.BatchNormalization()(similar_trade_history_features)
+    similar_trade_history_output = layers.Dense(100, activation='relu')(similar_trade_history_features)
 
     ####################################################
 
@@ -210,7 +210,7 @@ def yield_spread_with_similar_trades_model(x_train,
     trade_history_normalizer.adapt(x_train[1], batch_size=BATCH_SIZE)
 
     noncat_binary_normalizer = Normalization(name='Numerical_binary_normalizer')
-    noncat_binary_normalizer.adapt(x_train[-1], batch_size=BATCH_SIZE)
+    noncat_binary_normalizer.adapt(x_train[3], batch_size=BATCH_SIZE)
 
     model = model_definition(trade_history_normalizer, 
                              similar_trade_history_normalizer, 
