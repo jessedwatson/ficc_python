@@ -809,7 +809,7 @@ def save_model(trained_model, encoders, model: str):
         print('trained_model is `None` and so not saving it to storage')
         return None
     suffix = '_dollar_price' if model == 'dollar_price' else ''
-    suffix_wo_underscore = 'dollar_price' if model == 'dolar_price' else ''    # need this variable as well since past implementations of this function have model naming missing an underscore
+    suffix_wo_underscore = 'dollar_price' if model == 'dollar_price' else ''    # need this variable as well since past implementations of this function have model naming missing an underscore
 
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
