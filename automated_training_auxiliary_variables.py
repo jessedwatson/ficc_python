@@ -6,7 +6,8 @@
  '''
 import os
 from pytz import timezone
-from datetime import datetime, timedelta
+from datetime import datetime
+from pandas.tseries.offsets import BusinessDay
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `automated_training_auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `automated_training_auxiliary_functions.py`
 
@@ -181,7 +182,7 @@ if TESTING:
     SAVE_MODEL_AND_DATA = False
     USE_PICKLED_DATA = True
     NUM_EPOCHS = 2
-    EARLIEST_TRADE_DATETIME = datetime.now(EASTERN).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=2)    # 2 days before the current datetime (start of the day)
+    EARLIEST_TRADE_DATETIME = str((datetime.now(EASTERN) - BusinessDay(2)).date()) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing
     print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS} and EARLIEST_TRADE_DATETIME={EARLIEST_TRADE_DATETIME}')
     print('Check `get_creds(...)` to make sure the credentials filepath is correct')
     print('Check `WORKING_DIRECTORY` to make sure the path is correct')
