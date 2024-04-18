@@ -2,7 +2,9 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-04-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2023-04-17
+ # @ Modified date: 2023-04-18
+ # @ Description: Refer to Isaac's work in https://github.com/Ficc-ai/ficc/blob/dev/VertexAI/VertexAI-Experiment/Create%20model%20template.ipynb for previous experiments 
+ regarding additional trade history sequences. Isaac's experiment results: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs?authuser=1&project=eng-reactor-287421.
  '''
 import numpy as np
 import tensorflow as tf
@@ -107,6 +109,7 @@ def model_definition(trade_history_normalizer,
 
     similar_trade_history_features = lstm_layer_similar_trades(similar_trade_history_normalizer(inputs[0]))
     similar_trade_history_features = lstm_layer_similar_trades_2(similar_trade_history_features)
+    similar_trade_history_features = layers.Flatten(name='similar_trade_history_features_flatten')(similar_trade_history_features)
 
 
     # similar_trade_history_attention_sequence = layers.Dense(200, activation='relu', name='similar_trade_history_attention_dense')(target_attention_input_for_similar_trade_history)
@@ -115,8 +118,8 @@ def model_definition(trade_history_normalizer,
 
     # similar_trade_history_context_vector = layers.Dot(axes=[1, 1])([similar_trade_history_features, similar_trade_history_attention])
     # similar_trade_history_context_vector = layers.Flatten(name='similar_trade_history_context_vector_flatten')(similar_trade_history_context_vector)
-
-    similar_trade_history_features = layers.BatchNormalization()(similar_trade_history_features)
+    
+    # similar_trade_history_context_vector = layers.BatchNormalization()(similar_trade_history_context_vector)
     similar_trade_history_output = layers.Dense(100, activation='relu')(similar_trade_history_features)
 
     ####################################################

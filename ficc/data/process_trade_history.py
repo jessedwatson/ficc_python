@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-17
+ # @ Modified date: 2024-04-18
  # @ Description:
  '''
 import os
@@ -36,11 +36,11 @@ def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
     return trades_df
 
 
-def restrict_number_of_trades(series: pd.Series, num_trades: int, processing_similar_trades: bool) -> pd.Series:
+def restrict_number_of_trades(trade_history_series: pd.Series, num_trades: int, processing_similar_trades: bool) -> pd.Series:
     '''`processing_similar_trades` is used solely for print output.'''
     trade_history_prefix = 'similar ' if processing_similar_trades else ''
     print(f'Restricting the {trade_history_prefix}trade history to the {num_trades} most recent trades')
-    return series.trade_history.apply(lambda history: history[:num_trades])
+    return trade_history_series.apply(lambda history: history[:num_trades])
 
 
 def pad_trade_history_column(series: pd.Series, num_trades_in_history: int, min_trades_in_history: int, num_features_for_each_trade_in_history: int, processing_similar_trades: bool) -> pd.Series:
