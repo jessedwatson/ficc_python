@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-17
+ # @ Modified date: 2024-04-18
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -50,6 +50,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    QUERY_CONDITIONS, \
                                                    ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
                                                    ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
+                                                   ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
                                                    EASTERN, \
                                                    NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
                                                    NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
@@ -229,7 +230,7 @@ def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optio
                                                  num_features_for_each_trade_in_history, 
                                                  raw_data_filepath, 
                                                  save_data=SAVE_MODEL_AND_DATA, 
-                                                 process_similar_trades_history=(model == 'yield_spread_similar_trades_model'), 
+                                                 process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
                                                  **optional_arguments_for_process_data)
     
     if data_from_last_trade_datetime is not None:
@@ -261,7 +262,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     print(f'Old data has {num_trades_in_old_data} trades. New data has {num_trades_in_new_data} trades')
 
     trade_history_feature_names = ['trade_history'] if 'yield_spread' in model else ['trade_history_dollar_price']
-    if model == 'yield_spread_similar_trades': trade_history_feature_names.append('similar_trade_history')
+    if model == 'yield_spread_with_similar_trades': trade_history_feature_names.append('similar_trade_history')
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
     
     print(f'Restricting history to {num_trades_in_history} trades')
@@ -415,6 +416,8 @@ def get_data_query(last_trade_datetime, model: str) -> str:
         query_conditions = ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL + query_conditions
     else:
         query_features = query_features + ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL
+
+    if model == 'yield_spread_with_similar_trades': query_features = ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL + query_features
 
     features_as_string = ', '.join(query_features)
     query_conditions = query_conditions + [f'trade_datetime > "{last_trade_datetime}"']
@@ -917,7 +920,7 @@ def remove_file(file_path: str) -> None:
 
 
 def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None):
-    assert model in ('yield_spread', 'yield_spread_with_similar_trades', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    check_that_model_is_supported(model)
     print(f'Python version: {sys.version}')
     current_datetime = datetime.now(EASTERN)
     print(f'automated_training_{model}_model.py starting at {current_datetime} ET')

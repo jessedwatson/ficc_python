@@ -2,10 +2,11 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-17
+ # @ Modified date: 2024-04-18
  '''
 import os
 from pytz import timezone
+from datetime import datetime, timedelta
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `automated_training_auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `automated_training_auxiliary_functions.py`
 
@@ -138,6 +139,7 @@ QUERY_FEATURES = ['rtrs_control_number',
                   'first_coupon_date',
                   'last_period_accrues_from_date']
 ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL = ['refund_price', 'publish_datetime', 'maturity_description_code']    # these features were used for testing, but are not needed, nonetheless, we keep them since the previous data files have these fields and `pd.concat(...)` will fail if the column set is different
+ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL = ['recent_5_year_mat']
 
 QUERY_CONDITIONS = ['par_traded >= 10000', 
                     'coupon_type in (8, 4, 10, 17)', 
@@ -179,7 +181,7 @@ if TESTING:
     SAVE_MODEL_AND_DATA = False
     USE_PICKLED_DATA = True
     NUM_EPOCHS = 2
-    EARLIEST_TRADE_DATETIME = '2024-04-01T00:00:00'
+    EARLIEST_TRADE_DATETIME = datetime.now(EASTERN).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=2)    # 2 days before the current datetime (start of the day)
     print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS} and EARLIEST_TRADE_DATETIME={EARLIEST_TRADE_DATETIME}')
     print('Check `get_creds(...)` to make sure the credentials filepath is correct')
     print('Check `WORKING_DIRECTORY` to make sure the path is correct')
