@@ -22,13 +22,12 @@ EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc
 EMAIL_RECIPIENTS_FOR_LOGS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai']    # recipients for training logs, which should be a more technical subset of `EMAIL_RECIPIENTS`
 
 BUCKET_NAME = 'automated_training'
-MODEL_FOLDERS = ('yield_spread_model', 'dollar_price_models')
 MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK = 10
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 HOUR_MIN_SEC = '%H:%M:%S'
 
-EARLIEST_TRADE_DATETIME = '2023-01-01T00:00:00'
+EARLIEST_TRADE_DATETIME = '2023-04-01T00:00:00'
 
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
@@ -182,7 +181,7 @@ if TESTING:
     SAVE_MODEL_AND_DATA = False
     USE_PICKLED_DATA = True
     NUM_EPOCHS = 2
-    EARLIEST_TRADE_DATETIME = str((datetime.now(EASTERN) - BusinessDay(2)).date()) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing
+    EARLIEST_TRADE_DATETIME = (datetime.now(EASTERN) - BusinessDay(2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
     print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS} and EARLIEST_TRADE_DATETIME={EARLIEST_TRADE_DATETIME}')
     print('Check `get_creds(...)` to make sure the credentials filepath is correct')
     print('Check `WORKING_DIRECTORY` to make sure the path is correct')

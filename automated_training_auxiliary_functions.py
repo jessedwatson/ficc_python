@@ -60,7 +60,6 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    WORKING_DIRECTORY, \
                                                    PROJECT_ID, \
                                                    BUCKET_NAME, \
-                                                   MODEL_FOLDERS, \
                                                    MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, \
                                                    EARLIEST_TRADE_DATETIME, \
                                                    MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
@@ -85,7 +84,7 @@ from dollar_model import dollar_price_model
 # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
 MODEL_NAME_TO_KERAS_MODEL = {'yield_spread': yield_spread_model, 
                              'dollar_price': dollar_price_model, 
-                             'yield_spread_with_similiar_trades': yield_spread_with_similar_trades_model}
+                             'yield_spread_with_similar_trades': yield_spread_with_similar_trades_model}
 
 
 def get_creds():
@@ -700,8 +699,17 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     '''Taken almost directly from `point_in_time_pricing_timestamp.py`.
     When using the `cache_output` decorator, we should not have any optional arguments as this may interfere with 
     how the cache lookup is done (optional arguments may not be put into the args set).'''
-    assert folder in MODEL_FOLDERS
+    assert folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.values()    # sanity check that `folder` argument is passed in properly and is not confused with another variable
     if len(date) == 10: date = date[5:]    # remove the year and the hypen from `date`, i.e., remove 'YYYY-' from `date`, if the date is 10 characters which we assume to mean that it is in YYYY-MM-DD format 
+    
+    # `model_prefix` should match the naming convention of MODEL_NAME in the associated .sh script
+    if folder == 'yield_spread_model':
+        model_prefix = ''
+    elif folder == 'dollar_price_models':
+        model_prefix = 'dollar-'
+    else:    # folder == yield_spread_with_similar_trades_model
+        model_prefix = 'similar-trades-'
+
     model_prefix = '' if folder == 'yield_spread_model' else 'dollar-'
     bucket_folder_model_path = os.path.join(os.path.join(bucket, folder), f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<folder>/<model>
     base_model_path = os.path.join(bucket, f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<model>
@@ -764,7 +772,9 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     categorical_features = CATEGORICAL_FEATURES if 'yield_spread' in model else CATEGORICAL_FEATURES_DOLLAR_PRICE
     encoders, fmax = fit_encoders(data, categorical_features, model)
     
-    if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
+    if TESTING:
+        last_trade_date = data.trade_date.max().strftime(YEAR_MONTH_DAY)
+        last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
     test_data = data[data.trade_date > last_trade_date]    # `test_data` can only contain trades after `last_trade_date`
     test_data_date = test_data.trade_date.min()
     test_data = test_data[test_data.trade_date == test_data_date]    # restrict `test_data` to have only one day of trades
@@ -844,6 +854,7 @@ def _get_model_suffix(model: str, wo_underscore: bool = False):
     This function is used as a subprocedure in `get_encoders_filename(...)` and `get_model_zip_filename(...). 
     `wo_underscore` is an optional boolean argument that removes the first character of the suffix which 
     is expected to be the underscore.'''
+    check_that_model_is_supported(model)
     if model == 'yield_spread':
         suffix = ''
     elif model == 'yield_spread_with_similar_trades':

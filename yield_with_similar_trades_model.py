@@ -141,7 +141,7 @@ def model_definition(trade_history_normalizer,
 
 
 
-    features = lstm_layer(trade_history_normalizer(inputs[2]))
+    features = lstm_layer(trade_history_normalizer(inputs[1]))
     features = lstm_layer_2(features)
 
 

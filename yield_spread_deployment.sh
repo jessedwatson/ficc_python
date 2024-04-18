@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2024-04-10
+# @ Modified date: 2024-04-18
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -36,9 +36,10 @@ python $HOME/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
 
 # Unzip model and uploading it to automated training bucket
 MODEL_NAME='model'-${DATE_WITHOUT_YEAR}
+MODEL_ZIP_NAME='model'
 echo "Unzipping model $MODEL_NAME"
-gsutil cp -r gs://automated_training/model.zip $TRAINED_MODELS_PATH/model.zip
-unzip $TRAINED_MODELS_PATH/model.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
+gsutil cp -r gs://automated_training/$MODEL_ZIP_NAME.zip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip
+unzip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
   python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Unzipping model failed. See attached logs for more details."
@@ -77,8 +78,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # removing temporary files
-rm $TRAINED_MODELS_PATH/model.zip
-gsutil rm -r gs://automated_training/model.zip
+rm $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip
+gsutil rm -r gs://automated_training/$MODEL_ZIP_NAME.zip
 
 python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
 
