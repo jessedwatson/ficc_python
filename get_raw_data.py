@@ -4,7 +4,9 @@
  # @ Modified by: Mitas Ray
  # @ Modified date: 2024-04-19
  # @ Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
- use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly.
+ use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
+ This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
+ getting it day by day using multiprocessing and then concatenating it together.
  '''
 import multiprocess as mp
 from datetime import datetime
