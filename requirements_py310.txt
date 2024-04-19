@@ -18,7 +18,8 @@ gcsfs==2024.3.1
 google-api-core==2.18.0
 google-auth==2.29.0
 google-auth-oauthlib==0.4.6
-google-cloud-bigquery==3.20.1
+google-cloud-bigquery==2.34.4    # any version >= 3 causes immense slowdown when calling `.to_dataframe()` in the procedure `bq_client.query(sql).result().to_dataframe()` due to the newer version representing null values using <NA> instead of NaN; slowdown is around 20x (e.g., 30 seconds to 10 minutes)
+google-cloud-bigquery-storage==2.24.0
 google-cloud-core==2.4.1
 google-cloud-storage==2.16.0
 google-crc32c==1.5.0
@@ -45,17 +46,19 @@ numpy==1.23.5
 oauthlib==3.2.2
 opt-einsum==3.3.0
 optree==0.11.0
-packaging==24.0
+packaging==21.3
 pandarallel==1.6.5
 pandas==1.5.3
 pickle5==0.0.11
 proto-plus==1.23.0
 protobuf==3.19.6
 psutil==5.9.8
-pyarrow==15.0.2
+pyarrow==6.0.1
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
+pydata-google-auth==1.8.2
 Pygments==2.17.2
+pyparsing==3.1.2
 python-dateutil==2.9.0.post0
 pytz==2024.1
 requests==2.31.0
