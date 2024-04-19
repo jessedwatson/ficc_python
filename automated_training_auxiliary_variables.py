@@ -36,12 +36,9 @@ PROJECT_ID = 'eng-reactor-287421'
 HISTORICAL_PREDICTION_TABLE = {'yield_spread': f'{PROJECT_ID}.historic_predictions.historical_predictions', 
                                'yield_spread_with_similar_trades': f'{PROJECT_ID}.historic_predictions.historical_predictions_similar_trades'}
 
-CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD = 'processed_data_test.pkl'
-CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE = 'processed_data_dollar_price.pkl'
-CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD_WITH_SIMILAR_TRADES = 'processed_data_yield_spread_with_similar_trades.pkl'
-MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME = {'yield_spread': CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD, 
-                                            'dollar_price': CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE, 
-                                            'yield_spread_with_similar_trades': CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD_WITH_SIMILAR_TRADES}
+MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME = {'yield_spread': 'processed_data_test.pkl', 
+                                            'dollar_price': 'processed_data_dollar_price.pkl', 
+                                            'yield_spread_with_similar_trades': 'processed_data_yield_spread_with_similar_trades.pkl'}
 
 NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL = 5
 NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL = 2
