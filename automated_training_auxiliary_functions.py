@@ -710,7 +710,6 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     else:    # folder == yield_spread_with_similar_trades_model
         model_prefix = 'similar-trades-'
 
-    model_prefix = '' if folder == 'yield_spread_model' else 'dollar-'
     bucket_folder_model_path = os.path.join(os.path.join(bucket, folder), f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<folder>/<model>
     base_model_path = os.path.join(bucket, f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<model>
     for model_path in (bucket_folder_model_path, base_model_path):    # iterate over possible paths and try to load the model
