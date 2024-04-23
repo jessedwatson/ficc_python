@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-15
+ # @ Modified date: 2024-04-23
  # @ Description: Source code to process trade history from BigQuery
  '''
 import warnings
@@ -93,7 +93,7 @@ def process_data(query,
             null_treasury_rate = trades_df['treasury_rate'].isnull()
             if null_treasury_rate.sum() > 0:
                 trade_dates_corresponding_to_null_treasury_rate = trades_df.loc[null_treasury_rate, 'trade_date']
-                print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique().values}')
+                print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique().to_numpy()}')
                 trades_df = trades_df[~null_treasury_rate]
             trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
 
