@@ -433,10 +433,15 @@ def get_data_query(last_trade_datetime, model: str) -> str:
                ORDER BY trade_datetime DESC'''
 
 
+def get_optional_arguments_for_process_data(model):
+    check_that_model_is_supported(model)
+    return OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD if 'yield_spread' in model else OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE
+
+
 def update_data(model: str):
     check_that_model_is_supported(model)
     filename = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[model]
-    optional_arguments_for_process_data = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD if 'yield_spread' in model else OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE
+    optional_arguments_for_process_data = get_optional_arguments_for_process_data(model)
     use_treasury_spread = optional_arguments_for_process_data.get('use_treasury_spread', False)
     data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(filename, 
                                                                                                                                                               model, 
