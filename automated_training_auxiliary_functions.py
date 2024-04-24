@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-18
+ # @ Modified date: 2024-04-24
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -212,23 +212,25 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFra
 
 
 @function_timer
-def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = {}):
+def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = dict(), data_query: str = None, save_data=SAVE_MODEL_AND_DATA):
+    '''`data_query` will always be `None` unless the user is attempting to get processed data for a slice of specific 
+    slice of data by calling `get_new_data(...)` from another function.'''
     check_that_model_is_supported(model)
     old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
-    DATA_QUERY = get_data_query(last_trade_datetime, model)
-    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M')
+    if data_query is None: data_query = get_data_query(last_trade_datetime, model)
+    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M:%S')
 
     trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
     raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
-    data_from_last_trade_datetime = process_data(DATA_QUERY, 
+    data_from_last_trade_datetime = process_data(data_query, 
                                                  BQ_CLIENT, 
                                                  num_trades_in_history, 
                                                  num_features_for_each_trade_in_history, 
                                                  raw_data_filepath, 
-                                                 save_data=SAVE_MODEL_AND_DATA, 
+                                                 save_data=save_data, 
                                                  process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
                                                  **optional_arguments_for_process_data)
     
@@ -307,9 +309,12 @@ def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treas
 
 
 @function_timer
-def drop_features_with_null_value(df: pd.DataFrame, features: list) -> pd.DataFrame:
+def drop_features_with_null_value(df: pd.DataFrame, model: str) -> pd.DataFrame:
+    check_that_model_is_supported(model)
+    predictors = PREDICTORS if 'yield_spread' in model else PREDICTORS_DOLLAR_PRICE
+    if model == 'yield_spread_with_similar_trades': predictors.append('similar_trade_history')
     # df = df.dropna(subset=features)
-    for feature in features:    # perform the procedure feature by feature to output how many trades are being removed for each feature
+    for feature in predictors:    # perform the procedure feature by feature to output how many trades are being removed for each feature
         num_trades_before = len(df)
         df = df.dropna(subset=[feature])
         num_trades_after = len(df)
@@ -400,7 +405,7 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str):
 
 def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
-    data = download_data(STORAGE_CLIENT, bucket_name, file_name)
+    data = None if file_name is None else download_data(STORAGE_CLIENT, bucket_name, file_name)
     if data is None: return None, EARLIEST_TRADE_DATETIME, EARLIEST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
@@ -439,10 +444,7 @@ def update_data(model: str):
                                                                                                                                                               optional_arguments_for_process_data=optional_arguments_for_process_data)
     data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
     data = add_trade_history_derived_features(data, model, use_treasury_spread)
-
-    predictors = PREDICTORS if 'yield_spread' in model else PREDICTORS_DOLLAR_PRICE
-    if model == 'yield_spread_with_similar_trades': predictors.append('similar_trade_history')
-    data = drop_features_with_null_value(data, predictors)
+    data = drop_features_with_null_value(data, model)
     if SAVE_MODEL_AND_DATA: save_data(data, filename)
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
