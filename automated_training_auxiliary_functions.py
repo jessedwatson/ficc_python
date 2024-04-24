@@ -277,9 +277,11 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     if 'yield_spread' in model: new_data = add_yield_curve(new_data)
     new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
 
+    trade_history_sum_features = []    # remove these features after checking for null values
     for trade_history_feature_name in trade_history_feature_names:
-        # the below 4 lines are redundant because this procedure is done in `process_data(...)`, but keeping it for now in case that functionality changes to no longer truncate upstream
+        # the below 5 lines are redundant because this procedure is done in `process_data(...)`, but keeping it for now in case that functionality changes to no longer truncate upstream
         trade_history_sum_feature_name = f'{trade_history_feature_name}_sum'
+        trade_history_sum_features.append(trade_history_sum_features)
         new_data[trade_history_sum_feature_name] = new_data[trade_history_feature_name].parallel_apply(lambda history: np.sum(history))
         new_data.dropna(inplace=True, subset=[trade_history_sum_feature_name])
         print(f'Removed {num_trades_in_new_data - len(new_data)} trades, since these have null values in the trade history')
@@ -287,6 +289,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
 
     data = pd.concat([new_data, old_data]) if old_data is not None else new_data    # concatenating `new_data` to the original `data` dataframe
+    data = data.drop(columns=trade_history_sum_features)
     if 'yield_spread' in model: data['new_ys'] = data['yield'] - data['new_ficc_ycl']
     print(f'{len(data)} trades after combining new and old data')
     return data
@@ -412,7 +415,7 @@ def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     return data, last_trade_datetime, last_trade_date
 
 
-def get_data_query(last_trade_datetime, model: str) -> str:
+def get_data_query(last_trade_datetime, model: str, latest_trade_date_to_query: str = None) -> str:
     check_that_model_is_supported(model)
     query_features = QUERY_FEATURES
     query_conditions = QUERY_CONDITIONS
@@ -425,6 +428,7 @@ def get_data_query(last_trade_datetime, model: str) -> str:
 
     features_as_string = ', '.join(query_features)
     query_conditions = query_conditions + [f'trade_datetime > "{last_trade_datetime}"']
+    if latest_trade_date_to_query is not None: query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}T23:59:59"']
     conditions_as_string = ' AND '.join(query_conditions)
     table_name = f'trade_history_same_issue_5_yr_mat_bucket_1_materialized' if model == 'yield_spread_with_similar_trades' else f'materialized_trade_history'
     return f'''SELECT {features_as_string}
