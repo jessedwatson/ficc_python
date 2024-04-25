@@ -8,6 +8,7 @@
  This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
  getting it day by day using multiprocessing and then concatenating it together.
  '''
+# import os    # used for `os.cpu_count()` when setting the number of workers in `mp.Pool()`
 import sys
 from tqdm import tqdm
 import multiprocess as mp
@@ -67,8 +68,9 @@ def get_trades_for_all_dates(dates: list, all_at_once: bool = False) -> pd.DataF
         trades_for_all_dates = get_processed_trades_for_particular_date(min(dates), max(dates))
     else:
         if len(dates) > 1 and MULTIPROCESSING:
-            print(f'Using multiprocessing for calling `get_trades_for_particular_date(...) on each of the {len(dates)} items in {dates}')
-            with mp.Pool() as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html; consider trying with lesser processes if running out of RAM (put an argument of e.g. `os.cpu_count() // 2` as the argument to `mp.Pool()` so it reads `mp.Pool(os.cpu_count() // 2)`)
+            num_workers = 8    # os.cpu_count()
+            print(f'Using multiprocessing with {num_workers} workers for calling `get_trades_for_particular_date(...) on each of the {len(dates)} items in {dates}')
+            with mp.Pool(num_workers) as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html; consider trying with lesser processes if running out of RAM (put an argument of e.g. `os.cpu_count() // 4` as the argument to `mp.Pool()` so it reads `mp.Pool(os.cpu_count() // 4)`); when running the procedure on 8 CPUs, the max RAM usage exceeded 204 GB and killed the VM with machien type n1-highmem-32 (seen with `htop` command on terminal on VM)
                 trades_for_all_dates = pool_object.map(get_processed_trades_for_particular_date, dates)
         else:
             trades_for_all_dates = [get_processed_trades_for_particular_date(date) for date in tqdm(dates)]

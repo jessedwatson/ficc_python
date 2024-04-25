@@ -281,7 +281,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     for trade_history_feature_name in trade_history_feature_names:
         # the below 5 lines are redundant because this procedure is done in `process_data(...)`, but keeping it for now in case that functionality changes to no longer truncate upstream
         trade_history_sum_feature_name = f'{trade_history_feature_name}_sum'
-        trade_history_sum_features.append(trade_history_sum_features)
+        trade_history_sum_features.append(trade_history_sum_feature_name)
         new_data[trade_history_sum_feature_name] = new_data[trade_history_feature_name].parallel_apply(lambda history: np.sum(history))
         new_data.dropna(inplace=True, subset=[trade_history_sum_feature_name])
         print(f'Removed {num_trades_in_new_data - len(new_data)} trades, since these have null values in the trade history')
