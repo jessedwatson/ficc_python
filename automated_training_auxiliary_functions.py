@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-25
+ # @ Modified date: 2024-04-26
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -211,6 +211,13 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFra
     return new_data.trade_date.min().date().strftime(YEAR_MONTH_DAY) == last_trade_date
 
 
+def check_no_duplicate_rtrs_control_numbers(data: pd.DataFrame) -> None:
+    rtrs_control_numbers = data['rtrs_control_number']
+    duplicate_rtrs_control_numbers = rtrs_control_numbers[rtrs_control_numbers.duplicated()].to_numpy()
+    num_duplicate_rtrs_control_numbers = len(duplicate_rtrs_control_numbers)
+    assert num_duplicate_rtrs_control_numbers, f'There are {num_duplicate_rtrs_control_numbers} duplicate RTRS control numbers. Here are the first 10:\n{duplicate_rtrs_control_numbers[:10]}'
+
+
 @function_timer
 def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = dict(), data_query: str = None, save_data=SAVE_MODEL_AND_DATA):
     '''`data_query` will always be `None` unless the user is attempting to get processed data for a slice of specific 
@@ -235,6 +242,7 @@ def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optio
                                                  **optional_arguments_for_process_data)
     
     if data_from_last_trade_datetime is not None:
+        check_no_duplicate_rtrs_control_numbers(data_from_last_trade_datetime)
         if earliest_trade_from_new_data_is_same_as_last_trade_date(data_from_last_trade_datetime, last_trade_date):    # see explanation in docstring for `earliest_trade_from_new_data_is_same_as_last_trade_date(...)` as to why this scenario is important to handle
             decremented_last_trade_date = decrement_business_days(last_trade_date, 1)
             warnings.warn(f'Since the earliest trade from the new data is the same as the last trade date, we are decrementing the last trade date from {last_trade_date} to {decremented_last_trade_date}. This occurs because materialized trade history was created in the middle of the work day. If materialized trade history was not created during the middle of the work day, then investigate why we are inside this `if` statement.')
