@@ -212,6 +212,7 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFra
 
 
 def check_no_duplicate_rtrs_control_numbers(data: pd.DataFrame) -> None:
+    '''Raise an AssertionError if there are duplicate RTRS control numbers in `data`.'''
     rtrs_control_numbers = data['rtrs_control_number']
     duplicate_rtrs_control_numbers = rtrs_control_numbers[rtrs_control_numbers.duplicated()].to_numpy()
     num_duplicate_rtrs_control_numbers = len(duplicate_rtrs_control_numbers)
