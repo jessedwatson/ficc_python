@@ -841,7 +841,7 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
             test_data_before_exclusions_x_test, _ = create_input(test_data_before_exclusions, encoders, model)
             test_data_before_exclusions['new_ys_prediction'] = trained_model.predict(test_data_before_exclusions_x_test, batch_size=BATCH_SIZE)
             test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
-            test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
+            test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now(EASTERN).replace(microsecond=0))
             test_data_before_exclusions['trade_date'] = pd.to_datetime(test_data_before_exclusions['trade_date']).dt.date
             upload_predictions(test_data_before_exclusions, model)
         except Exception as e:
