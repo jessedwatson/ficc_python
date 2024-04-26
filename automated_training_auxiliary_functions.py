@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-24
+ # @ Modified date: 2024-04-25
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -451,10 +451,13 @@ def update_data(model: str):
                                                                                                                                                               model, 
                                                                                                                                                               use_treasury_spread=use_treasury_spread, 
                                                                                                                                                               optional_arguments_for_process_data=optional_arguments_for_process_data)
-    data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
-    data = add_trade_history_derived_features(data, model, use_treasury_spread)
-    data = drop_features_with_null_value(data, model)
-    if SAVE_MODEL_AND_DATA: save_data(data, filename)
+    if data_from_last_trade_datetime is not None:    # no need to continue this procedure if there are no new trades since the below subprocedures were performed on the data before storing it on Google Cloud Storage
+        data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
+        data = add_trade_history_derived_features(data, model, use_treasury_spread)
+        data = drop_features_with_null_value(data, model)
+        if SAVE_MODEL_AND_DATA: save_data(data, filename)
+    else:
+        data = data_before_last_trade_datetime
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
@@ -830,7 +833,7 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
         print('Stack trace:')
         print(traceback.format_exc())
         result_df_using_previous_day_model = None
-        if previous_business_date_model not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
+        if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
     
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and 'yield_spread' in model:
@@ -947,6 +950,7 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
     print(f'automated_training_{model}_model.py starting at {current_datetime} ET')
 
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model)
+    if data is None or len(data) == 0: raise RuntimeError('`data` is empty')
     if current_date is None:
         current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
         previous_business_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(current_date, 1), data)    # ensures that the business day has trades on it

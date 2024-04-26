@@ -12,11 +12,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 
 from automated_training_auxiliary_variables import EMAIL_RECIPIENTS_FOR_LOGS
-from automated_training_auxiliary_functions import send_email
+from automated_training_auxiliary_functions import send_email, check_that_model_is_supported
 
 
 def send_training_log(attachment_path, recipients: list, model: str, message: str):
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    check_that_model_is_supported(model)
 
     def get_filename_from_path(path):
         '''Find the last occurrence of a slash and then keep the rest of the string.'''
