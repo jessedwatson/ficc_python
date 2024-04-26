@@ -216,7 +216,7 @@ def check_no_duplicate_rtrs_control_numbers(data: pd.DataFrame) -> None:
     rtrs_control_numbers = data['rtrs_control_number']
     duplicate_rtrs_control_numbers = rtrs_control_numbers[rtrs_control_numbers.duplicated()].to_numpy()
     num_duplicate_rtrs_control_numbers = len(duplicate_rtrs_control_numbers)
-    assert num_duplicate_rtrs_control_numbers, f'There are {num_duplicate_rtrs_control_numbers} duplicate RTRS control numbers. Here are the first 10:\n{duplicate_rtrs_control_numbers[:10]}'
+    assert num_duplicate_rtrs_control_numbers == 0, f'There are {num_duplicate_rtrs_control_numbers} duplicate RTRS control numbers. Here are the first 10:\n{duplicate_rtrs_control_numbers[:10]}'
 
 
 @function_timer
