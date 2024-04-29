@@ -677,10 +677,10 @@ def segment_results(data: pd.DataFrame, absolute_difference: np.array) -> pd.Dat
     investment_grade = data.rating.isin(investment_grade_ratings)
     par_traded_greater_than_or_equal_to_100k = data.par_traded >= 1e5
     
-    last_days_ago = (10 ** data.last_seconds_ago) / (60 * 60 * 24)
+    last_days_ago = data.last_seconds_ago / (60 * 60 * 24)
     last_trade_date_within_a_week = last_days_ago <= 7
-    last_trade_date_week_to_two_weeks = 7 < last_days_ago <= 14
-    last_trade_date_two_weeks_to_four_weeks = 14 < last_days_ago <= 28
+    last_trade_date_week_to_two_weeks = (7 < last_days_ago) & (last_days_ago <= 14)
+    last_trade_date_two_weeks_to_four_weeks = (14 < last_days_ago) & (last_days_ago <= 28)
     last_trade_date_more_than_four_weeks = 28 < last_days_ago
 
     result_df = pd.DataFrame(data=[get_mae_and_count(),
@@ -790,6 +790,8 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
         result_df = segment_results(data, delta)
     except Exception as e:
         print(f'Unable to create results dataframe with `segment_results(...)`. {type(e)}:', e)
+        print('Stack trace:')
+        print(traceback.format_exc())
         result_df = pd.DataFrame()
 
     try:
