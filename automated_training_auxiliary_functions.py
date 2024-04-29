@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-24
+ # @ Modified date: 2024-04-29
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -649,30 +649,43 @@ def segment_results(data: pd.DataFrame, absolute_difference: np.array) -> pd.Dat
             delta_cond, data_cond = absolute_difference, data
         return np.round(np.mean(delta_cond), 3), data_cond.shape[0]    # round mae to 3 digits after the decimal point to reduce noise
 
-    total_mae, total_count = get_mae_and_count()
     inter_dealer = data.trade_type == 'D'
-    dd_mae, dd_count = get_mae_and_count(inter_dealer)
     dealer_purchase = data.trade_type == 'P'
-    dp_mae, dp_count = get_mae_and_count(dealer_purchase)
     dealer_sell = data.trade_type == 'S'
-    ds_mae, ds_count = get_mae_and_count(dealer_sell)
     aaa = data.rating == 'AAA'
-    aaa_mae, aaa_count = get_mae_and_count(aaa)
     investment_grade_ratings = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-']
     investment_grade = data.rating.isin(investment_grade_ratings)
-    investment_grade_mae, investment_grade_count = get_mae_and_count(investment_grade)
     par_traded_greater_than_or_equal_to_100k = data.par_traded >= 1e5
-    hundred_k_mae, hundred_k_count = get_mae_and_count(par_traded_greater_than_or_equal_to_100k)
+    
+    last_days_ago = (10 ** data.last_seconds_ago) / (60 * 60 * 24)
+    last_trade_date_within_a_week = last_days_ago <= 7
+    last_trade_date_week_to_two_weeks = 7 < last_days_ago <= 14
+    last_trade_date_two_weeks_to_four_weeks = 14 < last_days_ago <= 28
+    last_trade_date_more_than_four_weeks = 28 < last_days_ago
 
-    result_df = pd.DataFrame(data=[[total_mae, total_count],
-                                   [dd_mae, dd_count],
-                                   [dp_mae, dp_count],
-                                   [ds_mae, ds_count], 
-                                   [aaa_mae, aaa_count], 
-                                   [investment_grade_mae, investment_grade_count],
-                                   [hundred_k_mae, hundred_k_count]],
+    result_df = pd.DataFrame(data=[get_mae_and_count(),
+                                   get_mae_and_count(inter_dealer),
+                                   get_mae_and_count(dealer_purchase),
+                                   get_mae_and_count(dealer_sell), 
+                                   get_mae_and_count(aaa), 
+                                   get_mae_and_count(investment_grade),
+                                   get_mae_and_count(par_traded_greater_than_or_equal_to_100k), 
+                                   get_mae_and_count(last_trade_date_within_a_week), 
+                                   get_mae_and_count(last_trade_date_week_to_two_weeks), 
+                                   get_mae_and_count(last_trade_date_two_weeks_to_four_weeks), 
+                                   get_mae_and_count(last_trade_date_more_than_four_weeks)],
                              columns=['Mean Absolute Error', 'Trade Count'],
-                             index=['Entire set', 'Dealer-Dealer', 'Bid Side / Dealer-Purchase', 'Offered Side / Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size >= 100k'])
+                             index=['Entire set', 
+                                    'Dealer-Dealer', 
+                                    'Bid Side / Dealer-Purchase', 
+                                    'Offered Side / Dealer-Sell', 
+                                    'AAA', 
+                                    'Investment Grade', 
+                                    'Trade size >= 100k', 
+                                    'Last trade <= 7 days', 
+                                    '7 days < Last trade <= 14 days', 
+                                    '14 days < Last trade <= 28 days', 
+                                    '28 days < Last trade'])
     return result_df
 
 

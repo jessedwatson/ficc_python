@@ -2,20 +2,21 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-23
+ # @ Modified date: 2024-04-29
  # @ Description: Source code to process trade history from BigQuery
  '''
+import os
 import warnings
 import numpy as np
 # Pandaralled is a python package that is 
 # used to multi-thread df apply
 from pandarallel import pandarallel
 
-import os
+num_cores_for_pandarallel = os.cpu_count() // 2
+print(f'Initializing pandarallel with {num_cores_for_pandarallel} cores')
+pandarallel.initialize(progress_bar=False, nb_workers=num_cores_for_pandarallel)
 
 from ficc.utils.process_features import process_features
-print(f'Initializing pandarallel with {os.cpu_count()/2} cores')
-pandarallel.initialize(progress_bar=False, nb_workers=int(os.cpu_count()/2))
 
 from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
