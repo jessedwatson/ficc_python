@@ -211,6 +211,22 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFra
     return new_data.trade_date.min().date().strftime(YEAR_MONTH_DAY) == last_trade_date
 
 
+def check_no_duplicate_rtrs_control_numbers(data: pd.DataFrame) -> None:
+    '''Raise an AssertionError if there are duplicate RTRS control numbers in `data`.
+    
+    >>> try:
+    ...     check_no_duplicate_rtrs_control_numbers(pd.DataFrame({'rtrs_control_number': [101, 102, 103, 101, 104, 102, 105, 103]}))
+    ... except AssertionError as _:
+    ...     print('Successfully raised an AssertionError')
+    Successfully raised an AssertionError
+    >>> check_no_duplicate_rtrs_control_numbers(pd.DataFrame({'rtrs_control_number': [101, 102, 103]}))
+    '''
+    rtrs_control_numbers = data['rtrs_control_number']
+    duplicate_rtrs_control_numbers = rtrs_control_numbers[rtrs_control_numbers.duplicated()].to_numpy()
+    num_duplicate_rtrs_control_numbers = len(duplicate_rtrs_control_numbers)
+    assert num_duplicate_rtrs_control_numbers == 0, f'There are {num_duplicate_rtrs_control_numbers} duplicate RTRS control numbers. Here are the first 10:\n\t{duplicate_rtrs_control_numbers[:10]}'
+
+
 @function_timer
 def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = dict(), data_query: str = None, save_data=SAVE_MODEL_AND_DATA):
     '''`data_query` will always be `None` unless the user is attempting to get processed data for a slice of specific 
@@ -235,6 +251,7 @@ def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optio
                                                  **optional_arguments_for_process_data)
     
     if data_from_last_trade_datetime is not None:
+        check_no_duplicate_rtrs_control_numbers(data_from_last_trade_datetime)
         if earliest_trade_from_new_data_is_same_as_last_trade_date(data_from_last_trade_datetime, last_trade_date):    # see explanation in docstring for `earliest_trade_from_new_data_is_same_as_last_trade_date(...)` as to why this scenario is important to handle
             decremented_last_trade_date = decrement_business_days(last_trade_date, 1)
             warnings.warn(f'Since the earliest trade from the new data is the same as the last trade date, we are decrementing the last trade date from {last_trade_date} to {decremented_last_trade_date}. This occurs because materialized trade history was created in the middle of the work day. If materialized trade history was not created during the middle of the work day, then investigate why we are inside this `if` statement.')
@@ -451,10 +468,13 @@ def update_data(model: str):
                                                                                                                                                               model, 
                                                                                                                                                               use_treasury_spread=use_treasury_spread, 
                                                                                                                                                               optional_arguments_for_process_data=optional_arguments_for_process_data)
-    data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
-    data = add_trade_history_derived_features(data, model, use_treasury_spread)
-    data = drop_features_with_null_value(data, model)
-    if SAVE_MODEL_AND_DATA: save_data(data, filename)
+    if data_from_last_trade_datetime is not None:    # no need to continue this procedure if there are no new trades since the below subprocedures were performed on the data before storing it on Google Cloud Storage
+        data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
+        data = add_trade_history_derived_features(data, model, use_treasury_spread)
+        data = drop_features_with_null_value(data, model)
+        if SAVE_MODEL_AND_DATA: save_data(data, filename)
+    else:
+        data = data_before_last_trade_datetime
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
@@ -843,7 +863,7 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
         print('Stack trace:')
         print(traceback.format_exc())
         result_df_using_previous_day_model = None
-        if previous_business_date_model not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
+        if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
     
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and 'yield_spread' in model:
@@ -851,7 +871,7 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
             test_data_before_exclusions_x_test, _ = create_input(test_data_before_exclusions, encoders, model)
             test_data_before_exclusions['new_ys_prediction'] = trained_model.predict(test_data_before_exclusions_x_test, batch_size=BATCH_SIZE)
             test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
-            test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
+            test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now(EASTERN).replace(microsecond=0))
             test_data_before_exclusions['trade_date'] = pd.to_datetime(test_data_before_exclusions['trade_date']).dt.date
             upload_predictions(test_data_before_exclusions, model)
         except Exception as e:
@@ -960,6 +980,7 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
     print(f'automated_training_{model}_model.py starting at {current_datetime} ET')
 
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model)
+    if data is None or len(data) == 0: raise RuntimeError('`data` is empty')
     if current_date is None:
         current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
         previous_business_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(current_date, 1), data)    # ensures that the business day has trades on it
