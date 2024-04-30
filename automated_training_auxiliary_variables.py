@@ -2,10 +2,12 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-28
+ # @ Modified date: 2024-04-18
  '''
 import os
 from pytz import timezone
+from datetime import datetime
+from pandas.tseries.offsets import BusinessDay
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `automated_training_auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `automated_training_auxiliary_functions.py`
 
@@ -20,21 +22,23 @@ EMAIL_RECIPIENTS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc
 EMAIL_RECIPIENTS_FOR_LOGS = ['ahmad@ficc.ai', 'isaac@ficc.ai', 'jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai']    # recipients for training logs, which should be a more technical subset of `EMAIL_RECIPIENTS`
 
 BUCKET_NAME = 'automated_training'
-MODEL_FOLDERS = ('yield_spread_model', 'dollar_price_models')
 MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK = 10
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 HOUR_MIN_SEC = '%H:%M:%S'
 
-EARLIST_TRADE_DATETIME = '2023-01-01T00:00:00'
+EARLIEST_TRADE_DATETIME = '2023-04-01T00:00:00'
 
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
 
-HISTORICAL_PREDICTION_TABLE = 'eng-reactor-287421.historic_predictions.historical_predictions'
+PROJECT_ID = 'eng-reactor-287421'
+HISTORICAL_PREDICTION_TABLE = {'yield_spread': f'{PROJECT_ID}.historic_predictions.historical_predictions', 
+                               'yield_spread_with_similar_trades': f'{PROJECT_ID}.historic_predictions.historical_predictions_similar_trades'}
 
-CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD = 'processed_data_test.pkl'
-CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE = 'processed_data_dollar_price.pkl'
+MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME = {'yield_spread': 'processed_data_test.pkl', 
+                                            'dollar_price': 'processed_data_dollar_price.pkl', 
+                                            'yield_spread_with_similar_trades': 'processed_data_yield_spread_with_similar_trades.pkl'}
 
 NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL = 5
 NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL = 2
@@ -132,6 +136,7 @@ QUERY_FEATURES = ['rtrs_control_number',
                   'first_coupon_date',
                   'last_period_accrues_from_date']
 ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL = ['refund_price', 'publish_datetime', 'maturity_description_code']    # these features were used for testing, but are not needed, nonetheless, we keep them since the previous data files have these fields and `pd.concat(...)` will fail if the column set is different
+ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL = ['recent_5_year_mat']
 
 QUERY_CONDITIONS = ['par_traded >= 10000', 
                     'coupon_type in (8, 4, 10, 17)', 
@@ -162,13 +167,19 @@ BATCH_SIZE = 1000
 DROPOUT = 0.01
 
 
+MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER = {'yield_spread': 'yield_spread_model', 
+                                       'dollar_price': 'dollar_price_models', 
+                                       'yield_spread_with_similar_trades': 'yield_spread_with_similar_trades_model'}
+
+
 # setting variables for when `TESTING` is `True`
 TESTING = False
 if TESTING:
     SAVE_MODEL_AND_DATA = False
     USE_PICKLED_DATA = True
     NUM_EPOCHS = 2
-    print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS}')
+    EARLIEST_TRADE_DATETIME = (datetime.now(EASTERN) - BusinessDay(2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+    print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS} and EARLIEST_TRADE_DATETIME={EARLIEST_TRADE_DATETIME}')
     print('Check `get_creds(...)` to make sure the credentials filepath is correct')
     print('Check `WORKING_DIRECTORY` to make sure the path is correct')
     EMAIL_RECIPIENTS = EMAIL_RECIPIENTS_FOR_LOGS = ['mitas@ficc.ai']

@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-12
+ # @ Modified date: 2024-04-29
  '''
 import warnings
 import traceback    # used to print out the stack trace when there is an error
@@ -50,6 +50,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    QUERY_CONDITIONS, \
                                                    ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
                                                    ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
+                                                   ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
                                                    EASTERN, \
                                                    NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
                                                    NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
@@ -57,12 +58,11 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    SAVE_MODEL_AND_DATA, \
                                                    HOME_DIRECTORY, \
                                                    WORKING_DIRECTORY, \
+                                                   PROJECT_ID, \
                                                    BUCKET_NAME, \
-                                                   MODEL_FOLDERS, \
                                                    MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, \
-                                                   EARLIST_TRADE_DATETIME, \
-                                                   CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD, \
-                                                   CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE, \
+                                                   EARLIEST_TRADE_DATETIME, \
+                                                   MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
                                                    TTYPE_DICT, \
@@ -73,10 +73,18 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    SENDER_EMAIL, \
                                                    BATCH_SIZE, \
                                                    NUM_EPOCHS, \
+                                                   MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
                                                    TESTING, \
                                                    USE_PICKLED_DATA
 from yield_model import yield_spread_model
+from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
+
+
+# this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
+MODEL_NAME_TO_KERAS_MODEL = {'yield_spread': yield_spread_model, 
+                             'dollar_price': dollar_price_model, 
+                             'yield_spread_with_similar_trades': yield_spread_with_similar_trades_model}
 
 
 def get_creds():
@@ -113,19 +121,24 @@ P_prev = dict()
 S_prev = dict()
 
 
+def check_that_model_is_supported(model: str):
+    '''Raises an AssertionError if `model` is not supported.'''
+    supported_models = ['yield_spread', 'yield_spread_with_similar_trades', 'dollar_price']
+    assert model in supported_models, f'Model should be {" or ".join(supported_models)}, but was instead: {model}'
+    return model
+
+
 def get_trade_history_columns(model: str) -> list:
     '''Creates a list of columns.'''
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
-    if model == 'yield_spread':
-        variants = YS_VARIANTS
-        feats = YS_FEATS
+    check_that_model_is_supported(model)
+    if 'yield_spread' in model:
+        variants, features = YS_VARIANTS, YS_FEATS
     else:
-        variants = DP_VARIANTS
-        feats = DP_FEATS
+        variants, features = DP_VARIANTS, DP_FEATS
     
     columns = []
     for prefix in variants:
-        for suffix in feats:
+        for suffix in features:
             columns.append(prefix + suffix)
     return columns
 
@@ -160,17 +173,17 @@ def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_paramet
 @function_timer
 def add_yield_curve(data):
     '''Add 'new_ficc_ycl' field to `data`.'''
-    nelson_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc', BQ_CLIENT)
+    nelson_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.nelson_siegel_coef_daily` order by date desc', BQ_CLIENT)
     nelson_params.set_index('date', drop=True, inplace=True)
     nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
     nelson_params = nelson_params.transpose().to_dict()
 
-    scalar_params = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc', BQ_CLIENT)
+    scalar_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.standardscaler_parameters_daily` order by date desc', BQ_CLIENT)
     scalar_params.set_index('date', drop=True, inplace=True)
     scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
     scalar_params = scalar_params.transpose().to_dict()
 
-    shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', BQ_CLIENT)
+    shape_parameter = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.shape_parameters` order by Date desc', BQ_CLIENT)
     shape_parameter.set_index('Date', drop=True, inplace=True)
     shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
     shape_parameter = shape_parameter.transpose().to_dict()
@@ -198,34 +211,47 @@ def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFra
     return new_data.trade_date.min().date().strftime(YEAR_MONTH_DAY) == last_trade_date
 
 
-@function_timer
-def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = {}):
-    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
-    query_features = QUERY_FEATURES
-    query_conditions = QUERY_CONDITIONS
-    if model == 'yield_spread':
-        query_conditions = ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL + query_conditions
-    else:
-        query_features = query_features + ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL
+def check_no_duplicate_rtrs_control_numbers(data: pd.DataFrame) -> None:
+    '''Raise an AssertionError if there are duplicate RTRS control numbers in `data`.
     
+    >>> try:
+    ...     check_no_duplicate_rtrs_control_numbers(pd.DataFrame({'rtrs_control_number': [101, 102, 103, 101, 104, 102, 105, 103]}))
+    ... except AssertionError as _:
+    ...     print('Successfully raised an AssertionError')
+    Successfully raised an AssertionError
+    >>> check_no_duplicate_rtrs_control_numbers(pd.DataFrame({'rtrs_control_number': [101, 102, 103]}))
+    '''
+    rtrs_control_numbers = data['rtrs_control_number']
+    duplicate_rtrs_control_numbers = rtrs_control_numbers[rtrs_control_numbers.duplicated()].to_numpy()
+    num_duplicate_rtrs_control_numbers = len(duplicate_rtrs_control_numbers)
+    assert num_duplicate_rtrs_control_numbers == 0, f'There are {num_duplicate_rtrs_control_numbers} duplicate RTRS control numbers. Here are the first 10:\n\t{duplicate_rtrs_control_numbers[:10]}'
+
+
+@function_timer
+def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = dict(), data_query: str = None, save_data=SAVE_MODEL_AND_DATA):
+    '''`data_query` will always be `None` unless the user is attempting to get processed data for a slice of specific 
+    slice of data by calling `get_new_data(...)` from another function.'''
+    check_that_model_is_supported(model)
     old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
-    DATA_QUERY = get_data_query(last_trade_datetime, query_features, query_conditions)
-    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M')
+    if data_query is None: data_query = get_data_query(last_trade_datetime, model)
+    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M:%S')
 
-    trade_history_features = get_ys_trade_history_features(use_treasury_spread) if model == 'yield_spread' else get_dp_trade_history_features()
+    trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
-    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
+    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
     raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
-    data_from_last_trade_datetime = process_data(DATA_QUERY, 
+    data_from_last_trade_datetime = process_data(data_query, 
                                                  BQ_CLIENT, 
                                                  num_trades_in_history, 
                                                  num_features_for_each_trade_in_history, 
                                                  raw_data_filepath, 
-                                                 save_data=SAVE_MODEL_AND_DATA, 
+                                                 save_data=save_data, 
+                                                 process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
                                                  **optional_arguments_for_process_data)
     
     if data_from_last_trade_datetime is not None:
+        check_no_duplicate_rtrs_control_numbers(data_from_last_trade_datetime)
         if earliest_trade_from_new_data_is_same_as_last_trade_date(data_from_last_trade_datetime, last_trade_date):    # see explanation in docstring for `earliest_trade_from_new_data_is_same_as_last_trade_date(...)` as to why this scenario is important to handle
             decremented_last_trade_date = decrement_business_days(last_trade_date, 1)
             warnings.warn(f'Since the earliest trade from the new data is the same as the last trade date, we are decrementing the last trade date from {last_trade_date} to {decremented_last_trade_date}. This occurs because materialized trade history was created in the middle of the work day. If materialized trade history was not created during the middle of the work day, then investigate why we are inside this `if` statement.')
@@ -236,7 +262,7 @@ def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optio
 
 
 def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_trade_date: str = None, dataset_name: str = None) -> pd.DataFrame:
-    '''Only keep `num_days_to_keep` days from the most recent trade in `data`.'''
+    '''Only keep `num_days_to_keep` days from the most recent trade in `data`. `dataset_name` is used only for print output.'''
     from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
     most_recent_trade_date = data.trade_date.max() if most_recent_trade_date is None else pd.to_datetime(most_recent_trade_date)
     days_to_most_recent_trade = diff_in_days_two_dates(most_recent_trade_date, data.trade_date, 'exact')
@@ -246,40 +272,52 @@ def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_tra
 
 @function_timer
 def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str) -> pd.DataFrame:
-    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
+    check_that_model_is_supported(model)
     if new_data is None: return old_data    # there is new data since `last_trade_date`
 
     num_trades_in_new_data = len(new_data)
     num_trades_in_old_data = 0 if old_data is None else len(old_data)
     print(f'Old data has {num_trades_in_old_data} trades. New data has {num_trades_in_new_data} trades')
-    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
-    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
+
+    trade_history_feature_names = ['trade_history'] if 'yield_spread' in model else ['trade_history_dollar_price']
+    if model == 'yield_spread_with_similar_trades': trade_history_feature_names.append('similar_trade_history')
+    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
+    
     print(f'Restricting history to {num_trades_in_history} trades')
-    new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])
-    if old_data is not None: old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda x: x[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
+    for trade_history_feature_name in trade_history_feature_names:
+        new_data[trade_history_feature_name] = new_data[trade_history_feature_name].apply(lambda history: history[:num_trades_in_history])    # this line is redundant because this procedure is done in `process_data(...)`, but keeping it for now in case that functionality changes to no longer truncate upstream
+        if old_data is not None:
+            old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda history: history[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
     new_data = replace_ratings_by_standalone_rating(new_data)
     new_data['yield'] = new_data['yield'] * 100
-    if model == 'yield_spread': new_data = add_yield_curve(new_data)
+    if 'yield_spread' in model: new_data = add_yield_curve(new_data)
     new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
 
-    new_data['trade_history_sum'] = new_data[trade_history_feature_name].parallel_apply(lambda x: np.sum(x))
-    new_data.dropna(inplace=True, subset=['trade_history_sum'])
-    print(f'Removed {num_trades_in_new_data - len(new_data)} trades, since these have null values in the trade history')
+    trade_history_sum_features = []    # remove these features after checking for null values
+    for trade_history_feature_name in trade_history_feature_names:
+        # the below 5 lines are redundant because this procedure is done in `process_data(...)`, but keeping it for now in case that functionality changes to no longer truncate upstream
+        trade_history_sum_feature_name = f'{trade_history_feature_name}_sum'
+        trade_history_sum_features.append(trade_history_sum_feature_name)
+        new_data[trade_history_sum_feature_name] = new_data[trade_history_feature_name].parallel_apply(lambda history: np.sum(history))
+        new_data.dropna(inplace=True, subset=[trade_history_sum_feature_name])
+        print(f'Removed {num_trades_in_new_data - len(new_data)} trades, since these have null values in the trade history')
+    
     new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
 
     data = pd.concat([new_data, old_data]) if old_data is not None else new_data    # concatenating `new_data` to the original `data` dataframe
-    if model == 'yield_spread': data['new_ys'] = data['yield'] - data['new_ficc_ycl']
+    data = data.drop(columns=trade_history_sum_features)
+    if 'yield_spread' in model: data['new_ys'] = data['yield'] - data['new_ficc_ycl']
     print(f'{len(data)} trades after combining new and old data')
     return data
 
 
 @function_timer
 def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False) -> pd.DataFrame:
-    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
+    check_that_model_is_supported(model)
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
-    trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if model == 'yield_spread' else trade_history_derived_features_dollar_price
-    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
+    trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if 'yield_spread' in model else trade_history_derived_features_dollar_price
+    trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
     
     temp = data[['cusip', trade_history_feature_name, 'quantity', 'trade_type']].parallel_apply(trade_history_derived_features, axis=1)
     cols = get_trade_history_columns(model)
@@ -291,9 +329,12 @@ def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treas
 
 
 @function_timer
-def drop_features_with_null_value(df: pd.DataFrame, features: list) -> pd.DataFrame:
+def drop_features_with_null_value(df: pd.DataFrame, model: str) -> pd.DataFrame:
+    check_that_model_is_supported(model)
+    predictors = PREDICTORS if 'yield_spread' in model else PREDICTORS_DOLLAR_PRICE
+    if model == 'yield_spread_with_similar_trades': predictors.append('similar_trade_history')
     # df = df.dropna(subset=features)
-    for feature in features:    # perform the procedure feature by feature to output how many trades are being removed for each feature
+    for feature in predictors:    # perform the procedure feature by feature to output how many trades are being removed for each feature
         num_trades_before = len(df)
         df = df.dropna(subset=[feature])
         num_trades_after = len(df)
@@ -351,20 +392,26 @@ def get_trade_date_where_data_exists_on_this_date(date, data: pd.DataFrame, max_
     return _get_trade_date_where_data_exists(date, data, max_number_of_business_days_to_go_back, exclusions_function, 'on')
 
 
+def get_feature_as_array(df: pd.DataFrame, feature_name: str) -> np.array:
+    '''Extract `feature_name` from `df` and return a numpy representation that can be used by the model.'''
+    return np.stack(df[feature_name].to_numpy())
+
+
 @function_timer
 def create_input(data: pd.DataFrame, encoders: dict, model: str):
-    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
+    check_that_model_is_supported(model)
     datalist = []
-    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
-    datalist.append(np.stack(data[trade_history_feature_name].to_numpy()))
-    datalist.append(np.stack(data['target_attention_features'].to_numpy()))
+    if model == 'yield_spread_with_similar_trades': datalist.append(get_feature_as_array(data, 'similar_trade_history'))
+    trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
+    datalist.append(get_feature_as_array(data, trade_history_feature_name))
+    datalist.append(get_feature_as_array(data, 'target_attention_features'))
 
-    categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
-    non_cat_features = NON_CAT_FEATURES if model == 'yield_spread' else NON_CAT_FEATURES_DOLLAR_PRICE
-    binary = BINARY if model == 'yield_spread' else BINARY_DOLLAR_PRICE
+    categorical_features = CATEGORICAL_FEATURES if 'yield_spread' in model else CATEGORICAL_FEATURES_DOLLAR_PRICE
+    non_cat_features = NON_CAT_FEATURES if 'yield_spread' in model else NON_CAT_FEATURES_DOLLAR_PRICE
+    binary_features = BINARY if 'yield_spread' in model else BINARY_DOLLAR_PRICE
 
     noncat_and_binary = []
-    for feature in non_cat_features + binary:
+    for feature in non_cat_features + binary_features:
         noncat_and_binary.append(np.expand_dims(data[feature].to_numpy().astype('float32'), axis=1))
     datalist.append(np.concatenate(noncat_and_binary, axis=-1))
     
@@ -372,44 +419,62 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str):
         encoded = encoders[feature].transform(data[feature])
         datalist.append(encoded.astype('float32'))
 
-    label_name = 'new_ys' if model == 'yield_spread' else 'dollar_price'
+    label_name = 'new_ys' if 'yield_spread' in model else 'dollar_price'
     return datalist, data[label_name]
 
 
 def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
-    data = download_data(STORAGE_CLIENT, bucket_name, file_name)
-    if data is None: return None, EARLIST_TRADE_DATETIME, EARLIST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
+    data = None if file_name is None else download_data(STORAGE_CLIENT, bucket_name, file_name)
+    if data is None: return None, EARLIEST_TRADE_DATETIME, EARLIEST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
     return data, last_trade_datetime, last_trade_date
 
 
-def get_data_query(last_trade_datetime, features: list, conditions: list) -> str:
-    features_as_string = ', '.join(features)
-    conditions = conditions + [f'trade_datetime > "{last_trade_datetime}"']
-    conditions_as_string = ' AND '.join(conditions)
+def get_data_query(last_trade_datetime, model: str, latest_trade_date_to_query: str = None) -> str:
+    check_that_model_is_supported(model)
+    query_features = QUERY_FEATURES
+    query_conditions = QUERY_CONDITIONS
+    if 'yield_spread' in model:
+        query_conditions = ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL + query_conditions
+    else:
+        query_features = query_features + ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL
+
+    if model == 'yield_spread_with_similar_trades': query_features = ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL + query_features
+
+    features_as_string = ', '.join(query_features)
+    query_conditions = query_conditions + [f'trade_datetime > "{last_trade_datetime}"']
+    if latest_trade_date_to_query is not None: query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}T23:59:59"']
+    conditions_as_string = ' AND '.join(query_conditions)
+    table_name = f'trade_history_same_issue_5_yr_mat_bucket_1_materialized' if model == 'yield_spread_with_similar_trades' else f'materialized_trade_history'
     return f'''SELECT {features_as_string}
-               FROM `eng-reactor-287421.auxiliary_views.materialized_trade_history`
+               FROM `{PROJECT_ID}.auxiliary_views.{table_name}`
                WHERE {conditions_as_string}
                ORDER BY trade_datetime DESC'''
 
 
+def get_optional_arguments_for_process_data(model):
+    check_that_model_is_supported(model)
+    return OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD if 'yield_spread' in model else OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE
+
+
 def update_data(model: str):
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
-    filename = CUMULATIVE_DATA_PICKLE_FILENAME_YIELD_SPREAD if model == 'yield_spread' else CUMULATIVE_DATA_PICKLE_FILENAME_DOLLAR_PRICE
-    optional_arguments_for_process_data = OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD if model == 'yield_spread' else OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE
+    check_that_model_is_supported(model)
+    filename = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[model]
+    optional_arguments_for_process_data = get_optional_arguments_for_process_data(model)
     use_treasury_spread = optional_arguments_for_process_data.get('use_treasury_spread', False)
     data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(filename, 
                                                                                                                                                               model, 
                                                                                                                                                               use_treasury_spread=use_treasury_spread, 
                                                                                                                                                               optional_arguments_for_process_data=optional_arguments_for_process_data)
-    data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
-    data = add_trade_history_derived_features(data, model, use_treasury_spread)
-
-    predictors = PREDICTORS if model == 'yield_spread' else PREDICTORS_DOLLAR_PRICE
-    data = drop_features_with_null_value(data, predictors)
-    if SAVE_MODEL_AND_DATA: save_data(data, filename)
+    if data_from_last_trade_datetime is not None:    # no need to continue this procedure if there are no new trades since the below subprocedures were performed on the data before storing it on Google Cloud Storage
+        data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
+        data = add_trade_history_derived_features(data, model, use_treasury_spread)
+        data = drop_features_with_null_value(data, model)
+        if SAVE_MODEL_AND_DATA: save_data(data, filename)
+    else:
+        data = data_before_last_trade_datetime
     return data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
 
 
@@ -418,7 +483,7 @@ def save_update_data_results_to_pickle_files(model: str):
     '''The function specified in `update_data` is called, and the 3 return values are stored as pickle files. If 
     testing, then first check whether the pickle files exist, before calling `update_data`. `suffix` is appended 
     to the end of the filename for each pickle file.'''
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    check_that_model_is_supported(model)
     data_pickle_filepath = f'{WORKING_DIRECTORY}/files/data_from_update_data_{model}.pkl'
     last_trade_data_from_update_data_pickle_filepath = f'{WORKING_DIRECTORY}/files/last_trade_data_from_update_data_{model}.pkl'
     num_features_for_each_trade_in_history_pickle_filepath = f'{WORKING_DIRECTORY}/files/num_features_for_each_trade_in_history_{model}.pkl'
@@ -444,7 +509,7 @@ def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
     don't change for these features we use the pre-defined set of values specified in `CATEGORICAL_FEATURES_VALUES`. 
     Outputs a tuple of dictionaries where the first item is the encoders and the second item is the maximum value 
     for each class.'''
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    check_that_model_is_supported(model)
     encoders = {}
     fmax = {}
     for feature in categorical_features:
@@ -455,14 +520,14 @@ def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
         fmax[feature] = np.max(fprep.transform(fprep.classes_))
         encoders[feature] = fprep
     
-    filename = 'encoders.pkl' if model == 'yield_spread' else 'encoders_dollar_price.pkl'
-    with open(f'{WORKING_DIRECTORY}/{filename}', 'wb') as file:
+    encoders_filename = get_encoders_filename(model)
+    with open(f'{WORKING_DIRECTORY}/{encoders_filename}', 'wb') as file:
         pickle.dump(encoders, file)
     return encoders, fmax
 
 
 def _trade_history_derived_features(row, model: str, use_treasury_spread: bool = False) -> list:
-    assert model in ('yield_spread', 'dollar_price'), f'Invalid value for model: {model}'
+    check_that_model_is_supported(model)
     if model == 'yield_spread':
         variants = YS_VARIANTS
         trade_history_features = get_ys_trade_history_features(use_treasury_spread)
@@ -470,7 +535,8 @@ def _trade_history_derived_features(row, model: str, use_treasury_spread: bool =
         variants = DP_VARIANTS
         trade_history_features = get_dp_trade_history_features()
 
-    ys_or_dp_idx = trade_history_features.index(model)
+    label_feature = 'yield_spread' if 'yield_spread' in model else 'dollar_price'
+    ys_or_dp_idx = trade_history_features.index(label_feature)
     par_traded_idx = trade_history_features.index('par_traded')
     trade_type1_idx = trade_history_features.index('trade_type1')
     trade_type2_idx = trade_history_features.index('trade_type2')
@@ -489,7 +555,7 @@ def _trade_history_derived_features(row, model: str, use_treasury_spread: bool =
     global S_prev
     global P_prev
     
-    trade_history_feature_name = 'trade_history' if model == 'yield_spread' else 'trade_history_dollar_price'
+    trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
     trade_history = row[trade_history_feature_name]
     most_recent_trade = trade_history[0]
     
@@ -603,30 +669,43 @@ def segment_results(data: pd.DataFrame, absolute_difference: np.array) -> pd.Dat
             delta_cond, data_cond = absolute_difference, data
         return np.round(np.mean(delta_cond), 3), data_cond.shape[0]    # round mae to 3 digits after the decimal point to reduce noise
 
-    total_mae, total_count = get_mae_and_count()
     inter_dealer = data.trade_type == 'D'
-    dd_mae, dd_count = get_mae_and_count(inter_dealer)
     dealer_purchase = data.trade_type == 'P'
-    dp_mae, dp_count = get_mae_and_count(dealer_purchase)
     dealer_sell = data.trade_type == 'S'
-    ds_mae, ds_count = get_mae_and_count(dealer_sell)
     aaa = data.rating == 'AAA'
-    aaa_mae, aaa_count = get_mae_and_count(aaa)
     investment_grade_ratings = ['AAA', 'AA+', 'AA', 'AA-', 'A+', 'A', 'A-', 'BBB+', 'BBB', 'BBB-']
     investment_grade = data.rating.isin(investment_grade_ratings)
-    investment_grade_mae, investment_grade_count = get_mae_and_count(investment_grade)
     par_traded_greater_than_or_equal_to_100k = data.par_traded >= 1e5
-    hundred_k_mae, hundred_k_count = get_mae_and_count(par_traded_greater_than_or_equal_to_100k)
+    
+    last_days_ago = data.last_seconds_ago / (60 * 60 * 24)
+    last_trade_date_within_a_week = last_days_ago <= 7
+    last_trade_date_week_to_two_weeks = (7 < last_days_ago) & (last_days_ago <= 14)
+    last_trade_date_two_weeks_to_four_weeks = (14 < last_days_ago) & (last_days_ago <= 28)
+    last_trade_date_more_than_four_weeks = 28 < last_days_ago
 
-    result_df = pd.DataFrame(data=[[total_mae, total_count],
-                                   [dd_mae, dd_count],
-                                   [dp_mae, dp_count],
-                                   [ds_mae, ds_count], 
-                                   [aaa_mae, aaa_count], 
-                                   [investment_grade_mae, investment_grade_count],
-                                   [hundred_k_mae, hundred_k_count]],
+    result_df = pd.DataFrame(data=[get_mae_and_count(),
+                                   get_mae_and_count(inter_dealer),
+                                   get_mae_and_count(dealer_purchase),
+                                   get_mae_and_count(dealer_sell), 
+                                   get_mae_and_count(aaa), 
+                                   get_mae_and_count(investment_grade),
+                                   get_mae_and_count(par_traded_greater_than_or_equal_to_100k), 
+                                   get_mae_and_count(last_trade_date_within_a_week), 
+                                   get_mae_and_count(last_trade_date_week_to_two_weeks), 
+                                   get_mae_and_count(last_trade_date_two_weeks_to_four_weeks), 
+                                   get_mae_and_count(last_trade_date_more_than_four_weeks)],
                              columns=['Mean Absolute Error', 'Trade Count'],
-                             index=['Entire set', 'Dealer-Dealer', 'Bid Side / Dealer-Purchase', 'Offered Side / Dealer-Sell', 'AAA', 'Investment Grade', 'Trade size >= 100k'])
+                             index=['Entire set', 
+                                    'Dealer-Dealer', 
+                                    'Bid Side / Dealer-Purchase', 
+                                    'Offered Side / Dealer-Sell', 
+                                    'AAA', 
+                                    'Investment Grade', 
+                                    'Trade size >= 100k', 
+                                    'Last trade <= 7 days', 
+                                    '7 days < Last trade <= 14 days', 
+                                    '14 days < Last trade <= 28 days', 
+                                    '28 days < Last trade'])
     return result_df
 
 
@@ -646,15 +725,17 @@ def get_table_schema_for_predictions():
     return schema
 
 
-def upload_predictions(data: pd.DataFrame):
-    '''Upload the coefficient and scalar dataframe to BigQuery.'''
+def upload_predictions(data: pd.DataFrame, model: str) -> str:
+    '''Upload the coefficient and scalar dataframe to BigQuery. Returns the table name.'''
+    assert model in HISTORICAL_PREDICTION_TABLE, f'Trying to upload predictions for {model}, but can only upload predictions for the following models: {list(HISTORICAL_PREDICTION_TABLE.keys())}'
+    table_name = HISTORICAL_PREDICTION_TABLE[model]
     job_config = bigquery.LoadJobConfig(schema=get_table_schema_for_predictions(), write_disposition='WRITE_APPEND')
-    job = BQ_CLIENT.load_table_from_dataframe(data, HISTORICAL_PREDICTION_TABLE, job_config=job_config)
+    job = BQ_CLIENT.load_table_from_dataframe(data, table_name, job_config=job_config)
     try:
         job.result()
-        print('Upload Successful')
+        print(f'Upload successful to {table_name}')
     except Exception as e:
-        print('Failed to Upload')
+        print(f'Failed to upload to {table_name} with {type(e)}: {e}')
         raise e
 
 
@@ -662,9 +743,17 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     '''Taken almost directly from `point_in_time_pricing_timestamp.py`.
     When using the `cache_output` decorator, we should not have any optional arguments as this may interfere with 
     how the cache lookup is done (optional arguments may not be put into the args set).'''
-    assert folder in MODEL_FOLDERS
+    assert folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.values()    # sanity check that `folder` argument is passed in properly and is not confused with another variable
     if len(date) == 10: date = date[5:]    # remove the year and the hypen from `date`, i.e., remove 'YYYY-' from `date`, if the date is 10 characters which we assume to mean that it is in YYYY-MM-DD format 
-    model_prefix = '' if folder == 'yield_spread_model' else 'dollar-'
+    
+    # `model_prefix` should match the naming convention of MODEL_NAME in the associated .sh script
+    if folder == 'yield_spread_model':
+        model_prefix = ''
+    elif folder == 'dollar_price_models':
+        model_prefix = 'dollar-'
+    else:    # folder == yield_spread_with_similar_trades_model
+        model_prefix = 'similar-trades-'
+
     bucket_folder_model_path = os.path.join(os.path.join(bucket, folder), f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<folder>/<model>
     base_model_path = os.path.join(bucket, f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<model>
     for model_path in (bucket_folder_model_path, base_model_path):    # iterate over possible paths and try to load the model
@@ -678,15 +767,16 @@ def load_model_from_date(date: str, folder: str, bucket: str):
 
 
 @function_timer
-def load_model(date_of_interest: str, folder: str, max_num_business_days_in_the_past_to_check: int = MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, bucket: str = 'gs://'+BUCKET_NAME):
+def load_model(date_of_interest: str, model: str, max_num_business_days_in_the_past_to_check: int = MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, bucket: str = 'gs://'+BUCKET_NAME):
     '''Taken almost directly from `point_in_time_pricing_timestamp.py`.
     This function finds the appropriate model, either in the automated_training directory, or in a special directory. 
     TODO: clean up the way we store models on cloud storage by unifying the folders and naming convention and adding the 
     year to the name.'''
+    folder = MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER[model]
     for num_business_days_in_the_past in range(max_num_business_days_in_the_past_to_check):
         model_date_string = decrement_business_days(date_of_interest, num_business_days_in_the_past)
-        model = load_model_from_date(model_date_string, folder, bucket)
-        if model is not None: return model, model_date_string
+        loaded_model = load_model_from_date(model_date_string, folder, bucket)
+        if loaded_model is not None: return loaded_model, model_date_string
     raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
     
 
@@ -700,6 +790,8 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
         result_df = segment_results(data, delta)
     except Exception as e:
         print(f'Unable to create results dataframe with `segment_results(...)`. {type(e)}:', e)
+        print('Stack trace:')
+        print(traceback.format_exc())
         result_df = pd.DataFrame()
 
     try:
@@ -719,69 +811,71 @@ def not_enough_trades_in_test_data(test_data, min_trades_to_use_test_data):
 def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
     '''The final return value is a string that should be in the beginning of the email that is sent out 
     which provides transparency on the training procedure.'''
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
-    train_model_text_list = []
+    check_that_model_is_supported(model)
+    train_model_text_list = []    # store important data from the training procedure that will be outputted in summary email
     data = remove_old_trades(data, 240, last_trade_date, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
-    categorical_features = CATEGORICAL_FEATURES if model == 'yield_spread' else CATEGORICAL_FEATURES_DOLLAR_PRICE
+    categorical_features = CATEGORICAL_FEATURES if 'yield_spread' in model else CATEGORICAL_FEATURES_DOLLAR_PRICE
     encoders, fmax = fit_encoders(data, categorical_features, model)
     
-    if TESTING: last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
-    test_data = data[data.trade_date > last_trade_date]
+    if TESTING:
+        last_trade_date = data.trade_date.max().strftime(YEAR_MONTH_DAY)
+        last_trade_date = get_trade_date_where_data_exists_after_this_date(last_trade_date, data, exclusions_function=exclusions_function)
+    test_data = data[data.trade_date > last_trade_date]    # `test_data` can only contain trades after `last_trade_date`
     test_data_date = test_data.trade_date.min()
     test_data = test_data[test_data.trade_date == test_data_date]    # restrict `test_data` to have only one day of trades
-    if len(test_data) < MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY: return not_enough_trades_in_test_data(test_data, MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY)
+    if len(test_data) < MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY:
+        return not_enough_trades_in_test_data(test_data, MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY)
     test_data_date = test_data_date.strftime(YEAR_MONTH_DAY)
     if exclusions_function is not None:
         test_data, test_data_before_exclusions = exclusions_function(test_data, 'test_data')
     else:
         test_data_before_exclusions = test_data
     
-    train_data = data[data.trade_date <= last_trade_date]
+    train_data = data[data.trade_date <= last_trade_date]    # `train_data` only contains trades before and including `last_trade_date`
     training_set_info = f'Training set contains {len(train_data)} trades ranging from trade datetimes of {train_data.trade_datetime.min()} to {train_data.trade_datetime.max()}'
     test_set_info = f'Test set contains {len(test_data)} trades ranging from trade datetimes of {test_data.trade_datetime.min()} to {test_data.trade_datetime.max()}'
     print(training_set_info)
     print(test_set_info)
     train_model_text_list.extend([training_set_info, test_set_info])
 
-    non_cat_features = NON_CAT_FEATURES if model == 'yield_spread' else NON_CAT_FEATURES_DOLLAR_PRICE
-    binary = BINARY if model == 'yield_spread' else BINARY_DOLLAR_PRICE
+    non_cat_features = NON_CAT_FEATURES if 'yield_spread' in model else NON_CAT_FEATURES_DOLLAR_PRICE
+    binary = BINARY if 'yield_spread' in model else BINARY_DOLLAR_PRICE
 
     x_train, y_train = create_input(train_data, encoders, model)
     x_test, y_test = create_input(test_data, encoders, model)
 
-    yield_spread_model_or_dollar_price_model = yield_spread_model if model == 'yield_spread' else dollar_price_model
-    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if model == 'yield_spread' else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
-    untrained_model = yield_spread_model_or_dollar_price_model(x_train, 
-                                                               num_trades_in_history, 
-                                                               num_features_for_each_trade_in_history, 
-                                                               categorical_features, 
-                                                               non_cat_features, 
-                                                               binary, 
-                                                               fmax)
+    keras_model = MODEL_NAME_TO_KERAS_MODEL[model]
+    num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
+    untrained_model = keras_model(x_train, 
+                                  num_trades_in_history, 
+                                  num_features_for_each_trade_in_history, 
+                                  categorical_features, 
+                                  non_cat_features, 
+                                  binary, 
+                                  fmax)
     trained_model, mae, history = train_and_evaluate_model(untrained_model, x_train, y_train, x_test, y_test)
 
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
     try:
-        models_folder = 'yield_spread_model' if model == 'yield_spread' else 'dollar_price_models'
-        previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, models_folder)
+        previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, model)
         result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
     except Exception as e:
         print(f'Unable to create the dataframe for the model evaluation email due to {type(e)}: {e}')
         print('Stack trace:')
         print(traceback.format_exc())
         result_df_using_previous_day_model = None
-        if previous_business_date_model not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
+        if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
     
     # uploading predictions to bigquery (only for yield spread model)
-    if SAVE_MODEL_AND_DATA and model == 'yield_spread':
+    if SAVE_MODEL_AND_DATA and 'yield_spread' in model:
         try:
-            test_data_before_exclusions_x_test, _ = create_input(test_data_before_exclusions, encoders, 'yield_spread')
+            test_data_before_exclusions_x_test, _ = create_input(test_data_before_exclusions, encoders, model)
             test_data_before_exclusions['new_ys_prediction'] = trained_model.predict(test_data_before_exclusions_x_test, batch_size=BATCH_SIZE)
             test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
-            test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now().replace(microsecond=0))
+            test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now(EASTERN).replace(microsecond=0))
             test_data_before_exclusions['trade_date'] = pd.to_datetime(test_data_before_exclusions['trade_date']).dt.date
-            upload_predictions(test_data_before_exclusions)
+            upload_predictions(test_data_before_exclusions, model)
         except Exception as e:
             print(f'Failed to upload predictions to BigQuery. {type(e)}:', e)
     return trained_model, test_data_date, previous_business_date_model, previous_business_date_model_date, encoders, mae, (result_df, result_df_using_previous_day_model), '<br>'.join(train_model_text_list)    # use '<br>' for the separator since this will create a new line in the HTML body that will be sent out by email
@@ -793,42 +887,71 @@ def get_model_results(data: pd.DataFrame, trade_date: str, model: str, loaded_mo
     the dollar price model, and `loaded_model` is an actual keras model. This may cause confusion.
     If `exclusions_function` is not `None`, assumes that the function returns values, where the first 
     item is the data after exclusions, and the second item is the data before exclusions.'''
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    check_that_model_is_supported(model)
     data_on_trade_date = data[data.trade_date == trade_date]
     if exclusions_function is not None: data_on_trade_date, _ = exclusions_function(data_on_trade_date)
     inputs, labels = create_input(data_on_trade_date, encoders, model)
     return create_summary_of_results(loaded_model, data_on_trade_date, inputs, labels)
 
 
+def _get_model_suffix(model: str, wo_underscore: bool = False):
+    '''Return the model suffix for creating filenames to store encoders and trained models for `model`. 
+    This function is used as a subprocedure in `get_encoders_filename(...)` and `get_model_zip_filename(...). 
+    `wo_underscore` is an optional boolean argument that removes the first character of the suffix which 
+    is expected to be the underscore.'''
+    check_that_model_is_supported(model)
+    if model == 'yield_spread':
+        suffix = ''
+    elif model == 'yield_spread_with_similar_trades':
+        suffix = '_similar_trades'
+    else:
+        suffix = '_dollar_price'
+    if wo_underscore:
+        suffix = suffix[1:] if suffix != '' else suffix    # assumes that the underscore to remove is the first character
+    return suffix
+
+
+def get_encoders_filename(model: str):
+    '''Return the filename of the pickle file that stores the encoders for `model`.'''
+    suffix = _get_model_suffix(model)
+    return f'encoders{suffix}.pkl'
+
+
+def get_model_zip_filename(model: str):
+    '''Return the filename of the zip file that stores the trained model for `model`.'''
+    suffix = _get_model_suffix(model)
+    return f'model{suffix}'
+
+
 @function_timer
 def save_model(trained_model, encoders, model: str):
-    '''NOTE: `model` is a string that denotes whether we are working with the yield spread model or 
-    the dollar price model, and `trained_model` is an actual keras model. This may cause confusion.'''
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    '''NOTE: `model` is a string that denotes whether we are working with the yield spread model, 
+    yield spread with similar trades model, or the dollar price model, and `trained_model` is an 
+    actual keras model. This may cause confusion.'''
+    check_that_model_is_supported(model)
     if trained_model is None:
         print('trained_model is `None` and so not saving it to storage')
         return None
-    suffix = '_dollar_price' if model == 'dollar_price' else ''
-    suffix_wo_underscore = 'dollar_price' if model == 'dollar_price' else ''    # need this variable as well since past implementations of this function have model naming missing an underscore
-
+    
+    suffix_wo_underscore = _get_model_suffix(model, True)    # need `suffix_wo_underscore` variable as well since past implementations of this function have model naming missing an underscore
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
 
-    print('Saving encoders and uploading encoders')
-    encoders_filename = f'encoders{suffix}.pkl'
+    encoders_filename = get_encoders_filename(model)
     encoders_filepath = f'{WORKING_DIRECTORY}/files/{encoders_filename}'
+    print(f'Uploading encoders from {encoders_filepath}')
     if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
     with open(encoders_filepath, 'wb') as file:
         pickle.dump(encoders, file)    
     upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
 
-    print('Saving and uploading model')
-    folder = 'dollar_price_models' if model == 'dollar_price' else 'yield_spread_models'
+    folder = f'{model}_models'
     if not os.path.isdir(f'{HOME_DIRECTORY}/trained_models'): os.mkdir(f'{HOME_DIRECTORY}/trained_models')
     model_filename = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
+    print(f'Uploading model to {model_filename}')
     trained_model.save(model_filename)
     
-    model_zip_filename = f'model{suffix}'
+    model_zip_filename = get_model_zip_filename(model)
     model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
     shutil.make_archive(model_zip_filepath, 'zip', model_filename)
     # shutil.make_archive(f'saved_model_{file_timestamp}', 'zip', f'saved_model_{file_timestamp}')
@@ -853,12 +976,13 @@ def remove_file(file_path: str) -> None:
 
 
 def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None):
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    check_that_model_is_supported(model)
     print(f'Python version: {sys.version}')
     current_datetime = datetime.now(EASTERN)
     print(f'automated_training_{model}_model.py starting at {current_datetime} ET')
 
     data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model)
+    if data is None or len(data) == 0: raise RuntimeError('`data` is empty')
     if current_date is None:
         current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)
         previous_business_date = get_trade_date_where_data_exists_on_this_date(decrement_business_days(current_date, 1), data)    # ensures that the business day has trades on it
@@ -927,20 +1051,20 @@ def _get_email_subject(model_train_date: str, model: str) -> str:
 
 
 def send_results_email(mae, model_train_date: str, recipients: list, model: str) -> None:
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     
     msg = MIMEMultipart()
     msg['Subject'] = _get_email_subject(model_train_date, model)
     msg['From'] = SENDER_EMAIL
 
-    message = MIMEText(f'The MAE for the model on trades that occurred on {model_train_date} is {np.round(mae, 3)}.', 'plain')
+    message = MIMEText(f'MAE for {model} model on trades that occurred on {model_train_date} is {np.round(mae, 3)}.', 'plain')
     msg.attach(message)
     send_email(SENDER_EMAIL, msg, recipients)
 
 
-def send_results_email_table(result_df, model_train_date: str, recipients: list, model: str):
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+def send_results_email_table(result_df, model_train_date: str, recipients: list, model: str) -> str:
+    check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
     msg['Subject'] = _get_email_subject(model_train_date, model)
@@ -950,10 +1074,11 @@ def send_results_email_table(result_df, model_train_date: str, recipients: list,
     body = MIMEText(html_table, 'html')
     msg.attach(body)
     send_email(SENDER_EMAIL, msg, recipients)
+    return html_table
 
 
-def send_results_email_multiple_tables(df_list: list, text_list: list, model_train_date: str, recipients: list, model: str, intro_text: str = ''):
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+def send_results_email_multiple_tables(df_list: list, text_list: list, model_train_date: str, recipients: list, model: str, intro_text: str = '') -> str:
+    check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
     msg['Subject'] = _get_email_subject(model_train_date, model)
@@ -974,10 +1099,11 @@ def send_results_email_multiple_tables(df_list: list, text_list: list, model_tra
     body = MIMEText(html_text, 'html')
     msg.attach(body)
     send_email(SENDER_EMAIL, msg, recipients)
+    return html_text
 
 
 def send_no_new_model_email(last_trade_date, recipients: list, model: str) -> None:
-    assert model in ('yield_spread', 'dollar_price'), f'Model should be either yield_spread or dollar_price, but was instead: {model}'
+    check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
     msg['Subject'] = f'Not enough new data was found on {last_trade_date}, so no new {model} model was trained; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model'

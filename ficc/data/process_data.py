@@ -2,20 +2,21 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-14
+ # @ Modified date: 2024-04-29
  # @ Description: Source code to process trade history from BigQuery
  '''
+import os
 import warnings
 import numpy as np
 # Pandaralled is a python package that is 
 # used to multi-thread df apply
 from pandarallel import pandarallel
 
-import os
+num_cores_for_pandarallel = os.cpu_count() // 2
+print(f'Initializing pandarallel with {num_cores_for_pandarallel} cores')
+pandarallel.initialize(progress_bar=False, nb_workers=num_cores_for_pandarallel)
 
 from ficc.utils.process_features import process_features
-print(f'Initializing pandarallel with {os.cpu_count()/2} cores')
-pandarallel.initialize(progress_bar=False, nb_workers=int(os.cpu_count()/2))
 
 from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
@@ -42,6 +43,7 @@ def process_data(query,
                  add_rtrs_in_history=False, 
                  only_dollar_price_history=False, 
                  save_data=True, 
+                 process_similar_trades_history=False, 
                  **kwargs):
     if len(kwargs) != 0: warnings.warn(f'**kwargs is not empty and has following arguments: {kwargs.keys()}', category=RuntimeWarning)
         
@@ -72,7 +74,8 @@ def process_data(query,
                                       nelson_params, 
                                       scalar_params, 
                                       shape_parameter, 
-                                      save_data)
+                                      save_data, 
+                                      process_similar_trades_history)
     
     if trades_df is None: return None    # no new trades
 
@@ -91,7 +94,7 @@ def process_data(query,
             null_treasury_rate = trades_df['treasury_rate'].isnull()
             if null_treasury_rate.sum() > 0:
                 trade_dates_corresponding_to_null_treasury_rate = trades_df.loc[null_treasury_rate, 'trade_date']
-                print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique()}')
+                print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique().to_numpy()}')
                 trades_df = trades_df[~null_treasury_rate]
             trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
 
