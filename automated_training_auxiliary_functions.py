@@ -2,9 +2,10 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-29
+ # @ Modified date: 2024-05-13
  '''
 import warnings
+import subprocess
 import traceback    # used to print out the stack trace when there is an error
 import os
 import sys
@@ -106,10 +107,15 @@ STORAGE_CLIENT = get_storage_client()
 BQ_CLIENT = get_bq_client()
 
 
-def setup_gpus():
+def setup_gpus(install_nvidia_drivers_if_gpu_not_present: bool = True):
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if len(gpus) == 0:
         warnings.warn('No GPUs found')
+        if install_nvidia_drivers_if_gpu_not_present:
+            shell_script_path = f'{WORKING_DIRECTORY}/install-cuda_12_2_0-linux-x86_64-debian-11-network.sh'
+            shell_script_output = subprocess.check_output(['sh', shell_script_path])
+            print(f'Output of running shell script from {shell_script_path}:\n{shell_script_output.decode()}')
+            setup_gpus(False)    # if GPU still not found after installing CUDA toolkit, then proceed with training without the GPU
     else:
         print(f'Found {len(gpus)} GPUs: {gpus}')
         for gpu in gpus:
