@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 from pandas.tseries.offsets import BusinessDay
 from sklearn import preprocessing
-from pickle
 import tensorflow as tf
 from tensorflow import keras
 from datetime import datetime
