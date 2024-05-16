@@ -17,8 +17,6 @@ To install the required Python packages for running the data package, use the fo
 
 ``` pip install -r requirements_py310.txt ```
 
-Note: the file `requirements.txt` was for Python3.7 and since Python3.7 has reached the end of its lifecycle, we no longer use this file.
-
 ### API
 
 #### Data package

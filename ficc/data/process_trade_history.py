@@ -7,7 +7,7 @@
  '''
 import os
 import pandas as pd
-import pickle5 as pickle
+import pickle
 
 from ficc.utils.auxiliary_functions import sqltodf, process_ratings
 from ficc.utils.pad_trade_history import pad_trade_history

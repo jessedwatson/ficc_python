@@ -49,7 +49,6 @@ optree==0.11.0
 packaging==21.3
 pandarallel==1.6.5
 pandas==1.5.3
-pickle5==0.0.11
 proto-plus==1.23.0
 protobuf==3.19.6
 psutil==5.9.8

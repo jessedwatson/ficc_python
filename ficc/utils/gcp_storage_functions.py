@@ -5,7 +5,7 @@
  # @ Modified date: 2024-02-19
  # @ Description: Convenience functions to upload and download data from Google cloud buckets.
  '''
-import pickle5 as pickle
+import pickle
 
 from ficc.utils.auxiliary_functions import run_multiple_times_before_failing
 
