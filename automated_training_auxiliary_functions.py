@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-05-17
+ # @ Modified date: 2024-06-05
  '''
 import warnings
 import subprocess
@@ -960,11 +960,9 @@ def save_model(trained_model, encoders, model: str):
     model_zip_filename = get_model_zip_filename(model)
     model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
     shutil.make_archive(model_zip_filepath, 'zip', model_filename)
-    # shutil.make_archive(f'saved_model_{file_timestamp}', 'zip', f'saved_model_{file_timestamp}')
     
     upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
-    # upload_data(STORAGE_CLIENT, f'{BUCKET_NAME}/{folder}', f'saved_model_{file_timestamp}.zip')
-    # os.system(f'rm -r {model_filename}')
+    os.system(f'rm -r {model_filename}')
 
 
 def remove_file(file_path: str) -> None:
