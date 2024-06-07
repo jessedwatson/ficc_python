@@ -1,14 +1,14 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2024-06-03
+# @ Modified date: 2024-06-07
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
 #!/bin/sh
 who
 HOME='/home/mitas'
-TRAINED_MODELS_PATH="$HOME/trained_models/dollar_price_models"
+TRAINED_MODELS_PATH="$HOME/trained_models/dollar_price_model"
 # Create dates before training so that in case the training takes too long and goes into the next day, the date is correct
 DATE_WITH_YEAR=$(date +%Y-%m-%d)
 DATE_WITHOUT_YEAR=$(date +%m-%d)

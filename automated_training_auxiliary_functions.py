@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-06-05
+ # @ Modified date: 2024-06-07
  '''
 import warnings
 import subprocess
@@ -755,7 +755,7 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     # `model_prefix` should match the naming convention of MODEL_NAME in the associated .sh script
     if folder == 'yield_spread_model':
         model_prefix = ''
-    elif folder == 'dollar_price_models':
+    elif folder == 'dollar_price_model':
         model_prefix = 'dollar-'
     else:    # folder == yield_spread_with_similar_trades_model
         model_prefix = 'similar-trades-'
