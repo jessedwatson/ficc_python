@@ -23,7 +23,6 @@ DATE_STRINGS="2024-01-30 2024-01-31 2024-03-13 2024-03-15"
 
 for DATE_STRING in $DATE_STRINGS; do
   DATE_WITH_YEAR=$(date -d "$DATE_STRING" +%Y-%m-%d)
-  DATE_WITHOUT_YEAR=$(date -d "$DATE_STRING" +%m-%d)
 
   # Training the model
   python $HOME/ficc_python/automated_training_dollar_price_model.py $DATE_WITH_YEAR
@@ -38,7 +37,7 @@ for DATE_STRING in $DATE_STRINGS; do
   python $HOME/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
 
   # Unzip model and uploading it to automated training bucket
-  MODEL_NAME='dollar-model'-${DATE_WITHOUT_YEAR}
+  MODEL_NAME='dollar-model'-${DATE_WITH_YEAR}
   echo "Unzipping model $MODEL_NAME"
   gsutil cp -r gs://automated_training/model_dollar_price.zip $TRAINED_MODELS_PATH/model_dollar_price.zip
   unzip $TRAINED_MODELS_PATH/model_dollar_price.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
