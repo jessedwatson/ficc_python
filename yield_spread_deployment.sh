@@ -1,7 +1,7 @@
 # @ Author: Ahmad Shayaan
 # @ Create date: 2023-07-28
 # @ Modified by: Mitas Ray
-# @ Modified date: 2024-04-18
+# @ Modified date: 2024-06-07
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -11,7 +11,6 @@ HOME='/home/mitas'
 TRAINED_MODELS_PATH="$HOME/trained_models/yield_spread_models"
 # Create dates before training so that in case the training takes too long and goes into the next day, the date is correct
 DATE_WITH_YEAR=$(date +%Y-%m-%d)
-DATE_WITHOUT_YEAR=$(date +%m-%d)
 TRAINING_LOG_PATH="$HOME/training_logs/yield_spread_training_$DATE_WITH_YEAR.log"
 MODEL="yield_spread"
 
@@ -35,7 +34,7 @@ echo "Model trained"
 python $HOME/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
 
 # Unzip model and uploading it to automated training bucket
-MODEL_NAME='model'-${DATE_WITHOUT_YEAR}
+MODEL_NAME='model'-${DATE_WITH_YEAR}
 MODEL_ZIP_NAME='model'
 echo "Unzipping model $MODEL_NAME"
 gsutil cp -r gs://automated_training/$MODEL_ZIP_NAME.zip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip

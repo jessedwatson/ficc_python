@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-06-05
+ # @ Modified date: 2024-06-07
  '''
 import warnings
 import subprocess
@@ -748,14 +748,14 @@ def upload_predictions(data: pd.DataFrame, model: str) -> str:
 def load_model_from_date(date: str, folder: str, bucket: str):
     '''Taken almost directly from `point_in_time_pricing_timestamp.py`.
     When using the `cache_output` decorator, we should not have any optional arguments as this may interfere with 
-    how the cache lookup is done (optional arguments may not be put into the args set).'''
+    how the cache lookup is done (optional arguments may not be put into the args set).
+    As of 2024-06-07, we assume that the model name has the entire YYYY-MM-DD in the name.'''
     assert folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.values()    # sanity check that `folder` argument is passed in properly and is not confused with another variable
-    if len(date) == 10: date = date[5:]    # remove the year and the hypen from `date`, i.e., remove 'YYYY-' from `date`, if the date is 10 characters which we assume to mean that it is in YYYY-MM-DD format 
     
     # `model_prefix` should match the naming convention of MODEL_NAME in the associated .sh script
     if folder == 'yield_spread_model':
         model_prefix = ''
-    elif folder == 'dollar_price_models':
+    elif folder == 'dollar_price_model':
         model_prefix = 'dollar-'
     else:    # folder == yield_spread_with_similar_trades_model
         model_prefix = 'similar-trades-'
