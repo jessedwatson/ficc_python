@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-06-07
+ # @ Modified date: 2024-06-18
  '''
 import warnings
 import subprocess
@@ -351,7 +351,7 @@ def drop_features_with_null_value(df: pd.DataFrame, model: str) -> pd.DataFrame:
 @function_timer
 def save_data(data: pd.DataFrame, file_name: str) -> None:
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
-    data = remove_old_trades(data, 390, dataset_name='entire processed data file')    # 390 = 13 * 30, so we are keeping approximately 13 months of data in the file; decided to keep the last 13 months of data to go beyond one year and allow for future experiments with annual patterns without having to re-create the entire dataset
+    data = remove_old_trades(data, 270, dataset_name='entire processed data file')    # 270 = 9 * 30, so we are keeping approximately 9 months of data in the file (1 more month than we use as part of training so that we can create the trade history derived features); previously we were using 390 = 13 * 30 (approximately 13 months of data) in order to go beyond one year and allow for future experiments with annual patterns without having to re-create the entire dataset, but this was too expensive memory wise and was forcing us to use extra compute when training (2 GPUs instead of 1 GPU, etc.)
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
     upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name, file_path)
