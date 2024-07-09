@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
  # @ Create Time: 2022-01-13 23:04:00
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-08-10 12:25:16
+ # @ Modified by: Mitas Ray
+ # @ Modified time: 2024-07-09
  # @ Description: This file implements functions to compute the price of a trade
  # given the yield.
  '''
@@ -76,7 +76,7 @@ def get_price(cusip,
         prev_coupon_date_to_settlement_date = diff_in_days_two_dates(settlement_date, prev_coupon_date)
             
         num_of_days_in_period = NUM_OF_DAYS_IN_YEAR / frequency    # number of days in interest payment period 
-        assert num_of_days_in_period == round(num_of_days_in_period)
+        assert num_of_days_in_period == round(num_of_days_in_period), f'`frequency`: {frequency}; `num_of_days_in_period`: {num_of_days_in_period}; rounded version: {round(num_of_days_in_period)}'
          
         if compare_dates(end_date, next_coupon_date) <= 0:    # MSRB Rule Book G-33, rule (b)(i)(B)(1)
             if diff_in_days_two_dates(end_date, final_coupon_date) == 0:    # end date is the same (within one day) as the final coupon date, but the arithmetic later essentially includes one too many coupon payments; to fix this, one payment is subtracted from the redemption value (RV) and the final coupon date is shifted earlier
