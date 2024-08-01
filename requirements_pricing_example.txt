@@ -16,6 +16,8 @@ certifi==2024.7.4
 cffi==1.16.0
 charset-normalizer==3.3.2
 comm==0.2.2
+contourpy==1.2.1
+cycler==0.12.1
 db-dtypes==1.2.0
 debugpy==1.8.2
 decorator==5.1.1
@@ -23,6 +25,7 @@ defusedxml==0.7.1
 dill==0.3.8
 executing==2.0.1
 fastjsonschema==2.20.0
+fonttools==4.53.1
 fqdn==1.5.1
 frozenlist==1.4.1
 fsspec==2024.6.1
@@ -66,7 +69,9 @@ jupyterlab==4.2.3
 jupyterlab_pygments==0.3.0
 jupyterlab_server==2.27.2
 jupyterlab_widgets==3.0.11
+kiwisolver==1.4.5
 MarkupSafe==2.1.5
+matplotlib==3.9.1
 matplotlib-inline==0.1.7
 mistune==3.0.2
 multidict==6.0.5
@@ -86,6 +91,7 @@ pandas==1.5.3
 pandocfilters==1.5.1
 parso==0.8.4
 pexpect==4.9.0
+pillow==10.4.0
 platformdirs==4.2.2
 prometheus_client==0.20.0
 prompt_toolkit==3.0.47
@@ -99,6 +105,7 @@ pyasn1==0.6.0
 pyasn1_modules==0.4.0
 pycparser==2.22
 Pygments==2.18.0
+pyparsing==3.1.2
 python-dateutil==2.9.0.post0
 python-json-logger==2.0.7
 pytz==2024.1
