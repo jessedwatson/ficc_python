@@ -1,8 +1,8 @@
 '''
  # @ Author: Mitas Ray
- # @ Create Time: 2022-01-13 23:04:00
+ # @ Create date: 2022-01-13
  # @ Modified by: Mitas Ray
- # @ Modified time: 2024-07-09
+ # @ Modified date: 2024-08-02
  # @ Description: This file implements functions to compute the price of a trade
  # given the yield.
  '''
@@ -135,7 +135,10 @@ def compute_price(trade, yield_rate=None):
                                                                     time_delta, 
                                                                     trade.last_period_accrues_from_date)
 
-    escrowed_to_maturity_but_callability_not_defeased = (trade.called_redemption_type in (1.0, 5.0)) and (trade.call_defeased != '1')    # explanation for this condition in section 'Bug Fix 4' of https://github.com/Ficc-ai/ficc/blob/ficc_ml/ml_models/sequence_predictors/yield_to_price_20230730.ipynb
+    called_redemption_type_is_1_or_5 = (not pd.isna(trade.called_redemption_type)) and (trade.called_redemption_type in (1.0, 5.0))
+    call_defeased_is_not_1 = pd.isna(trade['call_defeased']) or (trade['call_defeased'] != '1')
+    escrowed_to_maturity_but_callability_not_defeased = called_redemption_type_is_1_or_5 and call_defeased_is_not_1    # explanation for this condition in section 'Bug Fix 4' of https://github.com/Ficc-ai/ficc/blob/ficc_ml/ml_models/sequence_predictors/yield_to_price_20230730.ipynb
+    
     redemption_value_at_maturity = 100
     if (not trade.is_called) and (not trade.is_callable) and (not escrowed_to_maturity_but_callability_not_defeased):
         yield_to_maturity = get_price_caller(trade.maturity_date, redemption_value_at_maturity)
