@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-20
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-08-01
+ # @ Modified date: 2024-08-06
  # @ Description: Implements functions to calculate the difference in days between two days in accordance to the provision of MSRB rule 33G.
  '''
 import warnings
@@ -43,12 +43,14 @@ def diff_in_days_two_dates(end_date, start_date, convention='360/30'):
     
 def diff_in_days(trade, convention='360/30', **kwargs):
     # see MSRB Rule 33-G for details
-    start_date = trade.dated_date
     if 'calc_type' in kwargs:
         calc_type_value = kwargs['calc_type']
         if calc_type_value != 'accrual': raise ValueError(f'"calc_type" is present in kwargs and the only accepted value is "accrual", but the value passed in for "calc_type" is {calc_type_value}')
         if pd.isnull(trade.accrual_date):
-            start_date = trade.accrual_date
-        else:
+            start_date = trade.dated_date
             warnings.warn(f'Since the accrual date is null, we are using the dated date: {start_date}', category=RuntimeWarning)
+        else:
+            start_date = trade.accrual_date
+    else:
+        start_date = trade.dated_date    # cannot initialize `start_date` with `trade.dated_date` since it may not exist
     return diff_in_days_two_dates(trade.settlement_date, start_date, convention)
