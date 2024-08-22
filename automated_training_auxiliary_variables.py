@@ -2,11 +2,11 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-07-08
+ # @ Modified date: 2024-08-22
  '''
 import os
 from pytz import timezone
-from datetime import datetime
+from datetime import datetime, timedelta
 from pandas.tseries.offsets import BusinessDay
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `automated_training_auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `automated_training_auxiliary_functions.py`
@@ -27,7 +27,8 @@ MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK = 10
 YEAR_MONTH_DAY = '%Y-%m-%d'
 HOUR_MIN_SEC = '%H:%M:%S'
 
-EARLIEST_TRADE_DATETIME = '2023-04-01T00:00:00'
+MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA = 270    # 270 = 9 * 30, so we are keeping approximately 9 months of data in the file (1 more month than we use as part of training so that we can create the trade history derived features); previously we were using 390 = 13 * 30 (approximately 13 months of data) in order to go beyond one year and allow for future experiments with annual patterns without having to re-create the entire dataset, but this was too expensive memory wise and was forcing us to use extra compute when training (2 GPUs instead of 1 GPU, etc.)
+EARLIEST_TRADE_DATETIME = (datetime.now().date() - timedelta(days=MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA)).strftime('%Y-%m-%d') + 'T00:00:00'    # must be a string for further downstream functions
 
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
