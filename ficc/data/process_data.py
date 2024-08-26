@@ -8,10 +8,8 @@
 import os
 import warnings
 import numpy as np
-# Pandaralled is a python package that is 
-# used to multi-thread df apply
-from pandarallel import pandarallel
 
+from pandarallel import pandarallel    # used to multi-thread df apply with `.parallel_apply(...)`
 num_cores_for_pandarallel = os.cpu_count() // 2
 print(f'Initializing pandarallel with {num_cores_for_pandarallel} cores')
 pandarallel.initialize(progress_bar=False, nb_workers=num_cores_for_pandarallel)
