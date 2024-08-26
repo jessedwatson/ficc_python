@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-01-24
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-03-28
+ # @ Modified date: 2024-08-26
  '''
 import sys
 import numpy as np
@@ -11,9 +11,6 @@ from ficc.utils.auxiliary_functions import function_timer
 
 from automated_training_auxiliary_functions import setup_gpus, \
                                                    train_save_evaluate_model
-
-
-setup_gpus()
 
 
 def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
@@ -56,4 +53,5 @@ def main():
 
 
 if __name__ == '__main__':
+    setup_gpus()
     main()

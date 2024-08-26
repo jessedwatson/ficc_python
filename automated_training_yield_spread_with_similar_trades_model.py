@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-04-15
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-15
+ # @ Modified date: 2024-08-26
  '''
 import sys
 from ficc.utils.auxiliary_functions import function_timer
@@ -12,9 +12,6 @@ from automated_training_auxiliary_functions import setup_gpus, \
 from automated_training_yield_spread_model import apply_exclusions
 
 
-setup_gpus()
-
-
 @function_timer
 def main():
     current_date_passed_in = sys.argv[1] if len(sys.argv) == 2 else None
@@ -22,4 +19,5 @@ def main():
 
 
 if __name__ == '__main__':
+    setup_gpus()
     main()
