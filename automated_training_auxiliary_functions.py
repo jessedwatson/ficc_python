@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-08-22
+ # @ Modified date: 2024-08-27
  '''
 import warnings
 import subprocess
@@ -235,8 +235,8 @@ def check_no_duplicate_rtrs_control_numbers(data: pd.DataFrame) -> None:
 
 
 @function_timer
-def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = dict(), data_query: str = None, save_data=SAVE_MODEL_AND_DATA):
-    '''`data_query` will always be `None` unless the user is attempting to get processed data for a slice of specific 
+def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = dict(), data_query: str = None, save_data: bool = SAVE_MODEL_AND_DATA):
+    '''`data_query` will always be `None` unless the user is attempting to get processed data for a specific 
     slice of data by calling `get_new_data(...)` from another function.'''
     check_that_model_is_supported(model)
     old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
@@ -439,8 +439,9 @@ def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     return data, last_trade_datetime, last_trade_date
 
 
-def get_data_query(last_trade_datetime, model: str, latest_trade_date_to_query: str = None) -> str:
+def get_data_query(last_trade_datetime: str, model: str, latest_trade_date_to_query: str = None) -> str:
     check_that_model_is_supported(model)
+    if last_trade_datetime == EARLIEST_TRADE_DATETIME: raise RuntimeError('Use `ficc_python/get_processed_data.py to get the data for this query since it will most likely crash due to memory issues if done in this function')
     query_features = QUERY_FEATURES
     query_conditions = QUERY_CONDITIONS
     if 'yield_spread' in model:
