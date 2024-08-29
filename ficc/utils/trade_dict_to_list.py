@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-08-28
+ # @ Modified date: 2024-08-29
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -71,7 +71,7 @@ def trade_dict_to_list(trade_dict: dict,
         time_to_maturity = diff_in_days_two_dates(calc_date, target_date) / NUM_OF_DAYS_IN_YEAR
 
         if time_to_maturity <= 0:
-            print(f'Skipped the following trade because the time to maturity is nonpositive. RTRS control number: {int(trade_dict["rtrs_control_number"])}\t\tTrade datetime: {trade_dict['trade_datetime']}\t\tCalc date: {calc_date}')
+            print(f'Skipped the following trade because the time to maturity is nonpositive. RTRS control number: {int(trade_dict["rtrs_control_number"])}\t\tTrade datetime: {trade_dict["trade_datetime"]}\t\tCalc date: {calc_date}')
             return None, None
         
         if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':    # ficc yield curve coefficients are only present before 2021-07-27 for the old yield curve and 2021-08-02 for the new yield curve
