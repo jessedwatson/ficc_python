@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-08-29
+ # @ Modified date: 2024-09-24
  # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
  # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
  # 
@@ -12,6 +12,7 @@
  # Taking the log of the number of seconds between the historical trade and the latest trade
  '''
 import numpy as np
+import pandas as pd
 
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
@@ -47,6 +48,13 @@ def trade_dict_to_list(trade_dict: dict,
     ]
     for feature in necessary_features:
         if trade_dict[feature] is None: return None, None
+        if 'date' in feature:
+            date_feature_value = trade_dict[feature]
+            try:    # sometimes MSRB has errors when entering dates causing a date to be out of bounds or invalid; see Jira task: https://ficcai.atlassian.net/browse/FA-2315
+                pd.to_datetime(date_feature_value)
+            except Exception as e:
+                print(f'For RTRS control number: {trade_dict["rtrs_control_number"]}, when trying to convert {feature} with value: {date_feature_value}, we get the following {type(e)}: {e}')
+                return None, None
 
     if trade_dict['seconds_ago'] < trade_history_delay: return None, None    # only keep trades further in the past than `trade_history_delay`
 
