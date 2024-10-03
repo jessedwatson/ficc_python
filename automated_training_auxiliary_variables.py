@@ -34,7 +34,7 @@ HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the nee
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
 
 PROJECT_ID = 'eng-reactor-287421'
-YIELD_CURVE_DATASET_NAME = 'ahmad_test'
+YIELD_CURVE_DATASET_NAME = 'yield_curves_v2'
 HISTORICAL_PREDICTION_TABLE = {'yield_spread': f'{PROJECT_ID}.historic_predictions.historical_predictions', 
                                'yield_spread_with_similar_trades': f'{PROJECT_ID}.historic_predictions.historical_predictions_similar_trades'}
 

@@ -58,17 +58,17 @@ storage_client = storage.Client()
 bq_client = bigquery.Client()
 
 
-nelson_params = sqltodf("select * from `eng-reactor-287421.ahmad_test.nelson_siegel_coef_daily` order by date desc", bq_client)
+nelson_params = sqltodf("select * from `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_daily` order by date desc", bq_client)
 nelson_params.set_index("date", drop=True, inplace=True)
 nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
 nelson_params = nelson_params.transpose().to_dict()
 
-scalar_params = sqltodf("select * from`eng-reactor-287421.ahmad_test.standardscaler_parameters_daily` order by date desc", bq_client)
+scalar_params = sqltodf("select * from`eng-reactor-287421.yield_curves_v2.standardscaler_parameters_daily` order by date desc", bq_client)
 scalar_params.set_index("date", drop=True, inplace=True)
 scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
 scalar_params = scalar_params.transpose().to_dict()
 
-shape_parameter  = sqltodf("SELECT *  FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc", bq_client)
+shape_parameter  = sqltodf("SELECT *  FROM `eng-reactor-287421.yield_curves_v2.shape_parameters` order by Date desc", bq_client)
 shape_parameter.set_index("Date", drop=True, inplace=True)
 shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
 shape_parameter = shape_parameter.transpose().to_dict()

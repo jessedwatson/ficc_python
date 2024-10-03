@@ -15,10 +15,10 @@ from ficc.utils.auxiliary_functions import sqltodf
 def yield_curve_params(client, yield_curve_to_use):
     supported_yield_curves = ('FICC', 'FICC_NEW')
     assert yield_curve_to_use in supported_yield_curves, f'Yield curve of {yield_curve_to_use} is not supported. Supported yield curves: {supported_yield_curves}'
-    table_name = 'yield_curves' if yield_curve_to_use == 'FICC' else 'ahmad_test'
+    table_name = 'yield_curves' if yield_curve_to_use == 'FICC' else 'yield_curves_v2'
     nelson_params = sqltodf(f'SELECT * FROM `eng-reactor-287421.{table_name}.nelson_siegel_coef_daily` ORDER BY date DESC', client)
     scalar_params = sqltodf(f'SELECT * FROM `eng-reactor-287421.{table_name}.standardscaler_parameters_daily` ORDER BY date DESC', client)
-    shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` ORDER BY Date DESC', client)
+    shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.yield_curves_v2.shape_parameters` ORDER BY Date DESC', client)
     
     fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
     with fs.open('ahmad_data/historical_yield_curves.csv') as file:
