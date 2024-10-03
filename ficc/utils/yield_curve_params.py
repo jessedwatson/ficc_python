@@ -1,9 +1,9 @@
 
 '''
  # @ Author: Ahmad Shayaan
- # @ Create Time: 2021-12-17 10:40:14
- # @ Modified by: Ahmad Shayaan
- # @ Modified time: 2023-10-11 17:23:51
+ # @ Create date: 2021-12-17
+ # @ Modified by: Mitas Ray
+ # @ Modified date: 2024-10-03
  # @ Description:
  '''
 import pandas as pd
@@ -18,7 +18,7 @@ def yield_curve_params(client, yield_curve_to_use):
     table_name = 'yield_curves' if yield_curve_to_use == 'FICC' else 'ahmad_test'
     nelson_params = sqltodf(f'SELECT * FROM `eng-reactor-287421.{table_name}.nelson_siegel_coef_daily` ORDER BY date DESC', client)
     scalar_params = sqltodf(f'SELECT * FROM `eng-reactor-287421.{table_name}.standardscaler_parameters_daily` ORDER BY date DESC', client)
-    shape_parameter = sqltodf('SELECT *  FROM `eng-reactor-287421.ahmad_test.shape_parameters` order by Date desc', client)
+    shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.ahmad_test.shape_parameters` ORDER BY Date DESC', client)
     
     fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
     with fs.open('ahmad_data/historical_yield_curves.csv') as file:

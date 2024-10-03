@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-08-27
+ # @ Modified date: 2024-10-03
  '''
 import warnings
 import subprocess
@@ -60,6 +60,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    HOME_DIRECTORY, \
                                                    WORKING_DIRECTORY, \
                                                    PROJECT_ID, \
+                                                   YIELD_CURVE_DATASET_NAME, \
                                                    BUCKET_NAME, \
                                                    MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK, \
                                                    EARLIEST_TRADE_DATETIME, \
@@ -180,17 +181,17 @@ def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_paramet
 @function_timer
 def add_yield_curve(data):
     '''Add 'new_ficc_ycl' field to `data`.'''
-    nelson_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.nelson_siegel_coef_daily` order by date desc', BQ_CLIENT)
+    nelson_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_daily` ORDER BY date DESC', BQ_CLIENT)
     nelson_params.set_index('date', drop=True, inplace=True)
     nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
     nelson_params = nelson_params.transpose().to_dict()
 
-    scalar_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.standardscaler_parameters_daily` order by date desc', BQ_CLIENT)
+    scalar_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.standardscaler_parameters_daily` ORDER BY date DESC', BQ_CLIENT)
     scalar_params.set_index('date', drop=True, inplace=True)
     scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
     scalar_params = scalar_params.transpose().to_dict()
 
-    shape_parameter = sqltodf(f'SELECT * FROM `{PROJECT_ID}.ahmad_test.shape_parameters` order by Date desc', BQ_CLIENT)
+    shape_parameter = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters` ORDER BY Date DESC', BQ_CLIENT)
     shape_parameter.set_index('Date', drop=True, inplace=True)
     shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
     shape_parameter = shape_parameter.transpose().to_dict()
