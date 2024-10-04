@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-08-27
+ # @ Modified date: 2024-10-03
  '''
 import os
 from pytz import timezone
@@ -34,6 +34,7 @@ HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the nee
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
 
 PROJECT_ID = 'eng-reactor-287421'
+YIELD_CURVE_DATASET_NAME = 'yield_curves_v2'
 HISTORICAL_PREDICTION_TABLE = {'yield_spread': f'{PROJECT_ID}.historic_predictions.historical_predictions', 
                                'yield_spread_with_similar_trades': f'{PROJECT_ID}.historic_predictions.historical_predictions_similar_trades'}
 
