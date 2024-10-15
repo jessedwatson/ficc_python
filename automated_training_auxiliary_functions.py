@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-03
+ # @ Modified date: 2024-10-14
  '''
 import warnings
 import subprocess
@@ -178,30 +178,27 @@ def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_paramet
     return ycl
 
 
+def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
+    '''Return the parameters from `table_name` as a dictionary.'''
+    params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.{table_name}` ORDER BY {date_column_name} DESC', BQ_CLIENT)
+    params.set_index(date_column_name, drop=True, inplace=True)
+    params = params[~params.index.duplicated(keep='first')]
+    return params.transpose().to_dict()
+
+
 @function_timer
 def add_yield_curve(data):
     '''Add 'new_ficc_ycl' field to `data`.'''
-    nelson_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_daily` ORDER BY date DESC', BQ_CLIENT)
-    nelson_params.set_index('date', drop=True, inplace=True)
-    nelson_params = nelson_params[~nelson_params.index.duplicated(keep='first')]
-    nelson_params = nelson_params.transpose().to_dict()
-
-    scalar_params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.standardscaler_parameters_daily` ORDER BY date DESC', BQ_CLIENT)
-    scalar_params.set_index('date', drop=True, inplace=True)
-    scalar_params = scalar_params[~scalar_params.index.duplicated(keep='first')]
-    scalar_params = scalar_params.transpose().to_dict()
-
-    shape_parameter = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters` ORDER BY Date DESC', BQ_CLIENT)
-    shape_parameter.set_index('Date', drop=True, inplace=True)
-    shape_parameter = shape_parameter[~shape_parameter.index.duplicated(keep='first')]
-    shape_parameter = shape_parameter.transpose().to_dict()
+    nelson_daily_params = get_parameters('nelson_siegel_coef_daily')
+    scalar_daily_params = get_parameters('standardscaler_parameters_daily')
+    shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
 
     data['last_trade_date'] = data['last_trade_datetime'].dt.date
     data['new_ficc_ycl'] = data[['last_calc_date',
                                  'last_settlement_date',
                                  'trade_date',
                                  'last_trade_date',
-                                 'maturity_date']].parallel_apply(lambda row: get_yield_for_last_duration(row, nelson_params, scalar_params, shape_parameter), axis=1)
+                                 'maturity_date']].parallel_apply(lambda row: get_yield_for_last_duration(row, nelson_daily_params, scalar_daily_params, shape_params), axis=1)
     data['new_ficc_ycl'] = data['new_ficc_ycl'] * 100
     return data
 
