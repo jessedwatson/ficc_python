@@ -208,6 +208,11 @@ def decrement_business_days(date: str, num_business_days: int) -> str:
     return (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
 
 
+def increment_business_days(date: str, num_business_days: int) -> str:
+    '''Subtract `num_business_days` from `date`.'''
+    return (datetime.strptime(date, YEAR_MONTH_DAY) + BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
+
+
 def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFrame, last_trade_date) -> bool:
     '''Checks whether `last_trade_date` is the same as the date of the earliest trade in `new_data`. This 
     situation arises materialized trade history is created in the middle of the day, and so there are trades 
@@ -1106,10 +1111,10 @@ def send_results_email_multiple_tables(df_list: list, text_list: list, model_tra
     return html_text
 
 
-def send_no_new_model_email(last_trade_date, recipients: list, model: str) -> None:
+def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) -> None:
     check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
-    msg['Subject'] = f'Not enough new data was found on {last_trade_date}, so no new {model} model was trained; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model'
+    msg['Subject'] = f'Not enough new data was found on {increment_business_days(last_trade_date, 1)} (the business day after {last_trade_date}), so no new {model} model was trained; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model'
     msg['From'] = SENDER_EMAIL
     send_email(SENDER_EMAIL, msg, recipients)
