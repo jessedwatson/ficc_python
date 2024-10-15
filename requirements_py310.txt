@@ -29,6 +29,7 @@ googleapis-common-protos==1.63.0
 grpcio==1.62.1
 grpcio-status==1.48.2
 h5py==3.10.0
+holidays==0.58
 idna==3.6
 jax==0.4.26
 joblib==1.4.0

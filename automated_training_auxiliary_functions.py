@@ -10,6 +10,7 @@ import traceback    # used to print out the stack trace when there is an error
 import os
 import sys
 import shutil
+import holidays
 import pickle
 import numpy as np
 import pandas as pd
@@ -211,6 +212,16 @@ def decrement_business_days(date: str, num_business_days: int) -> str:
 def increment_business_days(date: str, num_business_days: int) -> str:
     '''Subtract `num_business_days` from `date`.'''
     return (datetime.strptime(date, YEAR_MONTH_DAY) + BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
+
+
+def is_a_holiday(date: str) -> bool:
+    '''Determine whether `date` is a US national holiday.'''
+    date = datetime.strptime(date, YEAR_MONTH_DAY)
+    holidays_US = holidays.US()
+    if date in holidays_US:
+        print(f'{date} is a national holiday so we do not expect there to be new trades on this day')
+        return True
+    return False
 
 
 def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFrame, last_trade_date) -> bool:
@@ -1115,6 +1126,9 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
-    msg['Subject'] = f'Not enough new data was found on {increment_business_days(last_trade_date, 1)} (the business day after {last_trade_date}), so no new {model} model was trained; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model'
+    next_business_day = increment_business_days(last_trade_date, 1)
+    next_business_day_is_a_holiday = is_a_holiday(next_business_day)
+    tag = f'{next_business_day} is a holiday so we do not expect new trades.' if next_business_day_is_a_holiday else f'ERROR: {next_business_day} is NOT a holiday so we expect new trades.'
+    msg['Subject'] = f'{tag} Not enough new data was found on {next_business_day} (the business day after {last_trade_date}), so no new {model} model was trained; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model'
     msg['From'] = SENDER_EMAIL
     send_email(SENDER_EMAIL, msg, recipients)
