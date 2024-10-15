@@ -2,7 +2,7 @@
  # @ Author: Issac Lim
  # @ Create date: 2021-08-23
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-13
+ # @ Modified date: 2024-10-15
  # @ Description: This is an implementation of the Nelson Seigel intereset rate 
  # model to predic the yield curve. 
  # @ Modification: Nelson-Seigel coefficeints are used from a dataframe
@@ -10,13 +10,17 @@
  '''
 import copy
 import numpy as np
-from pandas.tseries.offsets import BDay
+from pandas.tseries.offsets import CustomBusinessDay
+from pandas.tseries.holiday import USFederalHolidayCalendar
 from functools import wraps
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+
 PROJECT_ID = 'eng-reactor-287421'
+
+BUSINESS_DAY = CustomBusinessDay(calendar=USFederalHolidayCalendar())    # used to skip over holidays when adding or subtracting business days
 
 
 def cache(function):
@@ -27,7 +31,7 @@ def cache(function):
         if cache_key in wrapper.cache:
             output = wrapper.cache[cache_key]
         else:
-            output = function(*args)
+            output = function(*args, **kwargs)
             wrapper.cache[cache_key] = output
         return output
 
@@ -49,17 +53,17 @@ def laguerre_transformation(t: np.array, L: float):
 
 def load_model_parameters(target_date, nelson_params, scalar_params, shape_parameter):
     '''This function grabs the nelson siegel and standard scalar coefficient from the dataframes.'''
-    target_date = (target_date - BDay(1)).date()
+    target_date = (target_date - (BUSINESS_DAY * 1)).date()
     target_date_shape = copy.deepcopy(target_date)
 
     while target_date not in nelson_params.keys():
-        target_date = (target_date - BDay(1)).date()
+        target_date = (target_date - (BUSINESS_DAY * 1)).date()
 
     nelson_coeff = nelson_params[target_date].values()
     scalar_coeff = scalar_params[target_date].values()
 
     while target_date_shape not in shape_parameter.keys():
-        target_date_shape = (target_date_shape - BDay(1)).date()
+        target_date_shape = (target_date_shape - (BUSINESS_DAY * 1)).date()
     shape_param = shape_parameter[target_date_shape]['L']
 
     return nelson_coeff, scalar_coeff, shape_param

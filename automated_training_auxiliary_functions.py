@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-14
+ # @ Modified date: 2024-10-15
  '''
 import warnings
 import subprocess
@@ -14,7 +14,6 @@ import holidays
 import pickle
 import numpy as np
 import pandas as pd
-from pandas.tseries.offsets import BDay
 from sklearn import preprocessing
 import tensorflow as tf
 from tensorflow import keras
@@ -54,6 +53,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
                                                    ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
                                                    EASTERN, \
+                                                   BUSINESS_DAY, \
                                                    NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
                                                    NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
                                                    CATEGORICAL_FEATURES_VALUES, \
@@ -206,12 +206,12 @@ def add_yield_curve(data):
 
 def decrement_business_days(date: str, num_business_days: int) -> str:
     '''Subtract `num_business_days` from `date`.'''
-    return (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
+    return (datetime.strptime(date, YEAR_MONTH_DAY) - (BUSINESS_DAY * num_business_days)).strftime(YEAR_MONTH_DAY)
 
 
 def increment_business_days(date: str, num_business_days: int) -> str:
     '''Subtract `num_business_days` from `date`.'''
-    return (datetime.strptime(date, YEAR_MONTH_DAY) + BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
+    return (datetime.strptime(date, YEAR_MONTH_DAY) + (BUSINESS_DAY * num_business_days)).strftime(YEAR_MONTH_DAY)
 
 
 def is_a_holiday(date: str) -> bool:
