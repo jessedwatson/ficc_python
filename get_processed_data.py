@@ -14,7 +14,7 @@ from tqdm import tqdm
 import multiprocess as mp
 from datetime import datetime
 import pandas as pd
-from pandas.tseries.offsets import BusinessDay
+from pandas.tseries.offsets import BDay
 
 from ficc.utils.auxiliary_functions import sqltodf, function_timer
 
@@ -31,7 +31,7 @@ SAVE_DATA = True
 TESTING = False
 if TESTING:
     SAVE_DATA = False
-    EARLIEST_TRADE_DATETIME = (datetime.now(EASTERN) - BusinessDay(2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+    EARLIEST_TRADE_DATETIME = (datetime.now(EASTERN) - BDay(2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
 
 
 @function_timer
@@ -103,7 +103,7 @@ def main():
     earliest_trade_datetime = EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
     if latest_trade_date is not None:
         assert check_date_in_correct_format(latest_trade_date)
-        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - BusinessDay(2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - BDay(2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
 
     data_query = get_data_query(earliest_trade_datetime, 'yield_spread_with_similar_trades', latest_trade_date)
     print('Getting data from the following query:\n', data_query)

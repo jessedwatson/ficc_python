@@ -13,7 +13,7 @@ import shutil
 import pickle
 import numpy as np
 import pandas as pd
-from pandas.tseries.offsets import BusinessDay
+from pandas.tseries.offsets import BDay
 from sklearn import preprocessing
 import tensorflow as tf
 from tensorflow import keras
@@ -205,7 +205,7 @@ def add_yield_curve(data):
 
 def decrement_business_days(date: str, num_business_days: int) -> str:
     '''Subtract `num_business_days` from `date`.'''
-    return (datetime.strptime(date, YEAR_MONTH_DAY) - BusinessDay(num_business_days)).strftime(YEAR_MONTH_DAY)
+    return (datetime.strptime(date, YEAR_MONTH_DAY) - BDay(num_business_days)).strftime(YEAR_MONTH_DAY)
 
 
 def earliest_trade_from_new_data_is_same_as_last_trade_date(new_data: pd.DataFrame, last_trade_date) -> bool:
