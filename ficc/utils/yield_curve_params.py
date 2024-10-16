@@ -3,7 +3,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-03
+ # @ Modified date: 2024-10-16
  # @ Description:
  '''
 import pandas as pd
@@ -21,7 +21,7 @@ def yield_curve_params(client, yield_curve_to_use):
     shape_parameter = sqltodf('SELECT * FROM `eng-reactor-287421.yield_curves_v2.shape_parameters` ORDER BY Date DESC', client)
     
     fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
-    with fs.open('ahmad_data/historical_yield_curves.csv') as file:
+    with fs.open('automated_training/historical_yield_curves.csv') as file:
         historical_yield_curves = pd.read_csv(file)
 
     historical_yield_curves.date = pd.to_datetime(historical_yield_curves.date).dt.date
