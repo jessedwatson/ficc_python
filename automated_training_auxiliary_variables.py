@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-15
+ # @ Modified date: 2024-10-16
  '''
 import os
 from pytz import timezone
@@ -25,7 +25,7 @@ EMAIL_RECIPIENTS_FOR_LOGS = ['jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai', 't
 EMAIL_RECIPIENTS = EMAIL_RECIPIENTS_FOR_LOGS + ['myles@ficc.ai']    # recieve an email following a successful run of the training script; set to only your email if testing
 
 BUCKET_NAME = 'automated_training'
-MAX_NUM_BUSINESS_DAYS_IN_THE_PAST_TO_CHECK = 10
+MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK = 10
 
 YEAR_MONTH_DAY = '%Y-%m-%d'
 HOUR_MIN_SEC = '%H:%M:%S'
