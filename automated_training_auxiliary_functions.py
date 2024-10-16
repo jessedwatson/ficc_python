@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-15
+ # @ Modified date: 2024-10-16
  '''
 import warnings
 import subprocess
@@ -14,6 +14,7 @@ import holidays
 import pickle
 import numpy as np
 import pandas as pd
+from pandas.tseries.offsets import BusinessDay
 from sklearn import preprocessing
 import tensorflow as tf
 from tensorflow import keras
@@ -202,6 +203,13 @@ def add_yield_curve(data):
                                  'maturity_date']].parallel_apply(lambda row: get_yield_for_last_duration(row, nelson_daily_params, scalar_daily_params, shape_params), axis=1)
     data['new_ficc_ycl'] = data['new_ficc_ycl'] * 100
     return data
+
+
+def decrement_week_days(date: str, num_week_days: int) -> str:
+    '''Subtract `num_business_days` from `date`. Using `BusinessDay` instead of `CustomBusinessDay` with the `USFederalHolidayCalendar` since 
+    we do not want to skip holidays when using archived models since the desired model may have been created on a holiday, which is fine 
+    because that model was trained with data before the holiday.'''
+    return (datetime.strptime(date, YEAR_MONTH_DAY) - BusinessDay(num_week_days)).strftime(YEAR_MONTH_DAY)
 
 
 def decrement_business_days(date: str, num_business_days: int) -> str:
@@ -796,7 +804,7 @@ def load_model(date_of_interest: str, model: str, max_num_business_days_in_the_p
     year to the name.'''
     folder = MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER[model]
     for num_business_days_in_the_past in range(max_num_business_days_in_the_past_to_check):
-        model_date_string = decrement_business_days(date_of_interest, num_business_days_in_the_past)
+        model_date_string = decrement_week_days(date_of_interest, num_business_days_in_the_past)    # do not want to skip holidays because the desired model may have been created on a holiday, which is fine because that model was trained with data before the holiday
         loaded_model = load_model_from_date(model_date_string, folder, bucket)
         if loaded_model is not None: return loaded_model, model_date_string
     raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
