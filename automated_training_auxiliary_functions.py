@@ -1137,6 +1137,33 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     next_business_day = increment_business_days(last_trade_date, 1)
     next_business_day_is_a_holiday = is_a_holiday(next_business_day)
     tag = f'{next_business_day} is a holiday so we do not expect new trades.' if next_business_day_is_a_holiday else f'ERROR: {next_business_day} is NOT a holiday so we expect new trades.'
-    msg['Subject'] = f'{tag} Not enough new data was found on {next_business_day} (the business day after {last_trade_date}), so no new {model} model was trained; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model'
+    subject_prefix = f'{tag} Not enough new data was found on {next_business_day}'
+    subject_suffix = f', so no new {model} model was trained'
+    msg['Subject'] = f'{subject_prefix}{subject_suffix}'
     msg['From'] = SENDER_EMAIL
+    html_text = f'''
+    <html>
+    <body>
+    {subject_prefix} (the business day after {last_trade_date}){subject_suffix}; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model
+    <hr>
+    Below is the order of related cloud functions and core procedures that run in relation to the training procedure that may be helpful for debugging and recovery due to this error:
+
+    `update_sp_all_indices_and_maturities` runs at 11pm ET M-F. Updates all of the tables in the following datasets: (1) `eng-reactor-287421.spBondIndexMaturities`, (2) `eng-reactor-287421.spBondIndex`.
+
+    `train_daily_etf_model` runs at 11:10pm ET M-F. Uses all of the tables in the following datasets: (1) `eng-reactor-287421.spBondIndex`, (2) `eng-reactor-287421.ETF_daily_alphavantage`. Updates all of the tables of the following form: `eng-reactor-287421.yield_curves_v2.*_index`.
+
+    `train_daily_yield_curve` runs at 11:10pm ET M-F. Uses tables from datasets: (1) `eng-reactor-287421.spBondIndexMaturities`, (2) `eng-reactor-287421.spBondIndex`. Update the following tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_daily`, (2) `eng-reactor-287421.yield_curves_v2.standardscaler_parameters_daily`. Updates the yield curve redis, but the data with which it is updated is not currently used in production since we use the realtime yield curve in production.
+
+    `compute_shape_parameter` runs at 11:25pm ET M-F. Uses all of the tables in the following dataset: `eng-reactor-287421.spBondIndexMaturities`. Updates the table: `eng-reactor-287421.yield_curves_v2.shape_parameters`
+
+    The following scheduled queries run at 5:05am ET: `create_same_issue_trade_history_ref_data` and `create_materialized_trade_history`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `auxiliary_views.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `eng-reactor-287421.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
+
+    Model training runs at 5:45am ET M-F. Uses tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_daily`, (2) `eng-reactor-287421.yield_curves_v2.standardscaler_parameters_daily`, (3) `eng-reactor-287421.yield_curves_v2.shape_parameters`, (4) `eng-reactor-287421.treasury_yield.daily_yield_rate`.
+
+    `train-minute-yield-curve` runs from 9:30am - 3pm ET every minute on the minute. Uses the table: `eng-reactor-287421.yield_curves_v2.shape_parameters` and all of the tables of the following form: `eng-reactor-287421.yield_curves_v2.*_index` and all of the tables in the following datasets: (1) `eng-reactor-287421.spBondIndexMaturities`, (2) `eng-reactor-287421.spBondIndex`. Updates the following tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_minute`, (2) `eng-reactor-287421.finnhub_io.finnhub_etf_data`.
+    </body>
+    </html>
+    '''
+    body = MIMEText(html_text, 'html')
+    msg.attach(body)
     send_email(SENDER_EMAIL, msg, recipients)
