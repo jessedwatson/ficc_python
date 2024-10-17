@@ -1146,6 +1146,18 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <body>
     {subject_prefix} (the business day after {last_trade_date}){subject_suffix}; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model
     <hr>
+    If the error is unexpected, perform the following procedure:
+
+    1. Check `eng-reactor-287421.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized` to see if there are any trades from the most recent business date. If there are no trades, then a likely cause is that the S&P index data did not load correctly from the `update_sp_all_indices_and_maturities` cloud function.
+
+    2. Debug the `update_sp_all_indices_and_maturities` cloud function by inspecting the logs.
+
+    3. Follow the order of the following cloud functions below, and force run them to recover from the lost data. When force running the `compute_shape_parameter` cloud function, first update the `CURRENT_DATETIME` to be the previous business day if fixing it the next day.
+
+    4. Go to GCP scheduled queries for the materialized trade history and similar trade history tables that are use for training.  Click on these and click edit the scheduled query.  This will open the query in a new window and you need simply click “Run” and let the query run for ~20 mins and the tables will be ready. This will not actually edit or change the scheduled query.
+
+    5. Train the models by going into the VM, update your user using these instructions: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#463a8cb282e2454db42584317a31a42b. Then, run the corresponding command from https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#122eb87466c28077b8b9d87f9f9490ec.
+    <hr>
     Below is the order of related cloud functions and core procedures that run in relation to the training procedure that may be helpful for debugging and recovery due to this error:
 
     `update_sp_all_indices_and_maturities` runs at 11pm ET M-F. Updates all of the tables in the following datasets: (1) `eng-reactor-287421.spBondIndexMaturities`, (2) `eng-reactor-287421.spBondIndex`.
@@ -1158,7 +1170,7 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
 
     The following scheduled queries run at 5:05am ET: `create_same_issue_trade_history_ref_data` and `create_materialized_trade_history`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `auxiliary_views.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `eng-reactor-287421.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
 
-    Model training runs at 5:45am ET M-F. Uses tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_daily`, (2) `eng-reactor-287421.yield_curves_v2.standardscaler_parameters_daily`, (3) `eng-reactor-287421.yield_curves_v2.shape_parameters`, (4) `eng-reactor-287421.treasury_yield.daily_yield_rate`.
+    Model training runs at 5:45am ET M-F. Uses tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_daily`, (2) `eng-reactor-287421.yield_curves_v2.standardscaler_parameters_daily`, (3) `eng-reactor-287421.yield_curves_v2.shape_parameters`, (4) `eng-reactor-287421.treasury_yield.daily_yield_rate`, (5) `eng-reactor-287421.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized`, (6) `eng-reactor-287421.auxiliary_views.materialized_trade_history`.
 
     `train-minute-yield-curve` runs from 9:30am - 3pm ET every minute on the minute. Uses the table: `eng-reactor-287421.yield_curves_v2.shape_parameters` and all of the tables of the following form: `eng-reactor-287421.yield_curves_v2.*_index` and all of the tables in the following datasets: (1) `eng-reactor-287421.spBondIndexMaturities`, (2) `eng-reactor-287421.spBondIndex`. Updates the following tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_minute`, (2) `eng-reactor-287421.finnhub_io.finnhub_etf_data`.
     </body>
