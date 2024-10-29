@@ -756,7 +756,7 @@ def get_table_schema_for_predictions():
 
 
 def upload_predictions(data: pd.DataFrame, model: str) -> str:
-    '''Upload the coefficient and scalar dataframe to BigQuery. Returns the table name.'''
+    '''Upload predictions to BigQuery. Returns the table name.'''
     assert model in HISTORICAL_PREDICTION_TABLE, f'Trying to upload predictions for {model}, but can only upload predictions for the following models: {list(HISTORICAL_PREDICTION_TABLE.keys())}'
     table_name = HISTORICAL_PREDICTION_TABLE[model]
     job_config = bigquery.LoadJobConfig(schema=get_table_schema_for_predictions(), write_disposition='WRITE_APPEND')
