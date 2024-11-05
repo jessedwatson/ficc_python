@@ -81,14 +81,12 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
                                                    TESTING, \
                                                    USE_PICKLED_DATA
-from yield_model import yield_spread_model
 from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
 
 
 # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
-MODEL_NAME_TO_KERAS_MODEL = {'yield_spread': yield_spread_model, 
-                             'dollar_price': dollar_price_model, 
+MODEL_NAME_TO_KERAS_MODEL = {'dollar_price': dollar_price_model, 
                              'yield_spread_with_similar_trades': yield_spread_with_similar_trades_model}
 
 
