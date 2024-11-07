@@ -1,8 +1,11 @@
-
+'''
+Last Editor: Mitas Ray
+Last Edit Date: 2024-11-07
+'''
 standard_training_query = """ SELECT
   *
 FROM
-  `eng-reactor-287421.auxiliary_views.materialized_trade_history`
+  `eng-reactor-287421.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
 WHERE
   yield IS NOT NULL
   AND yield > 0 
