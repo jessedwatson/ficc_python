@@ -9,9 +9,9 @@ import os
 
 def initialize_pandarallel(num_cores_for_pandarallel: int = os.cpu_count() // 2):
     from pandarallel import pandarallel    # used to multi-thread df apply with `.parallel_apply(...)`
-
-    if not pandarallel.pandarallel_is_initialized:
-        print(f'Initializing pandarallel with {num_cores_for_pandarallel} cores')
+    
+    try:
         pandarallel.initialize(progress_bar=False, nb_workers=num_cores_for_pandarallel)
-    else:
+        print(f'Initialized pandarallel with {num_cores_for_pandarallel} cores')
+    except RuntimeError:
         print('pandarallel has already been initialized')
