@@ -485,9 +485,8 @@ def get_data_query(last_trade_datetime: str, model: str, latest_trade_date_to_qu
     query_conditions = query_conditions + [f'trade_datetime > "{last_trade_datetime}"']
     if latest_trade_date_to_query is not None: query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}T23:59:59"']
     conditions_as_string = ' AND '.join(query_conditions)
-    table_name = f'trade_history_same_issue_5_yr_mat_bucket_1_materialized' if model == 'yield_spread_with_similar_trades' else f'materialized_trade_history'
     return f'''SELECT {features_as_string}
-               FROM `{PROJECT_ID}.auxiliary_views.{table_name}`
+               FROM `{PROJECT_ID}.jesse_tests.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
                WHERE {conditions_as_string}
                ORDER BY trade_datetime DESC'''
 
