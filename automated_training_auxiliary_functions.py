@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-16
+ # @ Modified date: 2024-11-07
  '''
 import warnings
 import subprocess
@@ -32,6 +32,9 @@ from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
+from ficc.utils.initialize_pandarallel import initialize_pandarallel
+
+initialize_pandarallel()
 
 from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    CATEGORICAL_FEATURES, \
@@ -255,7 +258,13 @@ def check_no_duplicate_rtrs_control_numbers(data: pd.DataFrame) -> None:
 
 
 @function_timer
-def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = dict(), data_query: str = None, save_data: bool = SAVE_MODEL_AND_DATA):
+def get_new_data(file_name, 
+                 model: str, 
+                 use_treasury_spread: bool = False, 
+                 optional_arguments_for_process_data: dict = dict(), 
+                 data_query: str = None, 
+                 save_data: bool = SAVE_MODEL_AND_DATA, 
+                 use_multiprocessing: bool = True):
     '''`data_query` will always be `None` unless the user is attempting to get processed data for a specific 
     slice of data by calling `get_new_data(...)` from another function.'''
     check_that_model_is_supported(model)
@@ -275,6 +284,7 @@ def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optio
                                                  raw_data_filepath, 
                                                  save_data=save_data, 
                                                  process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
+                                                 use_multiprocessing=use_multiprocessing, 
                                                  **optional_arguments_for_process_data)
     
     if data_from_last_trade_datetime is not None:

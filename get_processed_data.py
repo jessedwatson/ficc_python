@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-04-19
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-15
+ # @ Modified date: 2024-11-07
  # @ Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
  use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
  This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
@@ -98,8 +98,8 @@ def check_date_in_correct_format(date_as_string):
 
 @function_timer
 def main():
-    latest_trade_date = sys.argv[1] if len(sys.argv) == 2 else None
-    earliest_trade_datetime = EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
+    latest_trade_date = sys.argv[1] if len(sys.argv) >= 2 else None
+    earliest_trade_datetime = sys.argv[2] if len(sys.argv) >= 3 else EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
     if latest_trade_date is not None:
         assert check_date_in_correct_format(latest_trade_date)
         if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
