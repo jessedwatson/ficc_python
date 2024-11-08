@@ -45,10 +45,10 @@ def check_that_df_is_sorted_by_column(df, column_name, desc: bool = False):
 
 
 @function_timer
-def get_processed_trades_for_particular_date(start_date_as_string: str, end_date_as_string: str = None) -> pd.DataFrame:
+def get_processed_trades_for_particular_date(start_date_as_string: str, end_date_as_string: str = None, use_multiprocessing: bool = True) -> pd.DataFrame:
     '''If `end_date_as_string` is `None`, then we get trades only for `start_date_as_string`.'''
-    print(f'Start date: {start_date_as_string}\t\tEnd date: {end_date_as_string}')
     if end_date_as_string is None: end_date_as_string = start_date_as_string
+    print(f'Start date: {start_date_as_string}\t\tEnd date: {end_date_as_string}')
     data_query = get_data_query(start_date_as_string + 'T00:00:00', 'yield_spread_with_similar_trades')
     order_by_position = data_query.find('ORDER BY')
     data_query_date = data_query[:order_by_position] + f'AND trade_datetime <= "{end_date_as_string}T23:59:59" ' + data_query[order_by_position:]    # add condition of restricting all trades to the specified `date_as_string`
@@ -56,7 +56,7 @@ def get_processed_trades_for_particular_date(start_date_as_string: str, end_date
 
     optional_arguments_for_process_data = get_optional_arguments_for_process_data(MODEL)
     use_treasury_spread = optional_arguments_for_process_data.get('use_treasury_spread', False)
-    _, processed_data, _, _, _ = get_new_data(None, MODEL, use_treasury_spread, optional_arguments_for_process_data, data_query_date, False)
+    _, processed_data, _, _, _ = get_new_data(None, MODEL, use_treasury_spread, optional_arguments_for_process_data, data_query_date, False, use_multiprocessing)
     return processed_data    # get just the raw data with `sqltodf(data_query_date, BQ_CLIENT)`
 
 
@@ -70,7 +70,7 @@ def get_trades_for_all_dates(dates: list, all_at_once: bool = False) -> pd.DataF
             num_workers = 8    # os.cpu_count()
             print(f'Using multiprocessing with {num_workers} workers for calling `get_trades_for_particular_date(...) on each of the {len(dates)} items in {dates}')
             with mp.Pool(num_workers) as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html; consider trying with lesser processes if running out of RAM (put an argument of e.g. `os.cpu_count() // 4` as the argument to `mp.Pool()` so it reads `mp.Pool(os.cpu_count() // 4)`); when running the procedure on 8 CPUs, the max RAM usage exceeded 204 GB and killed the VM with machien type n1-highmem-32 (seen with `htop` command on terminal on VM)
-                trades_for_all_dates = pool_object.map(get_processed_trades_for_particular_date, dates)
+                trades_for_all_dates = pool_object.map(lambda start_date_as_string: get_processed_trades_for_particular_date(start_date_as_string, use_multiprocessing=False), dates)
         else:
             trades_for_all_dates = [get_processed_trades_for_particular_date(date) for date in tqdm(dates)]
         trades_for_all_dates = pd.concat(trades_for_all_dates).reset_index(drop=True)    # `pd.concat(...)` is a bottleneck (even though the calls to `get_trades_for_particular_date(...)` take less than a minute, the `pd.concat(...)` takes >10 mins
