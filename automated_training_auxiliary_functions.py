@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-16
+ # @ Modified date: 2024-11-12
  '''
 import warnings
 import subprocess
@@ -204,10 +204,16 @@ def add_yield_curve(data):
 
 
 def decrement_week_days(date: str, num_week_days: int) -> str:
-    '''Subtract `num_business_days` from `date`. Using `BusinessDay` instead of `CustomBusinessDay` with the `USFederalHolidayCalendar` since 
+    '''Subtract `num_week_days` from `date`. Using `BusinessDay` instead of `CustomBusinessDay` with the `USFederalHolidayCalendar` since 
     we do not want to skip holidays when using archived models since the desired model may have been created on a holiday, which is fine 
     because that model was trained with data before the holiday.'''
     return (datetime.strptime(date, YEAR_MONTH_DAY) - BusinessDay(num_week_days)).strftime(YEAR_MONTH_DAY)
+
+
+def increment_week_days(date: str, num_week_days: int) -> str:
+    '''Add `num_week_days` to `date`. Using `BusinessDay` instead of `CustomBusinessDay` with the `USFederalHolidayCalendar` since 
+    we do not want to skip holidays when checking whether a future date is a holiday.'''
+    return (datetime.strptime(date, YEAR_MONTH_DAY) + BusinessDay(num_week_days)).strftime(YEAR_MONTH_DAY)
 
 
 def decrement_business_days(date: str, num_business_days: int) -> str:
@@ -1132,10 +1138,10 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     check_that_model_is_supported(model)
     print(f'Sending email to {recipients}')
     msg = MIMEMultipart()
-    next_business_day = increment_business_days(last_trade_date, 1)
-    next_business_day_is_a_holiday = is_a_holiday(next_business_day)
-    tag = f'{next_business_day} is a holiday so we do not expect new trades.' if next_business_day_is_a_holiday else f'ERROR: {next_business_day} is NOT a holiday so we expect new trades.'
-    subject_prefix = f'{tag} Not enough new data was found on {next_business_day}'
+    next_week_day = increment_week_days(last_trade_date, 1)
+    next_week_day_is_a_holiday = is_a_holiday(next_week_day)
+    tag = f'{next_week_day} is a holiday so we do not expect new trades.' if next_week_day_is_a_holiday else f'ERROR: {next_week_day} is NOT a holiday so we expect new trades.'
+    subject_prefix = f'{tag} Not enough new data was found on {next_week_day}'
     subject_suffix = f', so no new {model} model was trained'
     msg['Subject'] = f'{subject_prefix}{subject_suffix}'
     msg['From'] = SENDER_EMAIL
@@ -1145,31 +1151,31 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     {subject_prefix} (the business day after {last_trade_date}){subject_suffix}; need at least {MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY} new trades to train a new model
     <hr>
     If the error is unexpected, perform the following procedure:
-
+    <br>
     1. Check `eng-reactor-287421.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized` to see if there are any trades from the most recent business date. If there are no trades, then a likely cause is that the S&P index data did not load correctly from the `update_sp_all_indices_and_maturities` cloud function.
-
+    <br>
     2. Debug the `update_sp_all_indices_and_maturities` cloud function by inspecting the logs.
-
+    <br>
     3. Follow the order of the following cloud functions below, and force run them to recover from the lost data. When force running the `compute_shape_parameter` cloud function, first update the `CURRENT_DATETIME` to be the previous business day if fixing it the next day.
-
+    <br>
     4. Go to GCP scheduled queries for the materialized trade history and similar trade history tables that are use for training.  Click on these and click edit the scheduled query.  This will open the query in a new window and you need simply click “Run” and let the query run for ~20 mins and the tables will be ready. This will not actually edit or change the scheduled query.
-
+    <br>
     5. Train the models by going into the VM, update your user using these instructions: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#463a8cb282e2454db42584317a31a42b. Then, run the corresponding command from https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#122eb87466c28077b8b9d87f9f9490ec.
     <hr>
     Below is the order of related cloud functions and core procedures that run in relation to the training procedure that may be helpful for debugging and recovery due to this error:
-
+    <br>
     `update_sp_all_indices_and_maturities` runs at 11pm ET M-F. Updates all of the tables in the following datasets: (1) `eng-reactor-287421.spBondIndexMaturities`, (2) `eng-reactor-287421.spBondIndex`.
-
+    <br>
     `train_daily_etf_model` runs at 11:10pm ET M-F. Uses all of the tables in the following datasets: (1) `eng-reactor-287421.spBondIndex`, (2) `eng-reactor-287421.ETF_daily_alphavantage`. Updates all of the tables of the following form: `eng-reactor-287421.yield_curves_v2.*_index`.
-
+    <br>
     `train_daily_yield_curve` runs at 11:10pm ET M-F. Uses tables from datasets: (1) `eng-reactor-287421.spBondIndexMaturities`, (2) `eng-reactor-287421.spBondIndex`. Update the following tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_daily`, (2) `eng-reactor-287421.yield_curves_v2.standardscaler_parameters_daily`. Updates the yield curve redis, but the data with which it is updated is not currently used in production since we use the realtime yield curve in production.
-
+    <br>
     `compute_shape_parameter` runs at 11:25pm ET M-F. Uses all of the tables in the following dataset: `eng-reactor-287421.spBondIndexMaturities`. Updates the table: `eng-reactor-287421.yield_curves_v2.shape_parameters`
-
+    <br>
     The following scheduled queries run at 5:05am ET: `create_same_issue_trade_history_ref_data` and `create_materialized_trade_history`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `auxiliary_views.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `eng-reactor-287421.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
-
+    <br>
     Model training runs at 5:45am ET M-F. Uses tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_daily`, (2) `eng-reactor-287421.yield_curves_v2.standardscaler_parameters_daily`, (3) `eng-reactor-287421.yield_curves_v2.shape_parameters`, (4) `eng-reactor-287421.treasury_yield.daily_yield_rate`, (5) `eng-reactor-287421.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized`, (6) `eng-reactor-287421.auxiliary_views.materialized_trade_history`.
-
+    <br>
     `train-minute-yield-curve` runs from 9:30am - 3pm ET every minute on the minute. Uses the table: `eng-reactor-287421.yield_curves_v2.shape_parameters` and all of the tables of the following form: `eng-reactor-287421.yield_curves_v2.*_index` and all of the tables in the following datasets: (1) `eng-reactor-287421.spBondIndexMaturities`, (2) `eng-reactor-287421.spBondIndex`. Updates the following tables: (1) `eng-reactor-287421.yield_curves_v2.nelson_siegel_coef_minute`, (2) `eng-reactor-287421.finnhub_io.finnhub_etf_data`.
     </body>
     </html>
