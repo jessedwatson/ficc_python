@@ -122,18 +122,6 @@ WHERE
   limit 100
 '''
 
-# DATA_QUERY = '''
-# SELECT
-#     * except(most_recent_event)
-#   FROM
-#     `eng-reactor-287421.auxiliary_views.materialized_trade_history`
-#   WHERE
-#     msrb_valid_to_date > current_date -- condition to remove cancelled trades
-#     AND cusip = '69379BAA1'
-#   ORDER BY
-#     trade_datetime desc
-# '''
-
 
 bq_client = bigquery.Client()
 
