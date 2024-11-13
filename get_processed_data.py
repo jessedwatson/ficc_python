@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-04-19
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-07
+ # @ Modified date: 2024-11-13
  # @ Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
  use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
  This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
@@ -72,7 +72,7 @@ def get_trades_for_all_dates(dates: list, all_at_once: bool = False) -> pd.DataF
             with mp.Pool(num_workers) as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html; consider trying with lesser processes if running out of RAM (put an argument of e.g. `os.cpu_count() // 4` as the argument to `mp.Pool()` so it reads `mp.Pool(os.cpu_count() // 4)`); when running the procedure on 8 CPUs, the max RAM usage exceeded 204 GB and killed the VM with machien type n1-highmem-32 (seen with `htop` command on terminal on VM)
                 trades_for_all_dates = pool_object.map(lambda start_date_as_string: get_processed_trades_for_particular_date(start_date_as_string, use_multiprocessing=False), dates)
         else:
-            trades_for_all_dates = [get_processed_trades_for_particular_date(date) for date in tqdm(dates)]
+            trades_for_all_dates = [get_processed_trades_for_particular_date(date) for date in tqdm(dates, disable=len(dates) == 1)]
         trades_for_all_dates = pd.concat(trades_for_all_dates).reset_index(drop=True)    # `pd.concat(...)` is a bottleneck (even though the calls to `get_trades_for_particular_date(...)` take less than a minute, the `pd.concat(...)` takes >10 mins
     check_that_df_is_sorted_by_column(trades_for_all_dates, 'trade_datetime', desc=True)
 
