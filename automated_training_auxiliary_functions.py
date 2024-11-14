@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-07
+ # @ Modified date: 2024-11-14
  '''
 import warnings
 import subprocess
@@ -380,12 +380,12 @@ def drop_features_with_null_value(df: pd.DataFrame, model: str) -> pd.DataFrame:
 
 
 @function_timer
-def save_data(data: pd.DataFrame, file_name: str) -> None:
+def save_data(data: pd.DataFrame, file_name: str, upload_to_google_cloud_bucket: bool = True) -> None:
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
     data = remove_old_trades(data, MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, dataset_name='entire processed data file')
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
-    upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name, file_path)
+    if upload_to_google_cloud_bucket: upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name, file_path)
 
 
 def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int, exclusions_function: callable, on_or_after: str = 'after'):
