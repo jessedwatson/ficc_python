@@ -1063,6 +1063,39 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
             print(f'{type(e)}:', e)
 
 
+def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
+    from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
+    data_before_exclusions = data[:]
+    
+    previous_size = len(data)
+    data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_call <= 400')
+    
+    previous_size = current_size
+    data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_refund <= 400')
+    
+    previous_size = current_size
+    data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_maturity <= 400')
+    
+    previous_size = current_size
+    data = data[data.days_to_maturity < np.log10(30000)]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having days_to_maturity >= 30000')
+    
+    ## null last_calc_date exclusion was removed on 2024-02-19
+    # previous_size = current_size
+    # data = data[~data.last_calc_date.isna()]
+    # current_size = len(data)
+    # if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having a null value for last_calc_date')
+
+    return data, data_before_exclusions
+
+
 def send_email(sender_email: str, message: str, recipients: list) -> None:
     '''Send email with `message` to `recipients` from `sender_email`.'''
     smtp_server = 'smtp.gmail.com'
