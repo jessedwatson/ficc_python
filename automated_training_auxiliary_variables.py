@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-16
+ # @ Modified date: 2024-11-13
  '''
 import os
 from pytz import timezone
@@ -127,9 +127,8 @@ QUERY_FEATURES = ['rtrs_control_number',
                   'original_yield',
                   'par_price',
                   'default_indicator',
-                  'sp_stand_alone',
                   'sp_long',
-                  'moodys_long',
+                #   'moodys_long',
                   'coupon_type',
                   'federal_tax_status',
                   'use_of_proceeds',
@@ -147,7 +146,7 @@ QUERY_CONDITIONS = ['par_traded >= 10000',
                     'coupon_type in (8, 4, 10, 17)', 
                     'capital_type <> 10', 
                     'default_exists <> TRUE', 
-                    'most_recent_default_event IS NULL', 
+                    # 'most_recent_default_event IS NULL', 
                     'default_indicator IS FALSE', 
                     'msrb_valid_to_date > current_date',    # condition to remove cancelled trades
                     'settlement_date IS NOT NULL']

@@ -162,14 +162,6 @@ def target_trade_processing_for_attention(row):
     return np.tile(target_trade_features, (1, 1))
 
 
-def replace_ratings_by_standalone_rating(data: pd.DataFrame) -> pd.DataFrame:
-    data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
-    data.rating = data.rating.astype('str')
-    data.sp_stand_alone = data.sp_stand_alone.astype('str')
-    data.loc[(data.sp_stand_alone != 'NR'), 'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
-    return data
-
-
 def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_parameter):
     if pd.isnull(row['last_calc_date'])or pd.isnull(row['last_trade_date']):
         # if there is no last trade, we use the duration of the current bond
@@ -332,7 +324,6 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
         if old_data is not None:
             old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda history: history[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
-    new_data = replace_ratings_by_standalone_rating(new_data)
     new_data['yield'] = new_data['yield'] * 100
     if 'yield_spread' in model: new_data = add_yield_curve(new_data)
     new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
