@@ -11,9 +11,10 @@ from tensorflow.keras import layers
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 
 from automated_training_auxiliary_variables import BATCH_SIZE, DROPOUT
+from set_random_seed import set_seed
 
 
-tf.keras.utils.set_random_seed(10)
+set_seed()
 
 
 class CustomAttention(tf.keras.layers.Layer):
