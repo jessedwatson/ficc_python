@@ -82,7 +82,9 @@ def get_processed_trades_for_particular_date(start_date_as_string: str, end_date
 
 
 @function_timer
-def get_trades_for_all_dates(dates: list, all_at_once: bool = False) -> pd.DataFrame:
+def get_trades_for_all_dates(dates: list, 
+                             file_name: str = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[MODEL], 
+                             all_at_once: bool = False) -> pd.DataFrame:
     '''`dates` is a list of strings.'''
     if all_at_once is True:
         trades_for_all_dates = get_processed_trades_for_particular_date(min(dates), max(dates))
@@ -102,8 +104,7 @@ def get_trades_for_all_dates(dates: list, all_at_once: bool = False) -> pd.DataF
     trades_for_all_dates = combine_new_data_with_old_data(None, trades_for_all_dates, MODEL)
     trades_for_all_dates = add_trade_history_derived_features(trades_for_all_dates, MODEL, optional_arguments_for_process_data.get('use_treasury_spread', False))
     trades_for_all_dates = drop_features_with_null_value(trades_for_all_dates, MODEL)
-    if SAVE_DATA: save_data(trades_for_all_dates, MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[MODEL], upload_to_google_cloud_bucket=False)
-
+    if SAVE_DATA: save_data(trades_for_all_dates, file_name, upload_to_google_cloud_bucket=False)
     return trades_for_all_dates
 
 
@@ -132,8 +133,7 @@ def create_data_for_start_end_date_pair(start_datetime: str,    # may be a strin
     distinct_dates = sorted(distinct_dates['trade_date'].astype(str).values, reverse=True)    # convert the one column dataframe with column name `trade_date` fron `sqltodf(...)` into a numpy array sorted by `trade_date`; going in descending order since the the query gets the trades in descending order of `trade_datetime` and so concatenating all the trades from each of the days will be in descending order of `trade_datetime` if the trade dates are in descending order
     print('Distinct dates:', distinct_dates)
 
-    trades_for_all_dates = get_trades_for_all_dates(distinct_dates, False)
-    trades_for_all_dates.to_pickle(file_path)
+    trades_for_all_dates = get_trades_for_all_dates(distinct_dates, file_path, False)
     # print(trades_for_all_dates)
     return trades_for_all_dates
 
