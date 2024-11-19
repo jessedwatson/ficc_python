@@ -70,7 +70,7 @@ def get_processed_trades_for_particular_date(start_date_as_string: str, end_date
     '''If `end_date_as_string` is `None`, then we get trades only for `start_date_as_string`.'''
     if end_date_as_string is None: end_date_as_string = start_date_as_string
     print(f'Start date: {start_date_as_string}\t\tEnd date: {end_date_as_string}')
-    data_query = get_data_query(start_date_as_string + 'T00:00:00', 'yield_spread_with_similar_trades')
+    data_query = get_data_query(start_date_as_string + 'T00:00:00', MODEL)
     order_by_position = data_query.find('ORDER BY')
     data_query_date = data_query[:order_by_position] + f'AND trade_datetime <= "{end_date_as_string}T23:59:59" ' + data_query[order_by_position:]    # add condition of restricting all trades to the specified `date_as_string`
     # print(data_query_date)    # this gets printed inside `fetch_trade_data(...)`
@@ -124,7 +124,7 @@ def create_data_for_start_end_date_pair(start_datetime: str,    # may be a strin
     '''Create a file that contains the trades between `start_datetime` and `end_datetime`. Save the file 
     in a file with name: `file_name`.'''
     file_path = 'files/' + file_name
-    data_query = get_data_query(start_datetime, 'yield_spread_with_similar_trades', end_datetime)
+    data_query = get_data_query(start_datetime, MODEL, end_datetime)
     print('Getting data from the following query:\n', data_query)
 
     distinct_dates_query = 'SELECT DISTINCT trade_date ' + data_query[data_query.find('FROM') : data_query.find('ORDER BY')]    # remove all the original selected features and just get each unique `trade_date`; need to remove the `ORDER BY` clause since the `trade_datetime` feature is not selected in this query
