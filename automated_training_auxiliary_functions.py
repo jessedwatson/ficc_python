@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-18
+ # @ Modified date: 2024-11-19
  '''
 import warnings
 import subprocess
@@ -995,10 +995,9 @@ def get_model_zip_filename(model: str):
 
 
 @function_timer
-def save_model(trained_model, encoders, model: str):
-    '''NOTE: `model` is a string that denotes whether we are working with the yield spread model, 
-    yield spread with similar trades model, or the dollar price model, and `trained_model` is an 
-    actual keras model. This may cause confusion.'''
+def save_model(trained_model, encoders, model: str, model_name_suffix: str = '', upload_to_google_cloud_bucket: bool = True):
+    '''NOTE: `model` is a string that denotes whether we are working with the yield spread with similar trades model 
+    or the dollar price model, and `trained_model` is an actual keras model, which may cause confusion.'''
     check_that_model_is_supported(model)
     if trained_model is None:
         print('trained_model is `None` and so not saving it to storage')
@@ -1008,26 +1007,31 @@ def save_model(trained_model, encoders, model: str):
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
 
-    encoders_filename = get_encoders_filename(model)
-    encoders_filepath = f'{WORKING_DIRECTORY}/files/{encoders_filename}'
-    print(f'Uploading encoders from {encoders_filepath}')
-    if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
-    with open(encoders_filepath, 'wb') as file:
-        pickle.dump(encoders, file)    
-    upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
+    if encoders is not None:
+        encoders_filename = get_encoders_filename(model)
+        encoders_directory = f'{WORKING_DIRECTORY}/files'
+        encoders_filepath = f'{encoders_directory}/{encoders_filename}'
+        print(f'Uploading encoders to {encoders_filepath}')
+        os.makedirs(encoders_directory)
+        with open(encoders_filepath, 'wb') as file:
+            pickle.dump(encoders, file)    
+        if upload_to_google_cloud_bucket: upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
 
     folder = f'{model}_models'
-    if not os.path.isdir(f'{HOME_DIRECTORY}/trained_models'): os.mkdir(f'{HOME_DIRECTORY}/trained_models')
-    model_filename = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
+    saved_models_directory = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models'
+    os.makedirs(saved_models_directory, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
+    
+    model_filename = f'{saved_models_directory}/saved_model_{suffix_wo_underscore}{file_timestamp}{model_name_suffix}'
     print(f'Uploading model to {model_filename}')
     trained_model.save(model_filename)
     
-    model_zip_filename = get_model_zip_filename(model)
-    model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
-    shutil.make_archive(model_zip_filepath, 'zip', model_filename)
-    
-    upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
-    os.system(f'rm -r {model_filename}')
+    if upload_to_google_cloud_bucket: 
+        model_zip_filename = get_model_zip_filename(model)
+        model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
+        shutil.make_archive(model_zip_filepath, 'zip', model_filename)
+        
+        upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
+        os.system(f'rm -r {model_filename}')
 
 
 def remove_file(file_path: str) -> None:
