@@ -1,14 +1,34 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2024-04-19
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-18
- # @ Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
- use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
- This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
- getting it day by day using multiprocessing and then concatenating it together.
- NOTE: to run this script, use `ficc_python/requirements_py310.txt`.
- '''
+Author: Mitas Ray
+Date: 2024-04-19
+Last Editor: Mitas Ray
+Last Edit Date: 2024-11-18
+Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
+use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
+This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
+getting it day by day using multiprocessing and then concatenating it together.
+**NOTE**: To run this script, use `ficc_python/requirements_py310.txt`.
+**NOTE**: To see the output of this script in an `output.txt` file use the command: $ stdbuf -oL python point_in_time_pricing_timestamp.py >> output.txt. `stdbuf -oL` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
+**NOTE**: To run the procedure in the background, use the command: $ nohup stdbuf -oL python point_in_time_pricing_every_timestamp_from_file.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
+Breakdown:
+1. `nohup`: This allows the script to continue running even after you log out or close the terminal.
+2. `stdbuf -oL`:
+    * stdbuf is used to modify the buffering operations for the command that follows it.
+    * -oL forces line buffering for the standard output (stdout), ensuring that the output is flushed line by line. This is useful if you want real-time logging in your output.txt file, rather than waiting for large chunks of data to be written.
+3. python point_in_time_pricing_every_timestamp_from_file.py: This part is executing your Python script. If you are using Python 3, you might want to specify python3 instead of just python, depending on your environment.
+4. >> output.txt 2>&1:
+    * >> output.txt appends the standard output (stdout) of the script to output.txt instead of overwriting it.
+    * 2>&1 redirects standard error (stderr) to the same file as standard output, so both stdout and stderr go into output.txt.
+5. &: This runs the command in the background.
+
+To redirect the error to a different file, you can use 2> error.txt. Note that just ignoring it (not including 2>...) will just output to std out in this case.
+
+To kill the command, run
+$ kill 66581
+or
+$ kill -9 66581
+The -9 forces the operation.
+'''
 # import os    # used for `os.cpu_count()` when setting the number of workers in `mp.Pool()`
 import sys
 from tqdm import tqdm
@@ -99,8 +119,8 @@ def check_date_in_correct_format(date_as_string):
 
 @function_timer
 def create_data_for_start_end_date_pair(start_datetime: str,    # may be a string representation of a date instead of a datetime
-                                          end_datetime: str,    # may be a string representation of a date instead of a datetime
-                                          file_name: str = 'trades_for_all_dates_from_get_processed_data.pkl') -> pd.DataFrame:
+                                        end_datetime: str,    # may be a string representation of a date instead of a datetime
+                                        file_name: str = 'trades_for_all_dates_from_get_processed_data.pkl') -> pd.DataFrame:
     '''Create a file that contains the trades between `start_datetime` and `end_datetime`. Save the file 
     in a file with name: `file_name`.'''
     file_path = 'files/' + file_name
