@@ -7,6 +7,7 @@
  use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
  This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
  getting it day by day using multiprocessing and then concatenating it together.
+ NOTE: to run this script, use `ficc_python/requirements_py310.txt`.
  '''
 # import os    # used for `os.cpu_count()` when setting the number of workers in `mp.Pool()`
 import sys
