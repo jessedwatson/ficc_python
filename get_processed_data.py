@@ -8,6 +8,7 @@ use multiprocessing to read the data from BigQuery for each date, since the conv
 This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
 getting it day by day using multiprocessing and then concatenating it together.
 **NOTE**: To run this script, use `ficc_python/requirements_py310.txt`.
+**NOTE**: To get an entire month of trades using 32 CPUs, set the memory on the VM to 250 GB.
 **NOTE**: To see the output of this script in an `output.txt` file use the command: $ stdbuf -oL python get_processed_data.py >> output.txt. `stdbuf -oL` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
 **NOTE**: To run the procedure in the background, use the command: $ nohup stdbuf -oL python get_processed_data.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
 Breakdown:
@@ -29,7 +30,7 @@ or
 $ kill -9 66581
 The -9 forces the operation.
 '''
-# import os    # used for `os.cpu_count()` when setting the number of workers in `mp.Pool()`
+import os    # used for `os.cpu_count()` when setting the number of workers in `mp.Pool()`
 import sys
 from tqdm import tqdm
 import multiprocess as mp
@@ -90,9 +91,9 @@ def get_trades_for_all_dates(dates: list,
         trades_for_all_dates = get_processed_trades_for_particular_date(min(dates), max(dates))
     else:
         if len(dates) > 1 and MULTIPROCESSING:
-            num_workers = 8    # os.cpu_count()
+            num_workers = os.cpu_count()    # consider trying with lesser processes if running out of RAM (e.g., set `num_workers` to `os.cpu_count() // 4`)
             print(f'Using multiprocessing with {num_workers} workers for calling `get_trades_for_particular_date(...) on each of the {len(dates)} items in {dates}')
-            with mp.Pool(num_workers) as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html; consider trying with lesser processes if running out of RAM (put an argument of e.g. `os.cpu_count() // 4` as the argument to `mp.Pool()` so it reads `mp.Pool(os.cpu_count() // 4)`); when running the procedure on 8 CPUs, the max RAM usage exceeded 204 GB and killed the VM with machien type n1-highmem-32 (seen with `htop` command on terminal on VM)
+            with mp.Pool(num_workers) as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html
                 trades_for_all_dates = pool_object.map(lambda start_date_as_string: get_processed_trades_for_particular_date(start_date_as_string, use_multiprocessing=False), dates)
         else:
             trades_for_all_dates = [get_processed_trades_for_particular_date(date) for date in tqdm(dates, disable=len(dates) == 1)]
@@ -124,7 +125,6 @@ def create_data_for_start_end_date_pair(start_datetime: str,    # may be a strin
                                         file_name: str = 'trades_for_all_dates_from_get_processed_data.pkl') -> pd.DataFrame:
     '''Create a file that contains the trades between `start_datetime` and `end_datetime`. Save the file 
     in a file with name: `file_name`.'''
-    file_path = 'files/' + file_name
     data_query = get_data_query(start_datetime, MODEL, end_datetime)
     print('Getting data from the following query:\n', data_query)
 
@@ -133,7 +133,7 @@ def create_data_for_start_end_date_pair(start_datetime: str,    # may be a strin
     distinct_dates = sorted(distinct_dates['trade_date'].astype(str).values, reverse=True)    # convert the one column dataframe with column name `trade_date` fron `sqltodf(...)` into a numpy array sorted by `trade_date`; going in descending order since the the query gets the trades in descending order of `trade_datetime` and so concatenating all the trades from each of the days will be in descending order of `trade_datetime` if the trade dates are in descending order
     print('Distinct dates:', distinct_dates)
 
-    trades_for_all_dates = get_trades_for_all_dates(distinct_dates, file_path, False)
+    trades_for_all_dates = get_trades_for_all_dates(distinct_dates, file_name, False)
     # print(trades_for_all_dates)
     return trades_for_all_dates
 
