@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-14
+ # @ Modified date: 2024-11-18
  '''
 import warnings
 import subprocess
@@ -469,7 +469,37 @@ def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     return data, last_trade_datetime, last_trade_date
 
 
-def get_data_query(last_trade_datetime: str, model: str, latest_trade_date_to_query: str = None) -> str:
+def is_string_representation_of_a_date(date_string: str, date_format: str = YEAR_MONTH_DAY) -> bool:
+    '''Check if a string can be represented as a date in the given format.
+
+    >>> is_string_representation_of_a_date('2024-11-18')
+    True
+    >>> is_string_representation_of_a_date('2024-02-29')
+    True
+    >>> is_string_representation_of_a_date('2023-02-29')
+    False
+    >>> is_string_representation_of_a_date('18/11/2024', '%d/%m/%Y')
+    True
+    >>> is_string_representation_of_a_date('11-18-2024', '%m-%d-%Y')
+    True
+    >>> is_string_representation_of_a_date('2024-13-01')
+    False
+    >>> is_string_representation_of_a_date('not-a-date')
+    False
+    >>> is_string_representation_of_a_date('', '%Y-%m-%d')
+    False
+    '''
+    try:
+        datetime.strptime(date_string, date_format)
+        return True
+    except ValueError:
+        return False
+
+
+def get_data_query(last_trade_datetime: str,    # may be a string representation of a date instead of a datetime
+                   model: str, 
+                   latest_trade_date_to_query: str = None) -> str:    # may be a string representation of a datetime instead of a date
+    '''`latest_trade_date_to_query` is a string representation of either a date or a datetime.'''
     check_that_model_is_supported(model)
     if last_trade_datetime == EARLIEST_TRADE_DATETIME: raise RuntimeError('Use `ficc_python/get_processed_data.py to get the data for this query since it will most likely crash due to memory issues if done in this function')
     query_features = QUERY_FEATURES
@@ -482,8 +512,11 @@ def get_data_query(last_trade_datetime: str, model: str, latest_trade_date_to_qu
     if model == 'yield_spread_with_similar_trades': query_features = ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL + query_features
 
     features_as_string = ', '.join(query_features)
+    if is_string_representation_of_a_date(last_trade_datetime): last_trade_datetime = f'{last_trade_datetime}T00:00:00'
     query_conditions = query_conditions + [f'trade_datetime > "{last_trade_datetime}"']
-    if latest_trade_date_to_query is not None: query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}T23:59:59"']
+    if latest_trade_date_to_query is not None:
+        if is_string_representation_of_a_date(latest_trade_date_to_query): latest_trade_date_to_query = f'{latest_trade_date_to_query}T23:59:59'
+        query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}"']
     conditions_as_string = ' AND '.join(query_conditions)
     table_name = f'trade_history_same_issue_5_yr_mat_bucket_1_materialized' if model == 'yield_spread_with_similar_trades' else f'materialized_trade_history'
     return f'''SELECT {features_as_string}

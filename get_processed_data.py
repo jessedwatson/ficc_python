@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-04-19
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-14
+ # @ Modified date: 2024-11-18
  # @ Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
  use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
  This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
@@ -97,14 +97,13 @@ def check_date_in_correct_format(date_as_string):
 
 
 @function_timer
-def main():
-    latest_trade_date = sys.argv[1] if len(sys.argv) >= 2 else None
-    earliest_trade_datetime = sys.argv[2] if len(sys.argv) >= 3 else EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
-    if latest_trade_date is not None:
-        assert check_date_in_correct_format(latest_trade_date)
-        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
-
-    data_query = get_data_query(earliest_trade_datetime, 'yield_spread_with_similar_trades', latest_trade_date)
+def create_data_for_start_end_date_pair(start_datetime: str,    # may be a string representation of a date instead of a datetime
+                                          end_datetime: str,    # may be a string representation of a date instead of a datetime
+                                          file_name: str = 'trades_for_all_dates_from_get_processed_data.pkl') -> pd.DataFrame:
+    '''Create a file that contains the trades between `start_datetime` and `end_datetime`. Save the file 
+    in a file with name: `file_name`.'''
+    file_path = 'files/' + file_name
+    data_query = get_data_query(start_datetime, 'yield_spread_with_similar_trades', end_datetime)
     print('Getting data from the following query:\n', data_query)
 
     distinct_dates_query = 'SELECT DISTINCT trade_date ' + data_query[data_query.find('FROM') : data_query.find('ORDER BY')]    # remove all the original selected features and just get each unique `trade_date`; need to remove the `ORDER BY` clause since the `trade_datetime` feature is not selected in this query
@@ -113,9 +112,25 @@ def main():
     print('Distinct dates:', distinct_dates)
 
     trades_for_all_dates = get_trades_for_all_dates(distinct_dates, False)
-    trades_for_all_dates.to_pickle('files/trades_for_all_dates_from_get_processed_data.pkl')
-    print(trades_for_all_dates)
+    trades_for_all_dates.to_pickle(file_path)
+    # print(trades_for_all_dates)
     return trades_for_all_dates
+
+
+def create_data_for_start_end_date_pairs(date_pairs: list) -> pd.DataFrame:
+    '''Create a set of files where each file contains the trades for each date pair in `date_pairs`, 
+    which is a list of pairs (tuples) where each pair contains the start date and end date.'''
+    return pd.concat([create_data_for_start_end_date_pair(start_date, end_date, f'trades_{start_date}_to_{end_date}.pkl') for start_date, end_date in date_pairs])
+
+
+@function_timer
+def main():
+    latest_trade_date = sys.argv[1] if len(sys.argv) >= 2 else None
+    earliest_trade_datetime = sys.argv[2] if len(sys.argv) >= 3 else EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
+    if latest_trade_date is not None:
+        assert check_date_in_correct_format(latest_trade_date)
+        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+    return create_data_for_start_end_date_pair(earliest_trade_datetime, latest_trade_date)
 
 
 if __name__ == '__main__':
