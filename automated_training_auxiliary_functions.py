@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-19
+ # @ Modified date: 2024-11-20
  '''
 import warnings
 import subprocess
@@ -1004,7 +1004,11 @@ def get_model_zip_filename(model: str):
 
 
 @function_timer
-def save_model(trained_model, encoders, model: str, model_name_suffix: str = '', upload_to_google_cloud_bucket: bool = True):
+def save_model(trained_model, 
+               encoders, 
+               model: str, 
+               model_file_path: str = None,    # used to override the default `model_file_path` defined in this function for trained models in production
+               upload_to_google_cloud_bucket: bool = True):
     '''NOTE: `model` is a string that denotes whether we are working with the yield spread with similar trades model 
     or the dollar price model, and `trained_model` is an actual keras model, which may cause confusion.'''
     check_that_model_is_supported(model)
@@ -1026,21 +1030,22 @@ def save_model(trained_model, encoders, model: str, model_name_suffix: str = '',
             pickle.dump(encoders, file)    
         if upload_to_google_cloud_bucket: upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
 
-    folder = f'{model}_models'
-    saved_models_directory = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models'
-    os.makedirs(saved_models_directory, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
-    
-    model_filename = f'{saved_models_directory}/saved_model_{suffix_wo_underscore}{file_timestamp}{model_name_suffix}'
-    print(f'Uploading model to {model_filename}')
-    trained_model.save(model_filename)
+    if model_file_path is None:
+        folder = f'{model}_models'
+        saved_models_directory = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models'
+        os.makedirs(saved_models_directory, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
+        
+        model_file_path = f'{saved_models_directory}/saved_model_{suffix_wo_underscore}{file_timestamp}{model_name_suffix}'
+    print(f'Uploading model to {model_file_path}')
+    trained_model.save(model_file_path)
     
     if upload_to_google_cloud_bucket: 
         model_zip_filename = get_model_zip_filename(model)
         model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
-        shutil.make_archive(model_zip_filepath, 'zip', model_filename)
+        shutil.make_archive(model_zip_filepath, 'zip', model_file_path)
         
         upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
-        os.system(f'rm -r {model_filename}')
+        os.system(f'rm -r {model_file_path}')
 
 
 def remove_file(file_path: str) -> None:
