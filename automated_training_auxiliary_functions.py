@@ -445,7 +445,7 @@ def get_feature_as_array(df: pd.DataFrame, feature_name: str) -> np.array:
 
 
 @function_timer
-def create_input(data: pd.DataFrame, encoders: dict, model: str):
+def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False):
     check_that_model_is_supported(model)
     datalist = []
     if model == 'yield_spread_with_similar_trades': datalist.append(get_feature_as_array(data, 'similar_trade_history'))
@@ -466,8 +466,12 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str):
         encoded = encoders[feature].transform(data[feature])
         datalist.append(encoded.astype('float32'))
 
-    label_name = 'new_ys' if 'yield_spread' in model else 'dollar_price'
-    return datalist, data[label_name]
+    if ignore_label:
+        labels = None
+    else:
+        label_name = 'new_ys' if 'yield_spread' in model else 'dollar_price'
+        labels = data[label_name]
+    return datalist, labels
 
 
 def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
