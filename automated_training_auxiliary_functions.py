@@ -855,7 +855,7 @@ def load_model(date_of_interest: str, model: str, max_num_week_days_in_the_past_
     raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
     
 
-def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list):
+def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list, print_results: bool = True):
     '''Creates a dataframe that can be sent as a table over email for the performance of `model` on 
     `inputs` validated on `labels`. `inputs` and `labels` are transformed using `create_input(...)` 
     from `data` to be able to be used by the `model` for inference.'''
@@ -869,10 +869,11 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
         print(traceback.format_exc())
         result_df = pd.DataFrame()
 
-    try:
-        print(result_df.to_markdown())
-    except Exception as e:
-        print(f'Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. {type(e)}:', e)
+    if print_results:
+        try:
+            print(result_df.to_markdown())
+        except Exception as e:
+            print(f'Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. {type(e)}:', e)
     return result_df
 
 
