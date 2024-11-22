@@ -114,7 +114,7 @@ def price_of_bond_with_interest_at_maturity(cusip,    # can be used for debuggin
     cases when interest is paid at maturity. The first case is for short term bonds where 
     there is a single coupon payment at maturity, and this logic will reduce to the logic 
     in MSRB Rule Book G-33, rule (b)(i)(A). The second case is when when there is a compounding 
-    accreted value (i.e., capital appreciation bonds) which accrues semianually. Then, to get 
+    accreted value (i.e., capital appreciation bonds) which accrues semiannually. Then, to get 
     the price of this bond, we need to account for the accrued interest. This can be thought 
     of as a bond that pays a coupon semiannually through the duration of the bond, but all the 
     coupon payments are made as a single payment at the time the bond is called / maturity. 
