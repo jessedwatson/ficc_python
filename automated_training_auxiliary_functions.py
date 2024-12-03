@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-20
+ # @ Modified date: 2024-12-03
  '''
 import warnings
 import subprocess
@@ -563,8 +563,7 @@ def save_update_data_results_to_pickle_files(model: str):
     last_trade_data_from_update_data_pickle_filepath = f'{WORKING_DIRECTORY}/files/last_trade_data_from_update_data_{model}.pkl'
     num_features_for_each_trade_in_history_pickle_filepath = f'{WORKING_DIRECTORY}/files/num_features_for_each_trade_in_history_{model}.pkl'
 
-    if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
-
+    os.makedirs(f'{WORKING_DIRECTORY}/files', exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
     if USE_PICKLED_DATA and os.path.isfile(data_pickle_filepath):
         print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data(...)')
         raw_data_filepath = None
@@ -1021,7 +1020,7 @@ def save_model(trained_model,
         encoders_directory = f'{WORKING_DIRECTORY}/files'
         encoders_filepath = f'{encoders_directory}/{encoders_filename}'
         print(f'Uploading encoders to {encoders_filepath}')
-        os.makedirs(encoders_directory)
+        os.makedirs(encoders_directory, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
         with open(encoders_filepath, 'wb') as file:
             pickle.dump(encoders, file)    
         if upload_to_google_cloud_bucket: upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
