@@ -1028,7 +1028,7 @@ def save_model(trained_model,
         encoders_filename = get_encoders_filename(model)
         encoders_directory = f'{WORKING_DIRECTORY}/files'
         encoders_filepath = f'{encoders_directory}/{encoders_filename}'
-        print(f'Uploading encoders to {encoders_filepath}')
+        print(f'Saving encoders to {encoders_filepath}')
         os.makedirs(encoders_directory, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
         with open(encoders_filepath, 'wb') as file:
             pickle.dump(encoders, file)    
@@ -1038,9 +1038,8 @@ def save_model(trained_model,
         folder = f'{model}_models'
         saved_models_directory = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models'
         os.makedirs(saved_models_directory, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
-        
-        model_file_path = f'{saved_models_directory}/saved_model_{suffix_wo_underscore}{file_timestamp}{model_name_suffix}'
-    print(f'Uploading model to {model_file_path}')
+        model_file_path = f'{saved_models_directory}/saved_model_{suffix_wo_underscore}{file_timestamp}'
+    print(f'Saving model to {model_file_path}')
     trained_model.save(model_file_path)
     
     if upload_to_google_cloud_bucket: 
