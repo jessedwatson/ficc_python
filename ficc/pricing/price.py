@@ -2,10 +2,10 @@
  # @ Author: Mitas Ray
  # @ Create date: 2022-01-13
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-08-02
- # @ Description: This file implements functions to compute the price of a trade
- # given the yield.
+ # @ Modified date: 2024-12-04
+ # @ Description: This file implements functions to compute the price of a trade given the yield.
  '''
+import warnings
 import pandas as pd
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
@@ -28,7 +28,7 @@ def get_price(cusip,
               settlement_date, 
               accrual_date, 
               frequency, 
-              yield_rate, 
+              yield_rate,    # inputted as a percentage, e.g., 8%
               coupon, 
               RV, 
               time_delta, 
@@ -56,7 +56,8 @@ def get_price(cusip,
     D: settlement_date_to_end_date
     H: prev_coupon_date_to_end_date
     R: coupon'''
-    yield_rate = yield_rate / 100
+    if yield_rate > 100: warnings.warn(f'yield_rate represents a percentage yield, but has a value of: {yield_rate}; perhaps it should have been divided by 100', RuntimeWarning)
+    yield_rate = yield_rate / 100    # converted to a decimal value, e.g., an input of 8% would be converted to 0.08
     
     # Right now we do not disambiguate zero coupon from interest at maturity. More specfically, 
     # we should add logic that separates the cases of MSRB Rule Book G-33, rule (b) and rule (c)
