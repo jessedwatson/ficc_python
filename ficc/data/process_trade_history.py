@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-18
+ # @ Modified date: 2024-11-07
  # @ Description:
  '''
 import os
@@ -12,6 +12,9 @@ import pickle
 from ficc.utils.auxiliary_functions import sqltodf, process_ratings
 from ficc.utils.pad_trade_history import pad_trade_history
 from ficc.utils.trade_list_to_array import trade_list_to_array
+from ficc.utils.initialize_pandarallel import initialize_pandarallel
+
+initialize_pandarallel()
 
 
 def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
@@ -43,20 +46,19 @@ def restrict_number_of_trades(trade_history_series: pd.Series, num_trades: int, 
     return trade_history_series.apply(lambda history: history[:num_trades])
 
 
-def pad_trade_history_column(series: pd.Series, num_trades_in_history: int, min_trades_in_history: int, num_features_for_each_trade_in_history: int, processing_similar_trades: bool) -> pd.Series:
+def pad_trade_history_column(series: pd.Series, num_trades_in_history: int, min_trades_in_history: int, num_features_for_each_trade_in_history: int, processing_similar_trades: bool, use_multiprocessing: bool = True) -> pd.Series:
     '''`processing_similar_trades` is used solely for print output.'''
     trade_history_prefix = 'similar ' if processing_similar_trades else ''
     print(f'Padding {trade_history_prefix}trade history')
     print(f'Minimum number of trades required in the {trade_history_prefix}trade history: {min_trades_in_history}')
-    return series.parallel_apply(pad_trade_history, args=[num_trades_in_history, 
-                                                          num_features_for_each_trade_in_history,
-                                                          min_trades_in_history])
+    apply_func = series.parallel_apply if use_multiprocessing else series.apply
+    return apply_func(pad_trade_history, args=[num_trades_in_history, num_features_for_each_trade_in_history, min_trades_in_history])
 
 
-def restrict_number_of_trades_and_pad_trade_history(df: pd.DataFrame, trade_history_column_name: str, num_trades_in_history: int, min_trades_in_history: int, num_features_for_each_trade_in_history: int, processing_similar_trades: bool = False) -> pd.DataFrame:
+def restrict_number_of_trades_and_pad_trade_history(df: pd.DataFrame, trade_history_column_name: str, num_trades_in_history: int, min_trades_in_history: int, num_features_for_each_trade_in_history: int, processing_similar_trades: bool = False, use_multiprocessing: bool = True) -> pd.DataFrame:
     '''`processing_similar_trades` is used solely for print output.'''
     df[trade_history_column_name] = restrict_number_of_trades(df[trade_history_column_name], num_trades_in_history, processing_similar_trades)
-    df[trade_history_column_name] = pad_trade_history_column(df[trade_history_column_name], num_trades_in_history, min_trades_in_history, num_features_for_each_trade_in_history, processing_similar_trades)
+    df[trade_history_column_name] = pad_trade_history_column(df[trade_history_column_name], num_trades_in_history, min_trades_in_history, num_features_for_each_trade_in_history, processing_similar_trades, use_multiprocessing)
     return df
 
 
@@ -77,7 +79,8 @@ def process_trade_history(query: str,
                           scalar_params: dict = None, 
                           shape_parameter: dict = None, 
                           save_data: bool = True, 
-                          process_similar_trades_history: bool = False):
+                          process_similar_trades_history: bool = False, 
+                          use_multiprocessing: bool = True):
     trades_df = fetch_trade_data(query, client, PATH, save_data)
     if len(trades_df) == 0:
         print('Raw data contains 0 trades')
@@ -93,21 +96,22 @@ def process_trade_history(query: str,
     
     processed_trade_history_column_name = 'trade_history'
     last_features_column_name = 'temp_last_features'
-    temp = pd.DataFrame(data=None, index=trades_df.index, columns=[processed_trade_history_column_name, last_features_column_name])
+    processed_trades_df = pd.DataFrame(data=None, index=trades_df.index, columns=[processed_trade_history_column_name, last_features_column_name])
     unprocessed_trade_history_column_name = 'recent'
-    temp = trades_df[unprocessed_trade_history_column_name].parallel_apply(trade_list_to_array, args=([remove_short_maturity,
-                                                                                                       trade_history_delay,
-                                                                                                       use_treasury_spread,
-                                                                                                       add_rtrs_in_history,
-                                                                                                       only_dollar_price_history, 
-                                                                                                       yield_curve_to_use, 
-                                                                                                       treasury_rate_dict, 
-                                                                                                       nelson_params, 
-                                                                                                       scalar_params, 
-                                                                                                       shape_parameter]))
+    apply_func = trades_df[unprocessed_trade_history_column_name].parallel_apply if use_multiprocessing else trades_df[unprocessed_trade_history_column_name].apply
+    processed_trades_df = apply_func(trade_list_to_array, args=([remove_short_maturity,
+                                                                 trade_history_delay,
+                                                                 use_treasury_spread,
+                                                                 add_rtrs_in_history,
+                                                                 only_dollar_price_history, 
+                                                                 yield_curve_to_use, 
+                                                                 treasury_rate_dict, 
+                                                                 nelson_params, 
+                                                                 scalar_params, 
+                                                                 shape_parameter]))
                                                                         
-    trades_df[[processed_trade_history_column_name, last_features_column_name]] = pd.DataFrame(temp.tolist(), index=trades_df.index)
-    del temp
+    trades_df[[processed_trade_history_column_name, last_features_column_name]] = pd.DataFrame(processed_trades_df.tolist(), index=trades_df.index)
+    del processed_trades_df
     print('Trade history created')
     print('Getting last trade features')
     trades_df[['last_yield_spread', 
@@ -127,31 +131,32 @@ def process_trade_history(query: str,
                'last_settlement_date', 
                'last_trade_type']] = pd.DataFrame(trades_df[last_features_column_name].tolist(), index=trades_df.index)
     trades_df = trades_df.drop(columns=[last_features_column_name, unprocessed_trade_history_column_name])
-    trades_df = restrict_number_of_trades_and_pad_trade_history(trades_df, processed_trade_history_column_name, num_trades_in_history, min_trades_in_history, num_features_for_each_trade_in_history)
+    trades_df = restrict_number_of_trades_and_pad_trade_history(trades_df, processed_trade_history_column_name, num_trades_in_history, min_trades_in_history, num_features_for_each_trade_in_history, use_multiprocessing=use_multiprocessing)
     trade_history_features = [processed_trade_history_column_name]
 
     if process_similar_trades_history is True:
         print('Creating similar trade history')
         processed_trade_history_column_name = 'similar_trade_history'
         last_features_column_name = 'temp_last_similar_features'
-        temp = pd.DataFrame(data=None, index=trades_df.index, columns=[processed_trade_history_column_name, last_features_column_name])
+        processed_trades_df = pd.DataFrame(data=None, index=trades_df.index, columns=[processed_trade_history_column_name, last_features_column_name])
         unprocessed_trade_history_column_name = 'recent_5_year_mat'
-        temp = trades_df[unprocessed_trade_history_column_name].parallel_apply(trade_list_to_array, args=([remove_short_maturity,
-                                                                                                           trade_history_delay,
-                                                                                                           use_treasury_spread,
-                                                                                                           add_rtrs_in_history,
-                                                                                                           only_dollar_price_history, 
-                                                                                                           yield_curve_to_use, 
-                                                                                                           treasury_rate_dict, 
-                                                                                                           nelson_params, 
-                                                                                                           scalar_params, 
-                                                                                                           shape_parameter]))
+        apply_func = trades_df[unprocessed_trade_history_column_name].parallel_apply if use_multiprocessing else trades_df[unprocessed_trade_history_column_name].apply
+        processed_trades_df = apply_func(trade_list_to_array, args=([remove_short_maturity,
+                                                                     trade_history_delay,
+                                                                     use_treasury_spread,
+                                                                     add_rtrs_in_history,
+                                                                     only_dollar_price_history, 
+                                                                     yield_curve_to_use, 
+                                                                     treasury_rate_dict, 
+                                                                     nelson_params, 
+                                                                     scalar_params, 
+                                                                     shape_parameter]))
         # TODO: speed the below line up by not storing the unnecessary information for the most recent trade (needed when processing same CUSIP trade history, but not for similar trade history)
-        trades_df[[processed_trade_history_column_name, last_features_column_name]] = pd.DataFrame(temp.tolist(), index=trades_df.index)
-        del temp
+        trades_df[[processed_trade_history_column_name, last_features_column_name]] = pd.DataFrame(processed_trades_df.tolist(), index=trades_df.index)
+        del processed_trades_df
         print('Similar trade history created')
         trades_df = trades_df.drop(columns=[last_features_column_name, unprocessed_trade_history_column_name])
-        trades_df = restrict_number_of_trades_and_pad_trade_history(trades_df, processed_trade_history_column_name, num_trades_in_history, min_trades_in_history, num_features_for_each_trade_in_history, True)
+        trades_df = restrict_number_of_trades_and_pad_trade_history(trades_df, processed_trade_history_column_name, num_trades_in_history, min_trades_in_history, num_features_for_each_trade_in_history, True, use_multiprocessing=use_multiprocessing)
         trade_history_features.append(processed_trade_history_column_name)
     
     num_trades_before_removing_null_history = len(trades_df)

@@ -1,14 +1,36 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2024-04-19
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-10-15
- # @ Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
- use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
- This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
- getting it day by day using multiprocessing and then concatenating it together.
- '''
-# import os    # used for `os.cpu_count()` when setting the number of workers in `mp.Pool()`
+Author: Mitas Ray
+Date: 2024-04-19
+Last Editor: Mitas Ray
+Last Edit Date: 2024-11-18
+Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
+use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
+This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
+getting it day by day using multiprocessing and then concatenating it together.
+**NOTE**: To run this script, use `ficc_python/requirements_py310.txt`.
+**NOTE**: To get an entire month of trades using 32 CPUs, set the memory on the VM to 250 GB.
+**NOTE**: To see the output of this script in an `output.txt` file use the command: $ stdbuf -oL python get_processed_data.py >> output.txt. `stdbuf -oL` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
+**NOTE**: To run the procedure in the background, use the command: $ nohup stdbuf -oL python get_processed_data.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
+Breakdown:
+1. `nohup`: This allows the script to continue running even after you log out or close the terminal.
+2. `stdbuf -oL`:
+    * stdbuf is used to modify the buffering operations for the command that follows it.
+    * -oL forces line buffering for the standard output (stdout), ensuring that the output is flushed line by line. This is useful if you want real-time logging in your output.txt file, rather than waiting for large chunks of data to be written.
+3. python get_processed_data.py: This part is executing your Python script. If you are using Python 3, you might want to specify python3 instead of just python, depending on your environment.
+4. >> output.txt 2>&1:
+    * >> output.txt appends the standard output (stdout) of the script to output.txt instead of overwriting it.
+    * 2>&1 redirects standard error (stderr) to the same file as standard output, so both stdout and stderr go into output.txt.
+5. &: This runs the command in the background.
+
+To redirect the error to a different file, you can use 2> error.txt. Note that just ignoring it (not including 2>...) will just output to std out in this case.
+
+To kill the command, run
+$ kill 66581
+or
+$ kill -9 66581
+The -9 forces the operation.
+'''
+import os    # used for `os.cpu_count()` when setting the number of workers in `mp.Pool()`
 import sys
 from tqdm import tqdm
 import multiprocess as mp
@@ -45,34 +67,36 @@ def check_that_df_is_sorted_by_column(df, column_name, desc: bool = False):
 
 
 @function_timer
-def get_processed_trades_for_particular_date(start_date_as_string: str, end_date_as_string: str = None) -> pd.DataFrame:
+def get_processed_trades_for_particular_date(start_date_as_string: str, end_date_as_string: str = None, use_multiprocessing: bool = True) -> pd.DataFrame:
     '''If `end_date_as_string` is `None`, then we get trades only for `start_date_as_string`.'''
-    print(f'Start date: {start_date_as_string}\t\tEnd date: {end_date_as_string}')
     if end_date_as_string is None: end_date_as_string = start_date_as_string
-    data_query = get_data_query(start_date_as_string + 'T00:00:00', 'yield_spread_with_similar_trades')
+    print(f'Start date: {start_date_as_string}\t\tEnd date: {end_date_as_string}')
+    data_query = get_data_query(start_date_as_string + 'T00:00:00', MODEL)
     order_by_position = data_query.find('ORDER BY')
     data_query_date = data_query[:order_by_position] + f'AND trade_datetime <= "{end_date_as_string}T23:59:59" ' + data_query[order_by_position:]    # add condition of restricting all trades to the specified `date_as_string`
     # print(data_query_date)    # this gets printed inside `fetch_trade_data(...)`
 
     optional_arguments_for_process_data = get_optional_arguments_for_process_data(MODEL)
     use_treasury_spread = optional_arguments_for_process_data.get('use_treasury_spread', False)
-    _, processed_data, _, _, _ = get_new_data(None, MODEL, use_treasury_spread, optional_arguments_for_process_data, data_query_date, False)
+    _, processed_data, _, _, _ = get_new_data(None, MODEL, use_treasury_spread, optional_arguments_for_process_data, data_query_date, False, use_multiprocessing)
     return processed_data    # get just the raw data with `sqltodf(data_query_date, BQ_CLIENT)`
 
 
 @function_timer
-def get_trades_for_all_dates(dates: list, all_at_once: bool = False) -> pd.DataFrame:
+def get_trades_for_all_dates(dates: list, 
+                             file_name: str = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[MODEL], 
+                             all_at_once: bool = False) -> pd.DataFrame:
     '''`dates` is a list of strings.'''
     if all_at_once is True:
         trades_for_all_dates = get_processed_trades_for_particular_date(min(dates), max(dates))
     else:
         if len(dates) > 1 and MULTIPROCESSING:
-            num_workers = 8    # os.cpu_count()
+            num_workers = os.cpu_count()    # consider trying with lesser processes if running out of RAM (e.g., set `num_workers` to `os.cpu_count() // 4`)
             print(f'Using multiprocessing with {num_workers} workers for calling `get_trades_for_particular_date(...) on each of the {len(dates)} items in {dates}')
-            with mp.Pool(num_workers) as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html; consider trying with lesser processes if running out of RAM (put an argument of e.g. `os.cpu_count() // 4` as the argument to `mp.Pool()` so it reads `mp.Pool(os.cpu_count() // 4)`); when running the procedure on 8 CPUs, the max RAM usage exceeded 204 GB and killed the VM with machien type n1-highmem-32 (seen with `htop` command on terminal on VM)
-                trades_for_all_dates = pool_object.map(get_processed_trades_for_particular_date, dates)
+            with mp.Pool(num_workers) as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html
+                trades_for_all_dates = pool_object.map(lambda start_date_as_string: get_processed_trades_for_particular_date(start_date_as_string, use_multiprocessing=False), dates)
         else:
-            trades_for_all_dates = [get_processed_trades_for_particular_date(date) for date in tqdm(dates)]
+            trades_for_all_dates = [get_processed_trades_for_particular_date(date) for date in tqdm(dates, disable=len(dates) == 1)]
         trades_for_all_dates = pd.concat(trades_for_all_dates).reset_index(drop=True)    # `pd.concat(...)` is a bottleneck (even though the calls to `get_trades_for_particular_date(...)` take less than a minute, the `pd.concat(...)` takes >10 mins
     check_that_df_is_sorted_by_column(trades_for_all_dates, 'trade_datetime', desc=True)
 
@@ -81,8 +105,7 @@ def get_trades_for_all_dates(dates: list, all_at_once: bool = False) -> pd.DataF
     trades_for_all_dates = combine_new_data_with_old_data(None, trades_for_all_dates, MODEL)
     trades_for_all_dates = add_trade_history_derived_features(trades_for_all_dates, MODEL, optional_arguments_for_process_data.get('use_treasury_spread', False))
     trades_for_all_dates = drop_features_with_null_value(trades_for_all_dates, MODEL)
-    if SAVE_DATA: save_data(trades_for_all_dates, MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[MODEL])
-
+    if SAVE_DATA: save_data(trades_for_all_dates, file_name, upload_to_google_cloud_bucket=False)
     return trades_for_all_dates
 
 
@@ -97,14 +120,12 @@ def check_date_in_correct_format(date_as_string):
 
 
 @function_timer
-def main():
-    latest_trade_date = sys.argv[1] if len(sys.argv) == 2 else None
-    earliest_trade_datetime = EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
-    if latest_trade_date is not None:
-        assert check_date_in_correct_format(latest_trade_date)
-        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
-
-    data_query = get_data_query(earliest_trade_datetime, 'yield_spread_with_similar_trades', latest_trade_date)
+def create_data_for_start_end_date_pair(start_datetime: str,    # may be a string representation of a date instead of a datetime
+                                        end_datetime: str,    # may be a string representation of a date instead of a datetime
+                                        file_name: str = 'trades_for_all_dates_from_get_processed_data.pkl') -> pd.DataFrame:
+    '''Create a file that contains the trades between `start_datetime` and `end_datetime`. Save the file 
+    in a file with name: `file_name`.'''
+    data_query = get_data_query(start_datetime, MODEL, end_datetime)
     print('Getting data from the following query:\n', data_query)
 
     distinct_dates_query = 'SELECT DISTINCT trade_date ' + data_query[data_query.find('FROM') : data_query.find('ORDER BY')]    # remove all the original selected features and just get each unique `trade_date`; need to remove the `ORDER BY` clause since the `trade_datetime` feature is not selected in this query
@@ -112,10 +133,25 @@ def main():
     distinct_dates = sorted(distinct_dates['trade_date'].astype(str).values, reverse=True)    # convert the one column dataframe with column name `trade_date` fron `sqltodf(...)` into a numpy array sorted by `trade_date`; going in descending order since the the query gets the trades in descending order of `trade_datetime` and so concatenating all the trades from each of the days will be in descending order of `trade_datetime` if the trade dates are in descending order
     print('Distinct dates:', distinct_dates)
 
-    trades_for_all_dates = get_trades_for_all_dates(distinct_dates, False)
-    trades_for_all_dates.to_pickle('files/trades_for_all_dates_from_get_processed_data.pkl')
-    print(trades_for_all_dates)
+    trades_for_all_dates = get_trades_for_all_dates(distinct_dates, file_name, False)
+    # print(trades_for_all_dates)
     return trades_for_all_dates
+
+
+def create_data_for_start_end_date_pairs(date_pairs: list) -> pd.DataFrame:
+    '''Create a set of files where each file contains the trades for each date pair in `date_pairs`, 
+    which is a list of pairs (tuples) where each pair contains the start date and end date.'''
+    return pd.concat([create_data_for_start_end_date_pair(start_date, end_date, f'trades_{start_date}_to_{end_date}.pkl') for start_date, end_date in date_pairs])
+
+
+@function_timer
+def main():
+    latest_trade_date = sys.argv[1] if len(sys.argv) >= 2 else None
+    earliest_trade_datetime = sys.argv[2] if len(sys.argv) >= 3 else EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
+    if latest_trade_date is not None:
+        assert check_date_in_correct_format(latest_trade_date)
+        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+    return create_data_for_start_end_date_pair(earliest_trade_datetime, latest_trade_date)
 
 
 if __name__ == '__main__':

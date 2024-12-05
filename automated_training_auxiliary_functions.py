@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-12
+ # @ Modified date: 2024-12-03
  '''
 import warnings
 import subprocess
@@ -32,6 +32,9 @@ from ficc.data.process_data import process_data
 from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
+from ficc.utils.initialize_pandarallel import initialize_pandarallel
+
+initialize_pandarallel()
 
 from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    CATEGORICAL_FEATURES, \
@@ -83,6 +86,10 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    USE_PICKLED_DATA
 from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
+from set_random_seed import set_seed
+
+
+set_seed()
 
 
 # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
@@ -261,7 +268,13 @@ def check_no_duplicate_rtrs_control_numbers(data: pd.DataFrame) -> None:
 
 
 @function_timer
-def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optional_arguments_for_process_data: dict = dict(), data_query: str = None, save_data: bool = SAVE_MODEL_AND_DATA):
+def get_new_data(file_name, 
+                 model: str, 
+                 use_treasury_spread: bool = False, 
+                 optional_arguments_for_process_data: dict = dict(), 
+                 data_query: str = None, 
+                 save_data: bool = SAVE_MODEL_AND_DATA, 
+                 use_multiprocessing: bool = True):
     '''`data_query` will always be `None` unless the user is attempting to get processed data for a specific 
     slice of data by calling `get_new_data(...)` from another function.'''
     check_that_model_is_supported(model)
@@ -281,6 +294,7 @@ def get_new_data(file_name, model: str, use_treasury_spread: bool = False, optio
                                                  raw_data_filepath, 
                                                  save_data=save_data, 
                                                  process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
+                                                 use_multiprocessing=use_multiprocessing, 
                                                  **optional_arguments_for_process_data)
     
     if data_from_last_trade_datetime is not None:
@@ -376,12 +390,12 @@ def drop_features_with_null_value(df: pd.DataFrame, model: str) -> pd.DataFrame:
 
 
 @function_timer
-def save_data(data: pd.DataFrame, file_name: str) -> None:
+def save_data(data: pd.DataFrame, file_name: str, upload_to_google_cloud_bucket: bool = True) -> None:
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
     data = remove_old_trades(data, MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, dataset_name='entire processed data file')
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
-    upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name, file_path)
+    if upload_to_google_cloud_bucket: upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name, file_path)
 
 
 def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int, exclusions_function: callable, on_or_after: str = 'after'):
@@ -431,7 +445,7 @@ def get_feature_as_array(df: pd.DataFrame, feature_name: str) -> np.array:
 
 
 @function_timer
-def create_input(data: pd.DataFrame, encoders: dict, model: str):
+def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False):
     check_that_model_is_supported(model)
     datalist = []
     if model == 'yield_spread_with_similar_trades': datalist.append(get_feature_as_array(data, 'similar_trade_history'))
@@ -452,8 +466,12 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str):
         encoded = encoders[feature].transform(data[feature])
         datalist.append(encoded.astype('float32'))
 
-    label_name = 'new_ys' if 'yield_spread' in model else 'dollar_price'
-    return datalist, data[label_name]
+    if ignore_label:
+        labels = None
+    else:
+        label_name = 'new_ys' if 'yield_spread' in model else 'dollar_price'
+        labels = data[label_name]
+    return datalist, labels
 
 
 def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
@@ -465,7 +483,37 @@ def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     return data, last_trade_datetime, last_trade_date
 
 
-def get_data_query(last_trade_datetime: str, model: str, latest_trade_date_to_query: str = None) -> str:
+def is_string_representation_of_a_date(date_string: str, date_format: str = YEAR_MONTH_DAY) -> bool:
+    '''Check if a string can be represented as a date in the given format.
+
+    >>> is_string_representation_of_a_date('2024-11-18')
+    True
+    >>> is_string_representation_of_a_date('2024-02-29')
+    True
+    >>> is_string_representation_of_a_date('2023-02-29')
+    False
+    >>> is_string_representation_of_a_date('18/11/2024', '%d/%m/%Y')
+    True
+    >>> is_string_representation_of_a_date('11-18-2024', '%m-%d-%Y')
+    True
+    >>> is_string_representation_of_a_date('2024-13-01')
+    False
+    >>> is_string_representation_of_a_date('not-a-date')
+    False
+    >>> is_string_representation_of_a_date('', '%Y-%m-%d')
+    False
+    '''
+    try:
+        datetime.strptime(date_string, date_format)
+        return True
+    except ValueError:
+        return False
+
+
+def get_data_query(last_trade_datetime: str,    # may be a string representation of a date instead of a datetime
+                   model: str, 
+                   latest_trade_date_to_query: str = None) -> str:    # may be a string representation of a datetime instead of a date
+    '''`latest_trade_date_to_query` is a string representation of either a date or a datetime.'''
     check_that_model_is_supported(model)
     if last_trade_datetime == EARLIEST_TRADE_DATETIME: raise RuntimeError('Use `ficc_python/get_processed_data.py to get the data for this query since it will most likely crash due to memory issues if done in this function')
     query_features = QUERY_FEATURES
@@ -478,8 +526,11 @@ def get_data_query(last_trade_datetime: str, model: str, latest_trade_date_to_qu
     if model == 'yield_spread_with_similar_trades': query_features = ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL + query_features
 
     features_as_string = ', '.join(query_features)
+    if is_string_representation_of_a_date(last_trade_datetime): last_trade_datetime = f'{last_trade_datetime}T00:00:00'
     query_conditions = query_conditions + [f'trade_datetime > "{last_trade_datetime}"']
-    if latest_trade_date_to_query is not None: query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}T23:59:59"']
+    if latest_trade_date_to_query is not None:
+        if is_string_representation_of_a_date(latest_trade_date_to_query): latest_trade_date_to_query = f'{latest_trade_date_to_query}T23:59:59'
+        query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}"']
     conditions_as_string = ' AND '.join(query_conditions)
     return f'''SELECT {features_as_string}
                FROM `{PROJECT_ID}.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
@@ -521,8 +572,7 @@ def save_update_data_results_to_pickle_files(model: str):
     last_trade_data_from_update_data_pickle_filepath = f'{WORKING_DIRECTORY}/files/last_trade_data_from_update_data_{model}.pkl'
     num_features_for_each_trade_in_history_pickle_filepath = f'{WORKING_DIRECTORY}/files/num_features_for_each_trade_in_history_{model}.pkl'
 
-    if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
-
+    os.makedirs(f'{WORKING_DIRECTORY}/files', exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
     if USE_PICKLED_DATA and os.path.isfile(data_pickle_filepath):
         print(f'Found a data file in {data_pickle_filepath}, so no need to run update_data(...)')
         raw_data_filepath = None
@@ -813,7 +863,7 @@ def load_model(date_of_interest: str, model: str, max_num_week_days_in_the_past_
     raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
     
 
-def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list):
+def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list, print_results: bool = True):
     '''Creates a dataframe that can be sent as a table over email for the performance of `model` on 
     `inputs` validated on `labels`. `inputs` and `labels` are transformed using `create_input(...)` 
     from `data` to be able to be used by the `model` for inference.'''
@@ -827,10 +877,11 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
         print(traceback.format_exc())
         result_df = pd.DataFrame()
 
-    try:
-        print(result_df.to_markdown())
-    except Exception as e:
-        print(f'Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. {type(e)}:', e)
+    if print_results:
+        try:
+            print(result_df.to_markdown())
+        except Exception as e:
+            print(f'Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. {type(e)}:', e)
     return result_df
 
 
@@ -957,10 +1008,13 @@ def get_model_zip_filename(model: str):
 
 
 @function_timer
-def save_model(trained_model, encoders, model: str):
-    '''NOTE: `model` is a string that denotes whether we are working with the yield spread model, 
-    yield spread with similar trades model, or the dollar price model, and `trained_model` is an 
-    actual keras model. This may cause confusion.'''
+def save_model(trained_model, 
+               encoders, 
+               model: str, 
+               model_file_path: str = None,    # used to override the default `model_file_path` defined in this function for trained models in production
+               upload_to_google_cloud_bucket: bool = True):
+    '''NOTE: `model` is a string that denotes whether we are working with the yield spread with similar trades model 
+    or the dollar price model, and `trained_model` is an actual keras model, which may cause confusion.'''
     check_that_model_is_supported(model)
     if trained_model is None:
         print('trained_model is `None` and so not saving it to storage')
@@ -970,26 +1024,31 @@ def save_model(trained_model, encoders, model: str):
     file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H-%M')
     print(f'file time stamp: {file_timestamp}')
 
-    encoders_filename = get_encoders_filename(model)
-    encoders_filepath = f'{WORKING_DIRECTORY}/files/{encoders_filename}'
-    print(f'Uploading encoders from {encoders_filepath}')
-    if not os.path.isdir(f'{WORKING_DIRECTORY}/files'): os.mkdir(f'{WORKING_DIRECTORY}/files')
-    with open(encoders_filepath, 'wb') as file:
-        pickle.dump(encoders, file)    
-    upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
+    if encoders is not None:
+        encoders_filename = get_encoders_filename(model)
+        encoders_directory = f'{WORKING_DIRECTORY}/files'
+        encoders_filepath = f'{encoders_directory}/{encoders_filename}'
+        print(f'Saving encoders to {encoders_filepath}')
+        os.makedirs(encoders_directory, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
+        with open(encoders_filepath, 'wb') as file:
+            pickle.dump(encoders, file)    
+        if upload_to_google_cloud_bucket: upload_data(STORAGE_CLIENT, BUCKET_NAME, encoders_filename, encoders_filepath)
 
-    folder = f'{model}_models'
-    if not os.path.isdir(f'{HOME_DIRECTORY}/trained_models'): os.mkdir(f'{HOME_DIRECTORY}/trained_models')
-    model_filename = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models/saved_model_{suffix_wo_underscore}{file_timestamp}'
-    print(f'Uploading model to {model_filename}')
-    trained_model.save(model_filename)
+    if model_file_path is None:
+        folder = f'{model}_models'
+        saved_models_directory = f'{HOME_DIRECTORY}/trained_models/{folder}/saved_models'
+        os.makedirs(saved_models_directory, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
+        model_file_path = f'{saved_models_directory}/saved_model_{suffix_wo_underscore}{file_timestamp}'
+    print(f'Saving model to {model_file_path}')
+    trained_model.save(model_file_path)
     
-    model_zip_filename = get_model_zip_filename(model)
-    model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
-    shutil.make_archive(model_zip_filepath, 'zip', model_filename)
-    
-    upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
-    os.system(f'rm -r {model_filename}')
+    if upload_to_google_cloud_bucket: 
+        model_zip_filename = get_model_zip_filename(model)
+        model_zip_filepath = f'{HOME_DIRECTORY}/trained_models/{model_zip_filename}'
+        shutil.make_archive(model_zip_filepath, 'zip', model_file_path)
+        
+        upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{model_zip_filename}.zip', f'{model_zip_filepath}.zip')
+        os.system(f'rm -r {model_file_path}')
 
 
 def remove_file(file_path: str) -> None:
@@ -1056,6 +1115,39 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
             # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
         except Exception as e:
             print(f'{type(e)}:', e)
+
+
+def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
+    from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
+    data_before_exclusions = data[:]
+    
+    previous_size = len(data)
+    data = data[(data.days_to_call == 0) | (data.days_to_call > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_call <= 400')
+    
+    previous_size = current_size
+    data = data[(data.days_to_refund == 0) | (data.days_to_refund > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_refund <= 400')
+    
+    previous_size = current_size
+    data = data[(data.days_to_maturity == 0) | (data.days_to_maturity > np.log10(400))]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having 0 < days_to_maturity <= 400')
+    
+    previous_size = current_size
+    data = data[data.days_to_maturity < np.log10(30000)]
+    current_size = len(data)
+    if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having days_to_maturity >= 30000')
+    
+    ## null last_calc_date exclusion was removed on 2024-02-19
+    # previous_size = current_size
+    # data = data[~data.last_calc_date.isna()]
+    # current_size = len(data)
+    # if previous_size != current_size: print(f'Removed {previous_size - current_size} trades{from_dataset_name} for having a null value for last_calc_date')
+
+    return data, data_before_exclusions
 
 
 def send_email(sender_email: str, message: str, recipients: list) -> None:

@@ -2,19 +2,16 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-16
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-29
+ # @ Modified date: 2024-11-07
  # @ Description: Source code to process trade history from BigQuery
  '''
-import os
 import warnings
 import numpy as np
 
-from pandarallel import pandarallel    # used to multi-thread df apply with `.parallel_apply(...)`
-num_cores_for_pandarallel = os.cpu_count() // 2
-print(f'Initializing pandarallel with {num_cores_for_pandarallel} cores')
-pandarallel.initialize(progress_bar=False, nb_workers=num_cores_for_pandarallel)
-
 from ficc.utils.process_features import process_features
+from ficc.utils.initialize_pandarallel import initialize_pandarallel
+
+initialize_pandarallel()
 
 from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
@@ -28,20 +25,21 @@ from ficc.utils.yield_curve_params import yield_curve_params
 
 def process_data(query, 
                  client, 
-                 num_trades_in_history, 
-                 num_features_for_each_trade_in_history, 
-                 path, 
+                 num_trades_in_history: int, 
+                 num_features_for_each_trade_in_history: int, 
+                 path: str, 
                  yield_curve='FICC_NEW', 
-                 remove_short_maturity=False, 
-                 trade_history_delay=12, 
-                 min_trades_in_history=0, 
-                 use_treasury_spread=False, 
-                 add_flags=False, 
-                 add_related_trades_bool=False, 
-                 add_rtrs_in_history=False, 
-                 only_dollar_price_history=False, 
-                 save_data=True, 
-                 process_similar_trades_history=False, 
+                 remove_short_maturity: bool = False, 
+                 trade_history_delay: int = 12, 
+                 min_trades_in_history: int = 0, 
+                 use_treasury_spread: bool = False, 
+                 add_flags: bool = False, 
+                 add_related_trades_bool: bool = False, 
+                 add_rtrs_in_history: bool = False, 
+                 only_dollar_price_history: bool = False, 
+                 save_data: bool = True, 
+                 process_similar_trades_history: bool = False, 
+                 use_multiprocessing: bool = True, 
                  **kwargs):
     if len(kwargs) != 0: warnings.warn(f'**kwargs is not empty and has following arguments: {kwargs.keys()}', category=RuntimeWarning)
         
@@ -80,7 +78,9 @@ def process_data(query,
     if only_dollar_price_history is False:
         if yield_curve == 'FICC' or yield_curve == 'FICC_NEW':
             print('Calculating yield spread using ficc yield curve')
-            trades_df['ficc_ycl'] = trades_df[['trade_date', 'calc_date']].parallel_apply(lambda trade: get_ficc_ycl(trade, nelson_params, scalar_params, shape_parameter), axis=1)
+            columns_needed_for_ficc_ycl = ['trade_date', 'calc_date']
+            yield_curve_apply_func = trades_df[columns_needed_for_ficc_ycl].parallel_apply if use_multiprocessing else trades_df[columns_needed_for_ficc_ycl].apply
+            trades_df['ficc_ycl'] = yield_curve_apply_func(lambda trade: get_ficc_ycl(trade, nelson_params, scalar_params, shape_parameter), axis=1)
              
         trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
         num_trades_before_dropping_null_yield_spreads = len(trades_df)
@@ -88,7 +88,9 @@ def process_data(query,
         print(f'Yield spread calculated; removed {num_trades_before_dropping_null_yield_spreads - len(trades_df)} trades since these had a null yield spread')
 
         if use_treasury_spread is True:
-            trades_df['treasury_rate'] = trades_df[['trade_date', 'calc_date', 'settlement_date']].parallel_apply(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
+            columns_needed_for_treasury_rate = ['trade_date', 'calc_date', 'settlement_date']
+            treasury_rate_apply_func = trades_df[columns_needed_for_treasury_rate].parallel_apply if use_multiprocessing else trades_df[columns_needed_for_treasury_rate].apply
+            trades_df['treasury_rate'] = treasury_rate_apply_func(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
             null_treasury_rate = trades_df['treasury_rate'].isnull()
             if null_treasury_rate.sum() > 0:
                 trade_dates_corresponding_to_null_treasury_rate = trades_df.loc[null_treasury_rate, 'trade_date']

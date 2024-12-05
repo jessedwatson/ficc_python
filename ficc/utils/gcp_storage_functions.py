@@ -10,7 +10,7 @@ import pickle
 from ficc.utils.auxiliary_functions import run_multiple_times_before_failing
 
 
-def upload_data(storage_client, bucket_name, file_name, file_path:str=None):
+def upload_data(storage_client, bucket_name, file_name, file_path: str = None):
     '''Upload data to the cloud bucket `bucket_name` with filename `file_name` from a local `file_path`.'''
     if file_path is None: file_path = file_name
     bucket = storage_client.get_bucket(bucket_name)
