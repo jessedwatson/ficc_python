@@ -28,7 +28,7 @@ def send_training_log(attachment_path, recipients: list, model: str, message: st
     sender_email = 'notifications@ficc.ai'
     
     msg = MIMEMultipart()
-    msg['Subject'] = f'Training log for {model} model trained today'
+    msg['Subject'] = f'(v2) Training log for {model} model trained today'
     msg['From'] = sender_email
 
     body = MIMEText(message, 'plain')

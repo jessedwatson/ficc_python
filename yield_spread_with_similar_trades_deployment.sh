@@ -1,7 +1,7 @@
 # @ Author: Mitas Ray
 # @ Create date: 2024-04-15
 # @ Modified by: Mitas Ray
-# @ Modified date: 2024-06-07
+# @ Modified date: 2024-12-06
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -34,8 +34,8 @@ echo "Model trained"
 python $HOME/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
 
 # Unzip model and uploading it to automated training bucket
-MODEL_NAME='similar-trades-model'-${DATE_WITH_YEAR}
-MODEL_ZIP_NAME='model_similar_trades'
+MODEL_NAME='similar-trades-v2-model'-${DATE_WITH_YEAR}
+MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `automated_training_auxiliary_functions.py::get_model_zip_filename(...)`
 echo "Unzipping model $MODEL_NAME"
 gsutil cp -r gs://automated_training/$MODEL_ZIP_NAME.zip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip
 unzip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
@@ -54,12 +54,12 @@ if [ $? -ne 0 ]; then
 fi
 
 # Getting the endpoint ID we want to deploy the model on
-ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
+ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model_2024-12-06')
 
 echo "ENDPOINT_ID $ENDPOINT_ID"
 echo "MODEL_NAME $MODEL_NAME"
 echo "Uploading model to Vertex AI"
-gcloud beta ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-11:latest --artifact-uri=gs://automated_training/$MODEL_NAME
+gcloud ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-13:latest --artifact-uri=gs://automated_training/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Model upload to Vertex AI failed with exit code $?"
   python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."

@@ -1172,7 +1172,7 @@ def send_email(sender_email: str, message: str, recipients: list) -> None:
 
 def _get_email_subject(model_train_date: str, model: str) -> str:
     testing_addendum = '' if not TESTING else 'TESTING: '
-    return f'{testing_addendum}MAE for {model} model trained on {model_train_date}'
+    return f'(v2) {testing_addendum}MAE for {model} model trained on {model_train_date}'
 
 
 def send_results_email(mae, model_train_date: str, recipients: list, model: str) -> None:
