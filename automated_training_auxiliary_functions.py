@@ -22,6 +22,7 @@ from datetime import datetime
 
 from google.cloud import bigquery
 from google.cloud import storage
+from google.api_core.exceptions import NotFound as GCPNotFoundException
 
 import smtplib
 from email.mime.text import MIMEText
@@ -803,6 +804,16 @@ def upload_predictions(data: pd.DataFrame, model: str) -> str:
     '''Upload predictions to BigQuery. Returns the table name.'''
     assert model in HISTORICAL_PREDICTION_TABLE, f'Trying to upload predictions for {model}, but can only upload predictions for the following models: {list(HISTORICAL_PREDICTION_TABLE.keys())}'
     table_name = HISTORICAL_PREDICTION_TABLE[model]
+
+    # check if the table exists, and if not, then create it
+    try:
+        BQ_CLIENT.get_table(table_name)
+    except GCPNotFoundException:
+        print(f'Table {table_name} does not exist. Creating it...')
+        schema = get_table_schema_for_predictions()
+        table = bigquery.Table(table_name, schema=schema)
+        BQ_CLIENT.create_table(table)
+
     job_config = bigquery.LoadJobConfig(schema=get_table_schema_for_predictions(), write_disposition='WRITE_APPEND')
     job = BQ_CLIENT.load_table_from_dataframe(data, table_name, job_config=job_config)
     try:
@@ -995,7 +1006,7 @@ def get_encoders_filename(model: str):
 def get_model_zip_filename(model: str):
     '''Return the filename of the zip file that stores the trained model for `model`.'''
     suffix = _get_model_suffix(model)
-    return f'model{suffix}'
+    return f'model{suffix}_v2'
 
 
 @function_timer
