@@ -13,7 +13,7 @@
 MODEL_NAME="yield_spread_with_similar_trades"
 
 # GitHub username and personal access token
-GITHUB_USERNAME="your_username"    # Replace with your GitHub username
+GITHUB_USERNAME="your_username"    # Replace with your GitHub username (NOT email address)
 GITHUB_TOKEN="your_personal_access_token"    # Replace with your GitHub personal access token
 
 FICC_REPO="https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/Ficc-ai/ficc.git"
