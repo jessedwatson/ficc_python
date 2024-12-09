@@ -53,6 +53,23 @@ clone_repo() {
 clone_repo $FICC_REPO "ficc"
 clone_repo $FICC_PYTHON_REPO "ficc_python"
 
+BRANCH_NAME="mitas_use_combined_table_in_get_processed_data"
+
+# Navigate into the repository directory
+cd "ficc_python" || { echo "Failed to navigate to directory: ficc_python"; exit 1; }
+
+# Fetch all branches and switch to the specified branch
+git fetch --all
+git checkout "$BRANCH_NAME" 2>/dev/null || git switch "$BRANCH_NAME"
+
+# Confirm the branch change
+if [ $? -eq 0 ]; then
+  echo "Switched to branch '$BRANCH_NAME' successfully."
+else
+  echo "Failed to switch to branch '$BRANCH_NAME'. Ensure the branch exists."
+  exit 1
+fi
+
 
 # Define directories to create
 DIRS="$HOME/training_logs $HOME/trained_models"
