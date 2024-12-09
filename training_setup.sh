@@ -68,8 +68,8 @@ done
 
 
 # Define the virtual environment directory and requirements file path
-VENV_DIR="venv_py310"
 REQUIREMENTS_DIR="$HOME/ficc_python"
+VENV_DIR="$REQUIREMENTS_DIR/venv_py310"
 REQUIREMENTS_FILE="$REQUIREMENTS_DIR/requirements_py310.txt"
 
 # Check if the virtual environment directory already exists
@@ -127,4 +127,22 @@ else
   # Add the cron job
   (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
   echo "Cron job added successfully."
+fi
+
+
+TRAINING_SETUP_FILE_PATH="$HOME/training_setup.sh"
+
+# Check if the file exists
+if [ -f "$TRAINING_SETUP_FILE_PATH" ]; then
+  # Remove the file
+  rm "$TRAINING_SETUP_FILE_PATH"
+  
+  if [ $? -eq 0 ]; then
+    echo "File '$TRAINING_SETUP_FILE_PATH' removed successfully."
+  else
+    echo "Failed to remove the file '$TRAINING_SETUP_FILE_PATH'."
+    exit 1
+  fi
+else
+  echo "File '$TRAINING_SETUP_FILE_PATH' does not exist."
 fi
