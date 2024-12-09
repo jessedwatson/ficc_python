@@ -16,8 +16,8 @@ MODEL_NAME="yield_spread_with_similar_trades"
 GITHUB_USERNAME="your_username"    # Replace with your GitHub username
 GITHUB_TOKEN="your_personal_access_token"    # Replace with your GitHub personal access token
 
-FICC_REPO="https://github.com/Ficc-ai/ficc.git"
-FICC_PYTHON_REPO="https://github.com/Ficc-ai/ficc_python.git"
+FICC_REPO="https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/Ficc-ai/ficc.git"
+FICC_PYTHON_REPO="https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/Ficc-ai/ficc_python.git"
 
 
 # Configure Git to use the credential store
