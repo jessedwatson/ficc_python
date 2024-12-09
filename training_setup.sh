@@ -5,7 +5,8 @@
 # @ Description: This shell script sets up a new VM for automated training by: (1) cloning both ficc repositories, (2) setting up 
 #                necessary directories, (3) creating a virtual environment with all necessary packages, and (4) set up the cron job. 
 #                The user must set the `MODEL_NAME` correctly and put in their Github credentials. Additionally, the user must copy 
-#                their GCP credentials into the VM.
+#                their GCP credentials into the VM. Note: since this script is in the `ficc_python` package, it should be copied to 
+#                the VM and then run directly from the home directory.
 
 #!/bin/sh
 
