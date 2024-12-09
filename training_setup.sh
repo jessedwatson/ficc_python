@@ -2,10 +2,55 @@
 # @ Create date: 2024-12-09
 # @ Modified by: Mitas Ray
 # @ Modified date: 2024-12-09
+# @ Description: This shell script sets up a new VM for automated training by: (1) cloning both ficc repositories, (2) setting up 
+#                necessary directories, (3) creating a virtual environment with all necessary packages, and (4) set up the cron job. 
+#                The user must set the `MODEL_NAME` correctly and put in their Github credentials. Additionally, the user must copy 
+#                their GCP credentials into the VM.
 
 #!/bin/sh
 
 MODEL_NAME="yield_spread_with_similar_trades"
+
+# GitHub username and personal access token
+GITHUB_USERNAME="your_username"    # Replace with your GitHub username
+GITHUB_TOKEN="your_personal_access_token"    # Replace with your GitHub personal access token
+
+FICC_REPO="https://github.com/Ficc-ai/ficc.git"
+FICC_PYTHON_REPO="https://github.com/Ficc-ai/ficc_python.git"
+
+
+# Configure Git to use the credential store
+git config --global credential.helper store
+
+# Add the credentials to the store
+echo "https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
+
+# Confirm the credentials have been added
+echo "GitHub credentials have been stored successfully in the credential store."
+
+# Function to clone a GitHub repository
+clone_repo() {
+  REPO_URL=$1    # First argument: repository URL
+  TARGET_DIR=$2    # Second argument: target directory
+
+  # Check if the target directory already exists
+  if [ -d "$TARGET_DIR" ]; then
+    echo "The directory '$TARGET_DIR' already exists. Skipping clone."
+  else
+    # Clone the repository
+    git clone "$REPO_URL" "$TARGET_DIR"
+    
+    if [ $? -eq 0 ]; then
+      echo "Repository cloned successfully into '$TARGET_DIR'."
+    else
+      echo "Failed to clone the repository: $REPO_URL"
+      exit 1
+    fi
+  fi
+}
+
+clone_repo $FICC_REPO "ficc"
+clone_repo $FICC_PYTHON_REPO "ficc_python"
 
 
 # Define directories to create
@@ -70,7 +115,7 @@ echo "Setup complete. Use 'source $VENV_DIR/bin/activate' to activate the virtua
 
 
 # Define the cron job
-CRON_JOB="45 10 * * 1-5 sh /home/mitas/ficc_python/${MODEL_NAME}_deployment.sh >> /home/mitas/training_logs/${MODEL_NAME}_training_$(date +\%Y-\%m-\%d).log 2>&1"
+CRON_JOB="45 10 * * 1-5 sh $HOME/ficc_python/${MODEL_NAME}_deployment.sh >> $HOME/training_logs/${MODEL_NAME}_training_$(date +\%Y-\%m-\%d).log 2>&1"
 
 # Check if the cron job already exists
 crontab -l 2>/dev/null | grep -F "$CRON_JOB" >/dev/null
