@@ -139,7 +139,7 @@ echo "Setup complete. Use 'source $VENV_DIR/bin/activate' to activate the virtua
 
 
 # Define the cron job
-CRON_JOB="45 10 * * 1-5 sh $HOME/ficc_python/${MODEL_NAME}_deployment.sh >> $HOME/training_logs/${MODEL_NAME}_training__\$(date +\\%Y-\\%m-\\%d).log 2>&1"
+CRON_JOB="45 10 * * 1-5 sh $HOME/ficc_python/${MODEL_NAME}_deployment.sh >> $HOME/training_logs/${MODEL_NAME}_training_\$(date +\\%Y-\\%m-\\%d).log 2>&1"
 
 # Check if the cron job already exists
 crontab -l 2>/dev/null | grep -F "$CRON_JOB" >/dev/null
