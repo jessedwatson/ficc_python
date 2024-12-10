@@ -1,7 +1,7 @@
 # @ Author: Mitas Ray
 # @ Create date: 2024-04-15
 # @ Modified by: Mitas Ray
-# @ Modified date: 2024-12-06
+# @ Modified date: 2024-12-09
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
 
@@ -77,7 +77,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # removing temporary files
-rm $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip
+rm $HOME/trained_models/$MODEL_ZIP_NAME.zip
 gsutil rm -r gs://automated_training/$MODEL_ZIP_NAME.zip
 
 python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
