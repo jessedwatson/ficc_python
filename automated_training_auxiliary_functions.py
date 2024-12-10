@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-12-03
+ # @ Modified date: 2024-12-10
  '''
 import warnings
 import subprocess
@@ -864,10 +864,12 @@ def load_model(date_of_interest: str, model: str, max_num_week_days_in_the_past_
     raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
     
 
-def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list, print_results: bool = True):
+def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list, print_results: bool = True, return_predictions_and_delta: bool = False):
     '''Creates a dataframe that can be sent as a table over email for the performance of `model` on 
     `inputs` validated on `labels`. `inputs` and `labels` are transformed using `create_input(...)` 
     from `data` to be able to be used by the `model` for inference.'''
+    result_df = pd.DataFrame()
+    predictions, delta = None, None
     try:
         predictions = model.predict(inputs, batch_size=BATCH_SIZE).flatten()
         delta = np.abs(predictions - labels)
@@ -876,14 +878,13 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
         print(f'Unable to create results dataframe with `segment_results(...)`. {type(e)}:', e)
         print('Stack trace:')
         print(traceback.format_exc())
-        result_df = pd.DataFrame()
 
     if print_results:
         try:
             print(result_df.to_markdown())
         except Exception as e:
             print(f'Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. {type(e)}:', e)
-    return result_df
+    return (result_df, predictions, delta) if return_predictions_and_delta else result_df
 
 
 def not_enough_trades_in_test_data(test_data, min_trades_to_use_test_data):
