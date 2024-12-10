@@ -855,8 +855,7 @@ def load_model_from_date(date: str, folder: str, bucket: str):
 def load_model(date_of_interest: str, model: str, max_num_week_days_in_the_past_to_check: int = MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, bucket: str = 'gs://'+BUCKET_NAME):
     '''Taken almost directly from `point_in_time_pricing_timestamp.py`.
     This function finds the appropriate model, either in the automated_training directory, or in a special directory. 
-    TODO: clean up the way we store models on cloud storage by unifying the folders and naming convention and adding the 
-    year to the name.'''
+    TODO: clean up the way we store models on cloud storage by unifying the folders and naming convention.'''
     folder = MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER[model]
     for num_business_days_in_the_past in range(max_num_week_days_in_the_past_to_check):
         model_date_string = decrement_week_days(date_of_interest, num_business_days_in_the_past)    # do not want to skip holidays because the desired model may have been created on a holiday, which is fine because that model was trained with data before the holiday
