@@ -835,7 +835,7 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     if folder == 'yield_spread_model':
         model_prefix = ''
     elif folder == 'dollar_price_model':
-        model_prefix = 'dollar-'
+        model_prefix = 'dollar-v2-'
     else:    # folder == yield_spread_with_similar_trades_model
         model_prefix = 'similar-trades-v2-'
 

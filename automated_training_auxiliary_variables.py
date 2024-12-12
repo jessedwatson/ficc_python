@@ -172,7 +172,7 @@ DROPOUT = 0.01
 
 
 MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER = {'yield_spread': 'yield_spread_model', 
-                                       'dollar_price': 'dollar_price_model', 
+                                       'dollar_price': 'dollar_price_v2_model', 
                                        'yield_spread_with_similar_trades': 'yield_spread_with_similar_trades_v2_model'}
 
 
