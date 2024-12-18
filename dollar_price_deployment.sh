@@ -77,7 +77,9 @@ if [ $? -ne 0 ]; then
 fi
 
 # removing temporary files
+echo "Removing local file: $HOME/trained_models/$MODEL_ZIP_NAME.zip"
 rm $HOME/trained_models/$MODEL_ZIP_NAME.zip
+echo "Removing file from Google Cloud Storage: gs://automated_training/$MODEL_ZIP_NAME.zip"
 gsutil rm -r gs://automated_training/$MODEL_ZIP_NAME.zip
 
 python $HOME/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
