@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-12-10
+ # @ Modified date: 2024-12-16
  '''
 import warnings
 import subprocess
@@ -829,14 +829,16 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     When using the `cache_output` decorator, we should not have any optional arguments as this may interfere with 
     how the cache lookup is done (optional arguments may not be put into the args set).
     As of 2024-06-07, we assume that the model name has the entire YYYY-MM-DD in the name.'''
-    assert folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.values()    # sanity check that `folder` argument is passed in properly and is not confused with another variable
+    archived_folder_to_model_name = {archived_folder: model_name for model_name, archived_folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.items()}
+    model = archived_folder_to_model_name[folder]
+    check_that_model_is_supported(model)
     
     # `model_prefix` should match the naming convention of MODEL_NAME in the associated .sh script
-    if folder == 'yield_spread_model':
+    if model == 'yield_spread':
         model_prefix = ''
-    elif folder == 'dollar_price_model':
+    elif model == 'dollar_price':
         model_prefix = 'dollar-v2-'
-    else:    # folder == yield_spread_with_similar_trades_model
+    else:    # model == yield_spread_with_similar_trades
         model_prefix = 'similar-trades-v2-'
 
     bucket_folder_model_path = os.path.join(os.path.join(bucket, folder), f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<folder>/<model>
@@ -844,9 +846,9 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     for model_path in (bucket_folder_model_path, base_model_path):    # iterate over possible paths and try to load the model
         print(f'Attempting to load model from {model_path}')
         try:
-            model = keras.models.load_model(model_path)
+            keras_model = keras.models.load_model(model_path)
             print(f'Model loaded from {model_path}')
-            return model
+            return keras_model
         except Exception as e:
             print(f'Model failed to load from {model_path} with exception: {e}')
 
