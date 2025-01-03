@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-12-03
+ # @ Modified date: 2024-12-16
  '''
 import warnings
 import subprocess
@@ -22,6 +22,7 @@ from datetime import datetime
 
 from google.cloud import bigquery
 from google.cloud import storage
+from google.api_core.exceptions import NotFound as GCPNotFoundException
 
 import smtplib
 from email.mime.text import MIMEText
@@ -164,14 +165,6 @@ def target_trade_processing_for_attention(row):
     target_trade_features.append(row['quantity'])
     target_trade_features = target_trade_features + trade_mapping[row['trade_type']]
     return np.tile(target_trade_features, (1, 1))
-
-
-def replace_ratings_by_standalone_rating(data: pd.DataFrame) -> pd.DataFrame:
-    data.loc[data.sp_stand_alone.isna(), 'sp_stand_alone'] = 'NR'
-    data.rating = data.rating.astype('str')
-    data.sp_stand_alone = data.sp_stand_alone.astype('str')
-    data.loc[(data.sp_stand_alone != 'NR'), 'rating'] = data[(data.sp_stand_alone != 'NR')]['sp_stand_alone'].loc[:]
-    return data
 
 
 def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_parameter):
@@ -336,7 +329,6 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
         if old_data is not None:
             old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda history: history[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
-    new_data = replace_ratings_by_standalone_rating(new_data)
     new_data['yield'] = new_data['yield'] * 100
     if 'yield_spread' in model: new_data = add_yield_curve(new_data)
     new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
@@ -533,7 +525,7 @@ def get_data_query(last_trade_datetime: str,    # may be a string representation
         query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}"']
     conditions_as_string = ' AND '.join(query_conditions)
     return f'''SELECT {features_as_string}
-               FROM `{PROJECT_ID}.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
+               FROM `{PROJECT_ID}.jesse_tests.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
                WHERE {conditions_as_string}
                ORDER BY trade_datetime DESC'''
 
@@ -812,6 +804,16 @@ def upload_predictions(data: pd.DataFrame, model: str) -> str:
     '''Upload predictions to BigQuery. Returns the table name.'''
     assert model in HISTORICAL_PREDICTION_TABLE, f'Trying to upload predictions for {model}, but can only upload predictions for the following models: {list(HISTORICAL_PREDICTION_TABLE.keys())}'
     table_name = HISTORICAL_PREDICTION_TABLE[model]
+
+    # check if the table exists, and if not, then create it
+    try:
+        BQ_CLIENT.get_table(table_name)
+    except GCPNotFoundException:
+        print(f'Table {table_name} does not exist. Creating it...')
+        schema = get_table_schema_for_predictions()
+        table = bigquery.Table(table_name, schema=schema)
+        BQ_CLIENT.create_table(table)
+
     job_config = bigquery.LoadJobConfig(schema=get_table_schema_for_predictions(), write_disposition='WRITE_APPEND')
     job = BQ_CLIENT.load_table_from_dataframe(data, table_name, job_config=job_config)
     try:
@@ -827,24 +829,26 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     When using the `cache_output` decorator, we should not have any optional arguments as this may interfere with 
     how the cache lookup is done (optional arguments may not be put into the args set).
     As of 2024-06-07, we assume that the model name has the entire YYYY-MM-DD in the name.'''
-    assert folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.values()    # sanity check that `folder` argument is passed in properly and is not confused with another variable
+    archived_folder_to_model_name = {archived_folder: model_name for model_name, archived_folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.items()}
+    model = archived_folder_to_model_name[folder]
+    check_that_model_is_supported(model)
     
     # `model_prefix` should match the naming convention of MODEL_NAME in the associated .sh script
-    if folder == 'yield_spread_model':
+    if model == 'yield_spread':
         model_prefix = ''
-    elif folder == 'dollar_price_model':
-        model_prefix = 'dollar-'
-    else:    # folder == yield_spread_with_similar_trades_model
-        model_prefix = 'similar-trades-'
+    elif model == 'dollar_price':
+        model_prefix = 'dollar-v2-'
+    else:    # model == yield_spread_with_similar_trades
+        model_prefix = 'similar-trades-v2-'
 
     bucket_folder_model_path = os.path.join(os.path.join(bucket, folder), f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<folder>/<model>
     base_model_path = os.path.join(bucket, f'{model_prefix}model-{date}')    # create path of the form: <bucket>/<model>
     for model_path in (bucket_folder_model_path, base_model_path):    # iterate over possible paths and try to load the model
         print(f'Attempting to load model from {model_path}')
         try:
-            model = keras.models.load_model(model_path)
+            keras_model = keras.models.load_model(model_path)
             print(f'Model loaded from {model_path}')
-            return model
+            return keras_model
         except Exception as e:
             print(f'Model failed to load from {model_path} with exception: {e}')
 
@@ -853,8 +857,7 @@ def load_model_from_date(date: str, folder: str, bucket: str):
 def load_model(date_of_interest: str, model: str, max_num_week_days_in_the_past_to_check: int = MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, bucket: str = 'gs://'+BUCKET_NAME):
     '''Taken almost directly from `point_in_time_pricing_timestamp.py`.
     This function finds the appropriate model, either in the automated_training directory, or in a special directory. 
-    TODO: clean up the way we store models on cloud storage by unifying the folders and naming convention and adding the 
-    year to the name.'''
+    TODO: clean up the way we store models on cloud storage by unifying the folders and naming convention.'''
     folder = MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER[model]
     for num_business_days_in_the_past in range(max_num_week_days_in_the_past_to_check):
         model_date_string = decrement_week_days(date_of_interest, num_business_days_in_the_past)    # do not want to skip holidays because the desired model may have been created on a holiday, which is fine because that model was trained with data before the holiday
@@ -863,10 +866,12 @@ def load_model(date_of_interest: str, model: str, max_num_week_days_in_the_past_
     raise FileNotFoundError(f'No model for {folder} was found from {date_of_interest} to {model_date_string}')
     
 
-def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list, print_results: bool = True):
+def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: list, print_results: bool = True, return_predictions_and_delta: bool = False):
     '''Creates a dataframe that can be sent as a table over email for the performance of `model` on 
     `inputs` validated on `labels`. `inputs` and `labels` are transformed using `create_input(...)` 
     from `data` to be able to be used by the `model` for inference.'''
+    result_df = pd.DataFrame()
+    predictions, delta = None, None
     try:
         predictions = model.predict(inputs, batch_size=BATCH_SIZE).flatten()
         delta = np.abs(predictions - labels)
@@ -875,14 +880,13 @@ def create_summary_of_results(model, data: pd.DataFrame, inputs: list, labels: l
         print(f'Unable to create results dataframe with `segment_results(...)`. {type(e)}:', e)
         print('Stack trace:')
         print(traceback.format_exc())
-        result_df = pd.DataFrame()
 
     if print_results:
         try:
             print(result_df.to_markdown())
         except Exception as e:
             print(f'Unable to display results dataframe with .to_markdown(). Need to run `pip install tabulate` on this machine in order to display the dataframe in an easy to read way. {type(e)}:', e)
-    return result_df
+    return (result_df, predictions, delta) if return_predictions_and_delta else result_df
 
 
 def not_enough_trades_in_test_data(test_data, min_trades_to_use_test_data):
@@ -1004,7 +1008,7 @@ def get_encoders_filename(model: str):
 def get_model_zip_filename(model: str):
     '''Return the filename of the zip file that stores the trained model for `model`.'''
     suffix = _get_model_suffix(model)
-    return f'model{suffix}'
+    return f'model{suffix}_v2'
 
 
 @function_timer
@@ -1170,7 +1174,7 @@ def send_email(sender_email: str, message: str, recipients: list) -> None:
 
 def _get_email_subject(model_train_date: str, model: str) -> str:
     testing_addendum = '' if not TESTING else 'TESTING: '
-    return f'{testing_addendum}MAE for {model} model trained on {model_train_date}'
+    return f'(v2) {testing_addendum}MAE for {model} model trained on {model_train_date}'
 
 
 def send_results_email(mae, model_train_date: str, recipients: list, model: str) -> None:
