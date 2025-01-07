@@ -54,7 +54,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Getting the endpoint ID we want to deploy the model on
-ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model_2024-12-06')
+ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
 
 echo "ENDPOINT_ID $ENDPOINT_ID"
 echo "MODEL_NAME $MODEL_NAME"
