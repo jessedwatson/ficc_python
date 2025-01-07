@@ -52,7 +52,7 @@ def replace_nan_with_value(df, feature, default_value):
         if null_count_for_feature > 0:
             if callable(default_value): default_value = default_value(df)    # checks whether `default_value` is a function that needs to be called on the dataframe
             df[feature].fillna(default_value, inplace=True)
-            print(f'Filled in {feature} with {default_value} for {null_count_for_feature} null rows')
+            print(f'Filled in {feature} with {default_value} for {null_count_for_feature} null rows (out of {len(df)} total rows)')
 
 
 def fill_missing_values(df):
