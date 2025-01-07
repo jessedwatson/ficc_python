@@ -2,7 +2,7 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-10
+ # @ Modified date: 2025-01-07
  # @ Description: fill in features with the corresponding default values.
  '''
 import warnings
@@ -48,14 +48,14 @@ FEATURES_AND_DEFAULT_VALUES = {'purpose_class': 0,    # unknown
 def replace_nan_with_value(df, feature, default_value):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', pd.errors.SettingWithCopyWarning)    # inplace replacements raise `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy return self._update_inplace(result)`
-        if callable(default_value):    # checks whether the default_value is a function that needs to be called on the dataframe
-            df[feature].fillna(default_value(df), inplace=True)
-        else:
+        null_count_for_feature = df[feature].isnull().sum()
+        if null_count_for_feature > 0:
+            if callable(default_value): default_value = default_value(df)    # checks whether `default_value` is a function that needs to be called on the dataframe
             df[feature].fillna(default_value, inplace=True)
+            print(f'Filled in {feature} with {default_value} for {null_count_for_feature} null rows')
 
 
 def fill_missing_values(df):
-    # df.dropna(subset=['instrument_primary_name'], inplace=True)
     for feature, default_value in FEATURES_AND_DEFAULT_VALUES.items():
         try:
             replace_nan_with_value(df, feature, default_value)
