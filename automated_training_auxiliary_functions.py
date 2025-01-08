@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-12-16
+ # @ Modified date: 2025-01-07
  '''
 import warnings
 import subprocess
@@ -18,6 +18,7 @@ from pandas.tseries.offsets import BusinessDay
 from sklearn import preprocessing
 import tensorflow as tf
 from tensorflow import keras
+from keras.callbacks import History
 from datetime import datetime
 
 from google.cloud import bigquery
@@ -82,6 +83,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    SENDER_EMAIL, \
                                                    BATCH_SIZE, \
                                                    NUM_EPOCHS, \
+                                                   PATIENCE, \
                                                    MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
                                                    TESTING, \
                                                    USE_PICKLED_DATA
@@ -707,32 +709,62 @@ def trade_history_derived_features_dollar_price(row) -> list:
     return _trade_history_derived_features(row, 'dollar_price')
 
 
-def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
-    fit_callbacks = [keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                   patience=20,
-                                                   verbose=0,
-                                                   mode='auto',
-                                                   restore_best_weights=True)]
+def get_early_stopping_callbacks(loss_type_to_monitor: str, patience: int):
+    LOSS_TYPES_TO_MONITOR = ('validation', 'training')
+    assert loss_type_to_monitor in LOSS_TYPES_TO_MONITOR, f'`loss_type_to_monitor` must be one of {LOSS_TYPES_TO_MONITOR} but was instead {loss_type_to_monitor}'
+    loss_type_to_monitor = 'val_loss' if loss_type_to_monitor == 'validation' else 'loss'
+    return [keras.callbacks.EarlyStopping(monitor='val_loss', 
+                                          patience=patience, 
+                                          verbose=0, 
+                                          mode='auto', 
+                                          restore_best_weights=True)]
 
+
+def combine_two_histories(history1: History, history2: History) -> History:
+    combined_history_dict = {}
+    all_keys = set(history1.history.keys()).union(history2.history.keys())  # Combine all unique keys
+    for key in all_keys:
+        # Fill missing values with NaN for the history that lacks the key
+        history1_values = history1.history.get(key, [np.nan] * len(history2.history.get(key, [])))
+        history2_values = history2.history.get(key, [np.nan] * len(history1.history.get(key, [])))
+        combined_history_dict[key] = history1_values + history2_values
+    
+    # Create a new History object and stored `combined_history_dict`
+    combined_history = History()
+    combined_history.history = combined_history_dict
+    return combined_history
+
+
+def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
     model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
                   loss=keras.losses.MeanAbsoluteError(),
                   metrics=[keras.metrics.MeanAbsoluteError()])
+    
+    def train_model(epochs, callbacks, **kwargs):
+        return model.fit(x_train, 
+                         y_train, 
+                         epochs=epochs, 
+                         batch_size=BATCH_SIZE, 
+                         verbose=1,    # prints out the progress bar; set to 2 to just have one line per epoch
+                         callbacks=callbacks,
+                         use_multiprocessing=True,
+                         workers=8, 
+                         **kwargs)
 
-    history = model.fit(x_train, 
-                        y_train, 
-                        epochs=NUM_EPOCHS, 
-                        batch_size=BATCH_SIZE,
-                        verbose=1,
-                        validation_split=0.1,
-                        callbacks=fit_callbacks,
-                        use_multiprocessing=True,
-                        workers=8) 
+    history_optimizing_val_loss = train_model(epochs=NUM_EPOCHS, 
+                                              callbacks=get_early_stopping_callbacks('validation', patience=PATIENCE), 
+                                              validation_split=0.1,    # fraction of the data to be used as validation data
+                                              shuffle=False)    # take validation from the end instead of shuffling since we are working with time series data
+    
+    fraction_of_total_epochs_for_optimizing_training_loss = 0.2    # choose a fraction of the total number of epochs to not overfit; arbitrary choice based on general recommendations to be between 5-25%
+    history_optimizing_training_loss = train_model(epochs=int(NUM_EPOCHS * fraction_of_total_epochs_for_optimizing_training_loss), 
+                                                   callbacks=get_early_stopping_callbacks('training', patience=int(PATIENCE * fraction_of_total_epochs_for_optimizing_training_loss)))
 
     _, mae = model.evaluate(x_test, 
                             y_test, 
                             verbose=1, 
                             batch_size=BATCH_SIZE)
-    return model, mae, history
+    return model, mae, combine_two_histories(history_optimizing_val_loss, history_optimizing_training_loss)
 
 
 def segment_results(data: pd.DataFrame, absolute_difference: np.array) -> pd.DataFrame:
