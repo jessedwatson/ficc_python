@@ -32,7 +32,7 @@ def get_next_coupon_date(first_coupon_date, start_date, time_delta):
     Note that this function could return a `next_coupon_date` that is after the end_date. 
     This does not create a problem since we deal with the final coupon separately in 
     `price_of_bond_with_multiple_periodic_interest_payments`.
-    Note that it may be that this function is not necessary because the ICE field 
+    Note that it may be that this function is not necessary because the field 
     `next_coupon_date` is never null when there is a next coupon date. In the 
     future, we should confirm whether this is the case.'''
     date = first_coupon_date
@@ -47,7 +47,7 @@ def get_next_coupon_date(first_coupon_date, start_date, time_delta):
 def get_previous_coupon_date(first_coupon_date, start_date, accrual_date, time_delta, next_coupon_date=None):
     '''This function computes the previous time a coupon was paid for this bond 
     by relating it to the next coupon date.
-    Note:it may be that this function is not necessary because the ICE field 
+    Note:it may be that this function is not necessary because the field 
     `previous_coupon_date` is never null when `next_coupon_date` exists. In the 
     future, we should confirm whether this is the case.'''
     if next_coupon_date == None:
@@ -61,7 +61,7 @@ def get_previous_coupon_date(first_coupon_date, start_date, accrual_date, time_d
 def get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta):
     '''This function is valid for bonds that don't pay coupons, whereas the previous 
     two functions assume the bond pays coupons.
-    Note: the ICE field of `next_coupon_payment_date` corresponds to our variable of 
+    Note: the field of `next_coupon_payment_date` corresponds to our variable of 
     `next_coupon_date` (removing the word `payment`) for more concise and readable 
     code, and similarly with `previous_coupon_date`.'''
     if frequency == 0:
@@ -77,7 +77,7 @@ def get_prev_coupon_date_and_next_coupon_date(trade, frequency, time_delta):
             prev_coupon_date = get_previous_coupon_date(trade.first_coupon_date, trade.settlement_date, trade.accrual_date, time_delta, next_coupon_date)
         else:
             prev_coupon_date = pd.to_datetime(trade.previous_coupon_payment_date)
-            strange = np.abs( diff_in_days_two_dates(prev_coupon_date, next_coupon_date - time_delta) ) > 1    # previous coupon payment date specified by ICE seems to be incorrect
+            strange = np.abs( diff_in_days_two_dates(prev_coupon_date, next_coupon_date - time_delta) ) > 1    # previous coupon payment date specified by the reference data seems to be incorrect
             strange = strange & (prev_coupon_date != trade.last_period_accrues_from_date)
             if strange: prev_coupon_date = next_coupon_date - time_delta
 
