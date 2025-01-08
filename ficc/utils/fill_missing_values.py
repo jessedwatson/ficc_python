@@ -2,11 +2,12 @@
  # @ Author: Ahmad Shayaan
  # @ Create date: 2021-12-17
  # @ Modified by: Mitas Ray
- # @ Modified date: 2025-01-07
+ # @ Modified date: 2025-01-08
  # @ Description: fill in features with the corresponding default values.
  '''
 import warnings
 
+import numpy as np
 import pandas as pd
 
 
@@ -26,7 +27,7 @@ FEATURES_AND_DEFAULT_VALUES = {'purpose_class': 0,    # unknown
                                'days_to_par': 0, 
                                'maturity_amount': 0, 
                                'issue_price': lambda df: df.issue_price.mean(),    # leakage; computing the mean over the entire dataset uses the test data (low priority, since this barely affects the model)
-                               'orig_principal_amount': lambda df: df.orig_principal_amount.mean(),    # leakage; computing the mean over the entire dataset uses the test data (low priority, since this barely affects the model)
+                               'orig_principal_amount': lambda df: np.log10((10 ** df.orig_principal_amount).mean()),    # leakage; computing the mean over the entire dataset uses the test data (low priority, since this barely affects the model)
                                'par_price': 100, 
                                'called_redemption_type': 0, 
                                'extraordinary_make_whole_call': False, 
