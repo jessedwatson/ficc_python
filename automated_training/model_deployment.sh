@@ -1,9 +1,8 @@
 # @ Author: Mitas Ray
 # @ Create date: 2025-01-06
 # @ Modified by: Mitas Ray
-# @ Modified date: 2025-01-06
-# @ Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be 
-#                either "yield_spread_with_similar_trades" or "dollar_price".
+# @ Modified date: 2025-01-08
+# @ Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price".
 
 #!/bin/bash
 
@@ -51,7 +50,6 @@ fi
 
 # Activate the virtual environment for Python3.10 (/usr/local/bin/python3.10) that contains all of the packages; to see all versions of Python use command `whereis python`
 # If venv_py310 does not exist in `ficc_python/`, then in `ficc_python/` run `/usr/local/python3.10 -m venv venv_py310` and `source venv_py310/bin/activate` followed by `pip install -r requirements_py310.txt`
-# NOTE: for sh script (which is different than bash script), we must use the '.' operator instead of 'source' to activate the virtual environment
 source $HOME_DIRECTORY/ficc_python/venv_py310/bin/activate
 python --version
 
@@ -69,9 +67,19 @@ echo "Model trained"
 # Cleaning the logs to make more readable
 python $HOME_DIRECTORY/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
 
-# Unzip model and uploading it to automated training bucket
+# Unzipping model and uploading it to automated training bucket
 echo "Unzipping model $MODEL_NAME"
+# Remove the ZIP file if it already exists
+if [ -f "$TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip" ]; then    # -f checks if the file exists
+  echo "Removing existing ZIP file: $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip"
+  rm "$TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip"
+fi
 gsutil cp -r gs://automated_training/$MODEL_ZIP_NAME.zip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip
+# Remove the directory if it already exists
+if [ -d "$TRAINED_MODELS_PATH/$MODEL_NAME" ]; then    # -d checks if the directory exists
+  echo "Removing existing directory: $TRAINED_MODELS_PATH/$MODEL_NAME"
+  rm -rf "$TRAINED_MODELS_PATH/$MODEL_NAME"
+fi
 unzip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
