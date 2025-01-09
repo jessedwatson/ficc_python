@@ -1,7 +1,7 @@
 # @ Author: Mitas Ray
 # @ Create date: 2025-01-06
 # @ Modified by: Mitas Ray
-# @ Modified date: 2025-01-08
+# @ Modified date: 2025-01-09
 # @ Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price".
 
 #!/bin/bash
@@ -12,7 +12,7 @@ echo "Search for warnings in the logs (even on a successful training procedure) 
 # Assert that an argument is provided
 if [ -z "$1" ]; then
   echo "Error: No argument provided. Usage: ./model_deployment.sh <value>"
-  exit 1
+  sudo shutdown -h now
 fi
 
 # Check if the argument is one of the valid values
@@ -22,7 +22,7 @@ case "$1" in
     ;;
   *)
     echo "Error: Invalid argument. Allowed values are: yield_spread_with_similar_trades, dollar_price."
-    exit 1
+    sudo shutdown -h now
     ;;
 esac
 
