@@ -66,6 +66,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    HOME_DIRECTORY, \
                                                    WORKING_DIRECTORY, \
                                                    PROJECT_ID, \
+                                                   AUXILIARY_VIEWS_DATASET_NAME, \
                                                    YIELD_CURVE_DATASET_NAME, \
                                                    BUCKET_NAME, \
                                                    MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
@@ -525,7 +526,7 @@ def get_data_query(last_trade_datetime: str,    # may be a string representation
         query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}"']
     conditions_as_string = ' AND '.join(query_conditions)
     return f'''SELECT {features_as_string}
-               FROM `{PROJECT_ID}.jesse_tests.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
+               FROM `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
                WHERE {conditions_as_string}
                ORDER BY trade_datetime DESC'''
 
@@ -1247,13 +1248,13 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <hr>
     If the error is unexpected, perform the following procedure:
     <br>
-    1. Check `{PROJECT_ID}.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized` to see if there are any trades from the most recent business date. If there are no trades, then a likely cause is that the S&P index data did not load correctly from the `update_sp_all_indices_and_maturities` cloud function.
+    1. Check `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized` to see if there are any trades from the most recent business date. If there are no trades, then a likely cause is that the S&P index data did not load correctly from the `update_sp_all_indices_and_maturities` cloud function.
     <br>
     2. Debug the `update_sp_all_indices_and_maturities` cloud function by inspecting the logs.
     <br>
     3. Follow the order of the following cloud functions below, and force run them to recover from the lost data. When force running the `compute_shape_parameter` cloud function, first update the `CURRENT_DATETIME` to be the previous business day if fixing it the next day.
     <br>
-    4. Go to GCP scheduled queries for the `{PROJECT_ID}.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized` that is used for training.  Click edit the scheduled query.  This will open the query in a new window and you need simply click “Run” and let the query run for ~20 mins and the table will be ready. This will not actually edit or change the scheduled query.
+    4. Go to GCP scheduled queries for the `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized` that is used for training.  Click edit the scheduled query.  This will open the query in a new window and you need simply click “Run” and let the query run for ~20 mins and the table will be ready. This will not actually edit or change the scheduled query.
     <br>
     5. Train the models by going into the VM, update your user using these instructions: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#463a8cb282e2454db42584317a31a42b. Then, run the corresponding command from https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#122eb87466c28077b8b9d87f9f9490ec.
     <hr>
@@ -1261,17 +1262,17 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <br>
     `update_sp_all_indices_and_maturities` runs at 11pm ET M-F. Updates all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`.
     <br>
-    `train_daily_etf_model` runs at 11:10pm ET M-F. Uses all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndex`, (2) `{PROJECT_ID}.ETF_daily_alphavantage`. Updates all of the tables of the following form: `{PROJECT_ID}.yield_curves_v2.*_index`.
+    `train_daily_etf_model` runs at 11:10pm ET M-F. Uses all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndex`, (2) `{PROJECT_ID}.ETF_daily_alphavantage`. Updates all of the tables of the following form: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.*_index`.
     <br>
-    `train_daily_yield_curve` runs at 11:10pm ET M-F. Uses tables from datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Update the following tables: (1) `{PROJECT_ID}.yield_curves_v2.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.yield_curves_v2.standardscaler_parameters_daily`. Updates the yield curve redis, but the data with which it is updated is not currently used in production since we use the realtime yield curve in production.
+    `train_daily_yield_curve` runs at 11:10pm ET M-F. Uses tables from datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Update the following tables: (1) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.yield_curves_v2.standardscaler_parameters_daily`. Updates the yield curve redis, but the data with which it is updated is not currently used in production since we use the realtime yield curve in production.
     <br>
-    `compute_shape_parameter` runs at 11:25pm ET M-F. Uses all of the tables in the following dataset: `{PROJECT_ID}.spBondIndexMaturities`. Updates the table: `{PROJECT_ID}.yield_curves_v2.shape_parameters`
+    `compute_shape_parameter` runs at 11:25pm ET M-F. Uses all of the tables in the following dataset: `{PROJECT_ID}.spBondIndexMaturities`. Updates the table: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters`
     <br>
-    The following scheduled query runs at 5:05am ET: `create_same_issue_trade_history_ref_data`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `auxiliary_views.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `{PROJECT_ID}.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
+    The following scheduled query runs at 5:05am ET: `create_same_issue_trade_history_ref_data`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `{AUXILIARY_VIEWS_DATASET_NAME}.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `{PROJECT_ID}.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
     <br>
-    Model training runs at 5:45am ET M-F. Uses tables: (1) `{PROJECT_ID}.yield_curves_v2.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.yield_curves_v2.standardscaler_parameters_daily`, (3) `{PROJECT_ID}.yield_curves_v2.shape_parameters`, (4) `{PROJECT_ID}.treasury_yield.daily_yield_rate`, (5) `{PROJECT_ID}.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized`.
+    Model training runs at 5:45am ET M-F. Uses tables: (1) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.standardscaler_parameters_daily`, (3) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters`, (4) `{PROJECT_ID}.treasury_yield.daily_yield_rate`, (5) `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized`.
     <br>
-    `train-minute-yield-curve` runs from 9:30am - 3pm ET every minute on the minute. Uses the table: `{PROJECT_ID}.yield_curves_v2.shape_parameters` and all of the tables of the following form: `{PROJECT_ID}.yield_curves_v2.*_index` and all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Updates the following tables: (1) `{PROJECT_ID}.yield_curves_v2.nelson_siegel_coef_minute`, (2) `{PROJECT_ID}.finnhub_io.finnhub_etf_data`.
+    `train-minute-yield-curve` runs from 9:30am - 3pm ET every minute on the minute. Uses the table: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters` and all of the tables of the following form: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.*_index` and all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Updates the following tables: (1) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_minute`, (2) `{PROJECT_ID}.finnhub_io.finnhub_etf_data`.
     </body>
     </html>
     '''
