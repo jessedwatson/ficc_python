@@ -2,10 +2,10 @@
 Last Editor: Mitas Ray
 Last Edit Date: 2024-11-07
 '''
-standard_training_query = """ SELECT
+standard_training_query = '''SELECT
   *
 FROM
-  `eng-reactor-287421.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
+  `eng-reactor-287421.auxiliary_views_v2.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
 WHERE
   yield IS NOT NULL
   AND yield > 0 
@@ -19,11 +19,10 @@ WHERE
   AND msrb_valid_to_date > current_date -- condition to remove cancelled trades
 ORDER BY
   trade_date DESC
-"""
+'''
 
 
-relaxed_training_query = DATA_QUERY = '''
-SELECT
+relaxed_training_query = DATA_QUERY = '''SELECT
   *
 FROM
   `eng-reactor-287421.primary_views.speedy_trade_history`
