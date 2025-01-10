@@ -1,7 +1,7 @@
 # @ Author: Mitas Ray
 # @ Create date: 2025-01-06
 # @ Modified by: Mitas Ray
-# @ Modified date: 2025-01-09
+# @ Modified date: 2025-01-10
 # @ Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price". 
 #                The below are the cron jobs for the yield spread with similar trades and dollar price models set up on their respective automated training VMs.
 #                45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh dollar_price >> /home/mitas/training_logs/dollar_price_training_$(date +\%Y-\%m-\%d).log 2>&1
@@ -14,7 +14,7 @@ echo "Search for warnings in the logs (even on a successful training procedure) 
 
 # Assert that an argument is provided
 if [ -z "$1" ]; then
-  echo "Error: No argument provided. Usage: ./model_deployment.sh <value>"
+  echo "Error: No argument provided. Usage: bash ./model_deployment.sh <MODEL_NAME>"
   sudo shutdown -h now
 fi
 
@@ -31,13 +31,14 @@ esac
 
 who
 HOME_DIRECTORY='/home/mitas'
+AUTOMATED_TRAINING_DIRECTORY="$HOME_DIRECTORY/ficc_python/automated_training"
 DATE_WITH_YEAR=$(date +%Y-%m-%d)    # Create date before training so that in case the training takes too long and goes into the next day, the date is correct
 
 if [ "$1" == "yield_spread_with_similar_trades" ]; then
   TRAINED_MODELS_PATH="$HOME_DIRECTORY/trained_models/yield_spread_with_similar_trades_models"
   TRAINING_LOG_PATH="$HOME_DIRECTORY/training_logs/yield_spread_with_similar_trades_training_$DATE_WITH_YEAR.log"
   MODEL="yield_spread_with_similar_trades"
-  TRAINING_SCRIPT="$HOME_DIRECTORY/ficc_python/automated_training_yield_spread_with_similar_trades_model.py"
+  TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_yield_spread_with_similar_trades_model.py"
   MODEL_NAME='similar-trades-v2-model'-${DATE_WITH_YEAR}
   MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `automated_training_auxiliary_functions.py::get_model_zip_filename(...)`
   ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
@@ -45,7 +46,7 @@ else
   TRAINED_MODELS_PATH="$HOME_DIRECTORY/trained_models/dollar_price_model"
   TRAINING_LOG_PATH="$HOME_DIRECTORY/training_logs/dollar_price_training_$DATE_WITH_YEAR.log"
   MODEL="dollar_price"
-  TRAINING_SCRIPT="$HOME_DIRECTORY/ficc_python/automated_training_dollar_price_model.py"
+  TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_dollar_price_model.py"
   MODEL_NAME='dollar-v2-model'-${DATE_WITH_YEAR}
   MODEL_ZIP_NAME='model_dollar_price_v2'
   ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
@@ -60,15 +61,15 @@ python --version
 python $TRAINING_SCRIPT
 if [ $? -ne 0 ]; then
   echo "$TRAINING_SCRIPT script failed with exit code $?"
-  python $HOME_DIRECTORY/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
-  python $HOME_DIRECTORY/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details. However, if there is not enough new trades on the previous business day, then this is the desired behavior."
+  python $AUTOMATED_TRAINING_DIRECTORY/clean_training_log.py $TRAINING_LOG_PATH
+  python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details. However, if there is not enough new trades on the previous business day, then this is the desired behavior."
   deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
 echo "Model trained"
 
 # Cleaning the logs to make more readable
-python $HOME_DIRECTORY/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
+python $AUTOMATED_TRAINING_DIRECTORY/clean_training_log.py $TRAINING_LOG_PATH
 
 # Unzipping model and uploading it to automated training bucket
 echo "Unzipping model $MODEL_NAME"
@@ -86,7 +87,7 @@ fi
 unzip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
-  python $HOME_DIRECTORY/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Unzipping model failed. See attached logs for more details."
+  python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Unzipping model failed. See attached logs for more details."
   deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
@@ -95,7 +96,7 @@ echo "Uploading model to bucket"
 gsutil cp -r $TRAINED_MODELS_PATH/$MODEL_NAME gs://automated_training
 if [ $? -ne 0 ]; then
   echo "Uploading model to bucket failed with exit code $?"
-  python $HOME_DIRECTORY/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Uploading model to bucket failed. See attached logs for more details."
+  python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Uploading model to bucket failed. See attached logs for more details."
   deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
@@ -107,7 +108,7 @@ echo "Uploading model to Vertex AI"
 gcloud ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-13:latest --artifact-uri=gs://automated_training/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Model upload to Vertex AI failed with exit code $?"
-  python $HOME_DIRECTORY/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."
+  python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."
   deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
@@ -118,7 +119,7 @@ echo "Deploying to endpoint"
 gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
 if [ $? -ne 0 ]; then
   echo "Model deployment to Vertex AI failed with exit code $?"
-  python $HOME_DIRECTORY/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
+  python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
   deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
@@ -129,7 +130,7 @@ rm $HOME_DIRECTORY/trained_models/$MODEL_ZIP_NAME.zip
 echo "Removing file from Google Cloud Storage: gs://automated_training/$MODEL_ZIP_NAME.zip"
 gsutil rm -r gs://automated_training/$MODEL_ZIP_NAME.zip
 
-python $HOME_DIRECTORY/ficc_python/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
+python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
 
 deactivate    # Deactivate the virtual environment
 sudo shutdown -h now
