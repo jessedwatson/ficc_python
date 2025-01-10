@@ -10,7 +10,7 @@ import sys
 from automated_training_auxiliary_functions import setup_gpus, train_save_evaluate_model
 
 
-ficc_package_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))    # get the directory containing the 'ficc_python/' package
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
 sys.path.append(ficc_package_dir)    # add the directory to sys.path
 
 

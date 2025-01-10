@@ -82,7 +82,7 @@ from dollar_model import dollar_price_model
 from set_random_seed import set_seed
 
 
-ficc_package_dir = os.path.abspath(os.path.join(os.getcwd(), '..'))    # get the directory containing the 'ficc_python/' package
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
 sys.path.append(ficc_package_dir)    # add the directory to sys.path
 
 
