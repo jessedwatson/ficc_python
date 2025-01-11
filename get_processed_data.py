@@ -39,8 +39,8 @@ import pandas as pd
 
 from ficc.utils.auxiliary_functions import sqltodf, function_timer
 
-from automated_training_auxiliary_variables import EASTERN, BUSINESS_DAY, YEAR_MONTH_DAY, EARLIEST_TRADE_DATETIME, MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, YEAR_MONTH_DAY
-from automated_training_auxiliary_functions import BQ_CLIENT, get_data_query, check_that_model_is_supported, get_new_data, get_optional_arguments_for_process_data, combine_new_data_with_old_data, add_trade_history_derived_features, drop_features_with_null_value, save_data
+from automated_training.automated_training_auxiliary_variables import EASTERN, BUSINESS_DAY, YEAR_MONTH_DAY, EARLIEST_TRADE_DATETIME, MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, YEAR_MONTH_DAY
+from automated_training.automated_training_auxiliary_functions import BQ_CLIENT, get_data_query, check_that_model_is_supported, get_new_data, get_optional_arguments_for_process_data, combine_new_data_with_old_data, add_trade_history_derived_features, drop_features_with_null_value, save_data
 
 
 MODEL = 'yield_spread_with_similar_trades'

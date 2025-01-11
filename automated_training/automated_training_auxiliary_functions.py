@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2023-12-18
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-12-16
+ # @ Modified date: 2025-01-10
  '''
 import warnings
 import subprocess
@@ -27,15 +27,6 @@ from google.api_core.exceptions import NotFound as GCPNotFoundException
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
-from ficc.utils.gcp_storage_functions import upload_data, download_data
-from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
-from ficc.utils.nelson_siegel_model import yield_curve_level
-from ficc.utils.diff_in_days import diff_in_days_two_dates
-from ficc.utils.initialize_pandarallel import initialize_pandarallel
-
-initialize_pandarallel()
 
 from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    CATEGORICAL_FEATURES, \
@@ -91,7 +82,20 @@ from dollar_model import dollar_price_model
 from set_random_seed import set_seed
 
 
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
+sys.path.append(ficc_package_dir)    # add the directory to sys.path
+
+
+from ficc.utils.gcp_storage_functions import upload_data, download_data
+from ficc.data.process_data import process_data
+from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
+from ficc.utils.nelson_siegel_model import yield_curve_level
+from ficc.utils.diff_in_days import diff_in_days_two_dates
+from ficc.utils.initialize_pandarallel import initialize_pandarallel
+
+
 set_seed()
+initialize_pandarallel()
 
 
 # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error

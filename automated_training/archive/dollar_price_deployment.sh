@@ -1,5 +1,5 @@
-# @ Author: Ahmad Shayaan
-# @ Create date: 2023-07-28
+# @ Author: Mitas Ray
+# @ Create date: 2024-04-15
 # @ Modified by: Mitas Ray
 # @ Modified date: 2024-12-06
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
