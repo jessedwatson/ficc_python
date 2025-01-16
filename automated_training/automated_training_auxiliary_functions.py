@@ -1,9 +1,9 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2023-12-18
- # @ Modified by: Mitas Ray
- # @ Modified date: 2025-01-10
- '''
+Author: Mitas Ray
+Date: 2023-12-18
+Last Editor: Mitas Ray
+Last Edit Date: 2025-01-10
+'''
 import warnings
 import subprocess
 import traceback    # used to print out the stack trace when there is an error
@@ -1258,13 +1258,15 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <br>
     3. Follow the order of the following cloud functions below, and force run them to recover from the lost data. When force running the `compute_shape_parameter` cloud function, first update the `CURRENT_DATETIME` to be the previous business day if fixing it the next day.
     <br>
-    4. Go to GCP scheduled queries for the `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized` that is used for training.  Click edit the scheduled query.  This will open the query in a new window and you need simply click “Run” and let the query run for ~20 mins and the table will be ready. This will not actually edit or change the scheduled query.
+    4. Go to GCP scheduled queries for the `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized` that is used for training. Click edit the scheduled query. This will open the query in a new window and you need simply click “Run” and let the query run for ~20 mins and the table will be ready. This will not actually edit or change the scheduled query.
     <br>
     5. Train the models by going into the VM, update your user using these instructions: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#463a8cb282e2454db42584317a31a42b. Then, run the corresponding command from https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#122eb87466c28077b8b9d87f9f9490ec.
     <hr>
     Below is the order of related cloud functions and core procedures that run in relation to the training procedure that may be helpful for debugging and recovery due to this error:
     <br>
     `update_sp_all_indices_and_maturities` runs at 11pm ET M-F. Updates all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`.
+    <br>
+    `update_daily_etf_prices` runs at 11pm ET M-F. Uses all of the tables in the following dataset: `{PROJECT_ID}.ETF_daily_alphavantage`. Updates all of the tables in the following dataset: `{PROJECT_ID}.ETF_daily_alphavantage`.
     <br>
     `train_daily_etf_model` runs at 11:10pm ET M-F. Uses all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndex`, (2) `{PROJECT_ID}.ETF_daily_alphavantage`. Updates all of the tables of the following form: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.*_index`.
     <br>
