@@ -16,8 +16,6 @@ import numpy as np
 import pandas as pd
 from pandas.tseries.offsets import BusinessDay
 from sklearn import preprocessing
-import tensorflow as tf
-from tensorflow import keras
 from datetime import datetime
 
 from google.cloud import bigquery
@@ -123,6 +121,8 @@ BQ_CLIENT = get_bq_client()
 
 
 def setup_gpus(install_nvidia_drivers_if_gpu_not_present: bool = True):
+    import tensorflow as tf    # lazy loading for lower latency
+
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if len(gpus) == 0:
         warnings.warn('No GPUs found')
@@ -713,6 +713,8 @@ def trade_history_derived_features_dollar_price(row) -> list:
 
 
 def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
+    from tensorflow import keras    # lazy loading for lower latency
+
     fit_callbacks = [keras.callbacks.EarlyStopping(monitor='val_loss',
                                                    patience=20,
                                                    verbose=0,
@@ -834,6 +836,8 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     When using the `cache_output` decorator, we should not have any optional arguments as this may interfere with 
     how the cache lookup is done (optional arguments may not be put into the args set).
     As of 2024-06-07, we assume that the model name has the entire YYYY-MM-DD in the name.'''
+    from tensorflow import keras    # lazy loading for lower latency
+
     archived_folder_to_model_name = {archived_folder: model_name for model_name, archived_folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.items()}
     model = archived_folder_to_model_name[folder]
     check_that_model_is_supported(model)

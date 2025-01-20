@@ -63,7 +63,6 @@ if [ $? -ne 0 ]; then
   echo "$TRAINING_SCRIPT script failed with exit code $?"
   python $AUTOMATED_TRAINING_DIRECTORY/clean_training_log.py $TRAINING_LOG_PATH
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details. However, if there is not enough new trades on the previous business day, then this is the desired behavior."
-  deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
 echo "Model trained"
@@ -88,7 +87,6 @@ unzip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip -d $TRAINED_MODELS_PATH/$MODEL_NA
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $?"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Unzipping model failed. See attached logs for more details."
-  deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
 
@@ -97,7 +95,6 @@ gsutil cp -r $TRAINED_MODELS_PATH/$MODEL_NAME gs://automated_training
 if [ $? -ne 0 ]; then
   echo "Uploading model to bucket failed with exit code $?"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Uploading model to bucket failed. See attached logs for more details."
-  deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
 
@@ -109,7 +106,6 @@ gcloud ai models upload --region=us-east4 --display-name=$MODEL_NAME --container
 if [ $? -ne 0 ]; then
   echo "Model upload to Vertex AI failed with exit code $?"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."
-  deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
 
@@ -120,7 +116,6 @@ gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$
 if [ $? -ne 0 ]; then
   echo "Model deployment to Vertex AI failed with exit code $?"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
-  deactivate    # Deactivate the virtual environment
   sudo shutdown -h now
 fi
 
@@ -132,5 +127,4 @@ gsutil rm -r gs://automated_training/$MODEL_ZIP_NAME.zip
 
 python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "No detected errors. Logs attached for reference."
 
-deactivate    # Deactivate the virtual environment
 sudo shutdown -h now
