@@ -956,7 +956,7 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
     if date_for_previous_model is None:
-        previous_business_date_model, previous_business_date_model_date = None, None
+        previous_business_date_model, previous_business_date_model_date, result_df_using_previous_day_model = None, None, None
     else:
         try:
             previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, model)

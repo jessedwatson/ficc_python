@@ -21,14 +21,20 @@ import automated_training.automated_training_auxiliary_functions
 from automated_training.automated_training_auxiliary_variables import MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, BUCKET_NAME
 automated_training.automated_training_auxiliary_functions.SAVE_MODEL_AND_DATA = False
 from automated_training.automated_training_auxiliary_functions import train_model, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime
+from automated_training.clean_training_log import remove_lines_with_tensorflow_progress_bar
 
 from ficc.utils.auxiliary_functions import function_timer, get_ys_trade_history_features, get_dp_trade_history_features
 
 
-MODEL = 'yield_spread_with_similar_trades'
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/mitas/ficc/ficc/mitas_creds.json'
 
-TESTING = True
-if TESTING: automated_training.automated_training_auxiliary_functions.NUM_EPOCHS = 5
+MODEL = 'yield_spread_with_similar_trades'
+NUM_DAYS = 10
+
+TESTING = False
+if TESTING:
+    automated_training.automated_training_auxiliary_functions.NUM_EPOCHS = 5
+    NUM_DAYS = 1
 
 
 @function_timer
@@ -46,18 +52,16 @@ def get_num_features_for_each_trade_in_history(model: str = MODEL) -> int:
     return len(trade_history_features)    # from `automated_training_auxiliary_functions.py::get_new_data(...)`
 
 
-def train_model_from_data_file(data_file_path: str, num_days: int, results_file_path: str):
-    data = None    # TODO: load data from `file_path`
-    # TODO: create `for` loop that iterates through `last_trade_date` options, and also truncates the DataFrame from the end
+def train_model_from_data_file(data: pd.DataFrame, num_days: int):
     most_recent_dates = np.sort(data['trade_date'].unique())[::-1]
     most_recent_dates = most_recent_dates[:num_days + 1]    # restrict to `num_days` most recent dates
     for day_idx in range(num_days):
         date_for_test_set, most_recent_date_for_training_set = most_recent_dates[day_idx], most_recent_dates[day_idx + 1]
         data = data[data['trade_date'] <= date_for_test_set]    # iteratively remove the last date from `data`
-        model, _, _, _, _, mae, mae_df_list, _ = train_model(data, most_recent_date_for_training_set, MODEL, get_num_features_for_each_trade_in_history())
+        model, _, _, _, _, mae, (mae_df, _), _ = train_model(data, most_recent_date_for_training_set, MODEL, get_num_features_for_each_trade_in_history())
         
 
 if __name__ == '__main__':
-    os.makedirs('files', exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
     data = get_processed_data_pickle_file(MODEL)
-    train_model_from_data_file(data, 1, 'files/output.txt')
+    train_model_from_data_file(data, NUM_DAYS)
+    remove_lines_with_tensorflow_progress_bar('output.txt')

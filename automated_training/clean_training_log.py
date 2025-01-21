@@ -1,13 +1,13 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2024-01-26
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-26
- '''
+Author: Mitas Ray
+Date: 2025-01-21
+Last Editor: Mitas Ray
+Last Edit Date: 2025-01-21
+'''
 import sys
 
 
-def remove_lines_with_character(character_to_remove, file_path, new_file_path=None):
+def remove_lines_with_character(character_to_remove, file_path: str, new_file_path: str = None):
     with open(file_path, 'r') as file:    # read the file
         lines = file.readlines()
     filtered_lines = [line for line in lines if character_to_remove not in line]    # filter out lines containing the specified character
@@ -16,10 +16,14 @@ def remove_lines_with_character(character_to_remove, file_path, new_file_path=No
         file.writelines(filtered_lines)
 
 
+def remove_lines_with_tensorflow_progress_bar(file_path: str):
+    remove_lines_with_character('', file_path)
+
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print('Usage: $ python clean_training_log.py <filepath>')
+        print('Usage: $ python clean_training_log.py <file_path>')
     else:
-        filepath = sys.argv[1]
-        print(f'Cleaning up: {filepath}')
-        remove_lines_with_character('', filepath)
+        file_path = sys.argv[1]
+        print(f'Cleaning up: {file_path}')
+        remove_lines_with_tensorflow_progress_bar(file_path)
