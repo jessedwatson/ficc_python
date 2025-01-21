@@ -905,9 +905,10 @@ def not_enough_trades_in_test_data(test_data, min_trades_to_use_test_data):
 
 
 @function_timer
-def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
+def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str = None, exclusions_function: callable = None):
     '''The final return value is a string that should be in the beginning of the email that is sent out 
-    which provides transparency on the training procedure.'''
+    which provides transparency on the training procedure. If `date_for_previous_model` is `None`, then 
+    do not attempt to load a previous model for accuracy comparison.'''
     check_that_model_is_supported(model)
     train_model_text_list = []    # store important data from the training procedure that will be outputted in summary email
     data = remove_old_trades(data, 240, last_trade_date, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
@@ -954,15 +955,18 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
 
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
-    try:
-        previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, model)
-        result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
-    except Exception as e:
-        print(f'Unable to create the dataframe for the model evaluation email due to {type(e)}: {e}')
-        print('Stack trace:')
-        print(traceback.format_exc())
-        result_df_using_previous_day_model = None
-        if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
+    if date_for_previous_model is None:
+        previous_business_date_model, previous_business_date_model_date = None, None
+    else:
+        try:
+            previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, model)
+            result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
+        except Exception as e:
+            print(f'Unable to create the dataframe for the model evaluation email due to {type(e)}: {e}')
+            print('Stack trace:')
+            print(traceback.format_exc())
+            result_df_using_previous_day_model = None
+            if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
     
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and 'yield_spread' in model:
