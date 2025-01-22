@@ -1,7 +1,7 @@
 # @ Author: Mitas Ray
 # @ Create date: 2025-01-06
 # @ Modified by: Mitas Ray
-# @ Modified date: 2025-01-10
+# @ Modified date: 2025-01-22
 # @ Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price". 
 #                The below are the cron jobs for the yield spread with similar trades and dollar price models set up on their respective automated training VMs.
 #                45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh dollar_price >> /home/mitas/training_logs/dollar_price_training_$(date +\%Y-\%m-\%d).log 2>&1
@@ -33,6 +33,7 @@ who
 HOME_DIRECTORY='/home/mitas'
 AUTOMATED_TRAINING_DIRECTORY="$HOME_DIRECTORY/ficc_python/automated_training"
 DATE_WITH_YEAR=$(date +%Y-%m-%d)    # Create date before training so that in case the training takes too long and goes into the next day, the date is correct
+REGION='us-east4'
 
 if [ "$1" == "yield_spread_with_similar_trades" ]; then
   TRAINED_MODELS_PATH="$HOME_DIRECTORY/trained_models/yield_spread_with_similar_trades_models"
@@ -41,7 +42,7 @@ if [ "$1" == "yield_spread_with_similar_trades" ]; then
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_yield_spread_with_similar_trades_model.py"
   MODEL_NAME='similar-trades-v2-model'-${DATE_WITH_YEAR}
   MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `automated_training_auxiliary_functions.py::get_model_zip_filename(...)`
-  ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
+  ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
 else
   TRAINED_MODELS_PATH="$HOME_DIRECTORY/trained_models/dollar_price_model"
   TRAINING_LOG_PATH="$HOME_DIRECTORY/training_logs/dollar_price_training_$DATE_WITH_YEAR.log"
@@ -49,7 +50,7 @@ else
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_dollar_price_model.py"
   MODEL_NAME='dollar-v2-model'-${DATE_WITH_YEAR}
   MODEL_ZIP_NAME='model_dollar_price_v2'
-  ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
+  ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
 fi
 
 # Activate the virtual environment for Python3.10 (/usr/local/bin/python3.10) that contains all of the packages; to see all versions of Python use command `whereis python`
@@ -102,24 +103,40 @@ fi
 echo "ENDPOINT_ID $ENDPOINT_ID"
 echo "MODEL_NAME $MODEL_NAME"
 echo "Uploading model to Vertex AI"
-gcloud ai models upload --region=us-east4 --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-13:latest --artifact-uri=gs://automated_training/$MODEL_NAME
+gcloud ai models upload --region=$REGION --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-13:latest --artifact-uri=gs://automated_training/$MODEL_NAME
 if [ $? -ne 0 ]; then
   echo "Model upload to Vertex AI failed with exit code $?"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."
   sudo shutdown -h now
 fi
 
-NEW_MODEL_ID=$(gcloud ai models list --region=us-east4 --format='value(name)' --filter='displayName'=$MODEL_NAME)
+NEW_MODEL_ID=$(gcloud ai models list --region=$REGION --format='value(name)' --filter='displayName'=$MODEL_NAME)
 echo "NEW_MODEL_ID $NEW_MODEL_ID"
+OLD_MODEL_ID=$(gcloud ai endpoints describe $ENDPOINT_ID --region=$REGION --format='value(deployedModels[0].id)')
+echo "OLD_MODEL_ID $OLD_MODEL_ID"
 echo "Deploying to endpoint"
-gcloud ai endpoints deploy-model $ENDPOINT_ID --region=us-east4 --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
+gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
 if [ $? -ne 0 ]; then
   echo "Model deployment to Vertex AI failed with exit code $?"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
   sudo shutdown -h now
 fi
 
-# removing temporary files
+echo "Updating traffic split to 100% for new model with ID: $NEW_MODEL_ID"
+gcloud ai endpoints update $ENDPOINT_ID --region=$REGION --traffic-split=$NEW_MODEL_ID=100
+if [ $? -ne 0 ]; then
+  echo "Traffic switch failed with exit code $?"
+  python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Traffic switch to new model failed. See attached logs for more details."
+  sudo shutdown -h now
+fi
+
+# Undeploy the old model (if it exists); `[ -n "$OLD_MODEL_ID" ]` checks that the `OLD_MODEL_ID` is non-empty; `--quiet` suppresses the confirmation prompts allowing the command to run automatically
+if [ -n "$OLD_MODEL_ID" ]; then
+  echo "Undeploying old model: $OLD_MODEL_ID"
+  gcloud ai endpoints undeploy-model $ENDPOINT_ID --region=$REGION --deployed-model-id=$OLD_MODEL_ID --quiet
+fi
+
+# Removing temporary files
 echo "Removing local file: $HOME_DIRECTORY/trained_models/$MODEL_ZIP_NAME.zip"
 rm $HOME_DIRECTORY/trained_models/$MODEL_ZIP_NAME.zip
 echo "Removing file from Google Cloud Storage: gs://automated_training/$MODEL_ZIP_NAME.zip"
