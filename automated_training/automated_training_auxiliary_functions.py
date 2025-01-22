@@ -1278,6 +1278,8 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <br>
     `compute_shape_parameter` runs at 11:25pm ET M-F. Uses all of the tables in the following dataset: `{PROJECT_ID}.spBondIndexMaturities`. Updates the table: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters`
     <br>
+    `daily_treasury_yield` runs at 11:45pm ET M-F. Updates the following table: `eng-reactor-287421.treasury_yield.daily_yield_rate`.
+    <br>
     The following scheduled query runs at 5:05am ET: `create_same_issue_trade_history_ref_data`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `{AUXILIARY_VIEWS_DATASET_NAME}.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `{PROJECT_ID}.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
     <br>
     Model training runs at 5:45am ET M-F. Uses tables: (1) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.standardscaler_parameters_daily`, (3) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters`, (4) `{PROJECT_ID}.treasury_yield.daily_yield_rate`, (5) `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized`.
