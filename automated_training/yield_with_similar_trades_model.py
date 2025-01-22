@@ -11,12 +11,15 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
+from tensorflow.keras import mixed_precision
+
 
 from automated_training_auxiliary_variables import BATCH_SIZE, DROPOUT
 from set_random_seed import set_seed
 
 
 set_seed()
+mixed_precision.set_global_policy('mixed_float16')    # speeds up deep learning training by using both 16-bit (float16) and 32-bit (float32) floating-point arithmetic instead of computing everything in float32; Weights & activations → Converted to float16, Loss & gradients → Kept in float32 for stability, Computation → Uses float16 for faster GPU execution, Automatic Casting → TensorFlow automatically handles mixed precision
 
 
 def model_definition(trade_history_normalizer, 
