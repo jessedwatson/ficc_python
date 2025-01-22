@@ -12,8 +12,6 @@ import multiprocess as mp
 from ficc.utils.auxiliary_variables import IS_REPLICA, IS_BOOKKEEPING, IS_SAME_DAY, NTBC_PRECURSOR, REPLICA_COUNT, flatten
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
-initialize_pandarallel()
-
 
 def subarray_sum(lst, target_sum, indices):
     '''The goal is to find a sublist in `lst`, such that the sum of the sublist equals 
@@ -60,6 +58,7 @@ def subarray_sum_equaling_zero(lst, indices):
 
 def _select_apply_function(use_parallel_apply):
     '''Choose between .apply(...) and .parallel_apply(...) for the groupby.'''
+    if use_parallel_apply: initialize_pandarallel()
     return pd.core.groupby.GroupBy.parallel_apply if use_parallel_apply else pd.core.groupby.GroupBy.apply
 
 

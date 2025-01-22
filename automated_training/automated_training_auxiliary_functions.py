@@ -93,7 +93,6 @@ from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
 
 set_seed()
-initialize_pandarallel()
 
 
 # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
@@ -194,6 +193,8 @@ def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
 @function_timer
 def add_yield_curve(data):
     '''Add 'new_ficc_ycl' field to `data`.'''
+    initialize_pandarallel()    # only initialize if needed
+
     nelson_daily_params = get_parameters('nelson_siegel_coef_daily')
     scalar_daily_params = get_parameters('standardscaler_parameters_daily')
     shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
@@ -317,6 +318,7 @@ def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_tra
 
 @function_timer
 def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str) -> pd.DataFrame:
+    initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
     if new_data is None: return old_data    # there is new data since `last_trade_date`
 
@@ -358,6 +360,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 
 @function_timer
 def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False) -> pd.DataFrame:
+    initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
     trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if 'yield_spread' in model else trade_history_derived_features_dollar_price
@@ -601,8 +604,11 @@ def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
         encoders[feature] = fprep
     
     encoders_filename = get_encoders_filename(model)
-    with open(f'{WORKING_DIRECTORY}/{encoders_filename}', 'wb') as file:
-        pickle.dump(encoders, file)
+    if os.path.exists(WORKING_DIRECTORY):
+        with open(f'{WORKING_DIRECTORY}/{encoders_filename}', 'wb') as file:
+            pickle.dump(encoders, file)
+    else:
+        print(f'{WORKING_DIRECTORY} does not exist, so {WORKING_DIRECTORY}/{encoders_filename} was not written to')
     return encoders, fmax
 
 

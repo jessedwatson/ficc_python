@@ -3,7 +3,24 @@ Author: Mitas Ray
 Date: 2025-01-21
 Last Editor: Mitas Ray
 Last Edit Date: 2025-01-21
-Description: Used to train a model with a processed data file. Heavily uses code from `automated_training/`.
+Description: Used to train a model with a processed data file. Heavily uses code from `automated_training/`. Note: update `automated_training_auxiliary_functions.py::get_creds(...)` with the correct file path.
+
+**NOTE**: To run the procedure in the background, use the command: $ nohup python -u train_model.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
+Breakdown:
+1. `nohup`: This allows the script to continue running even after you log out or close the terminal.
+2. python -u train_model.py: This part is executing your Python script in unbuffered mode, forcing Python to write output immediately. If you are using Python 3, you might want to specify python3 instead of just python, depending on your environment.
+3. >> output.txt 2>&1:
+    * >> output.txt appends the standard output (stdout) of the script to output.txt instead of overwriting it.
+    * 2>&1 redirects standard error (stderr) to the same file as standard output, so both stdout and stderr go into output.txt.
+4. &: This runs the command in the background.
+
+To redirect the error to a different file, you can use 2> error.txt. Note that just ignoring it (not including 2>...) will just output to std out in this case.
+
+To kill the command, run
+$ kill 66581
+or
+$ kill -9 66581
+The -9 forces the operation.
 '''
 import os
 import sys
@@ -12,28 +29,32 @@ import numpy as np
 import pandas as pd
 
 
-ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))    # get the directory containing the 'ficc_python/' package
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'automated_training'))    # get the directory containing the 'ficc_python/automated_training' directory
 sys.path.append(ficc_package_dir)    # add the directory to sys.path
 
 
-import automated_training.automated_training_auxiliary_functions
+from automated_training_auxiliary_variables import MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, BUCKET_NAME
 
-from automated_training.automated_training_auxiliary_variables import MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, BUCKET_NAME
-automated_training.automated_training_auxiliary_functions.SAVE_MODEL_AND_DATA = False
-from automated_training.automated_training_auxiliary_functions import train_model, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime
-from automated_training.clean_training_log import remove_lines_with_tensorflow_progress_bar
+import automated_training_auxiliary_functions
+automated_training_auxiliary_functions.SAVE_MODEL_AND_DATA = False
 
-from ficc.utils.auxiliary_functions import function_timer, get_ys_trade_history_features, get_dp_trade_history_features
+from automated_training_auxiliary_functions import train_model, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime
+from clean_training_log import remove_lines_with_tensorflow_progress_bar
 
 
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/mitas/ficc/ficc/mitas_creds.json'
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'ficc'))    # get the directory containing the 'ficc_python/ficc' directory
+sys.path.append(ficc_package_dir)    # add the directory to sys.path
+
+
+from utils.auxiliary_functions import function_timer, get_ys_trade_history_features, get_dp_trade_history_features
+
 
 MODEL = 'yield_spread_with_similar_trades'
 NUM_DAYS = 10
 
 TESTING = False
 if TESTING:
-    automated_training.automated_training_auxiliary_functions.NUM_EPOCHS = 5
+    automated_training_auxiliary_functions.NUM_EPOCHS = 5
     NUM_DAYS = 1
 
 

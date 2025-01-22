@@ -11,8 +11,6 @@ import numpy as np
 from ficc.utils.process_features import process_features
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
-initialize_pandarallel()
-
 from ficc.data.process_trade_history import process_trade_history
 from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.auxiliary_functions import convert_dates
@@ -72,6 +70,7 @@ def process_data(query,
                                       shape_parameter, 
                                       save_data, 
                                       process_similar_trades_history)
+    initialize_pandarallel()
     
     if trades_df is None: return None    # no new trades
 

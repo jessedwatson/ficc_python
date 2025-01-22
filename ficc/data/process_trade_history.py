@@ -14,8 +14,6 @@ from ficc.utils.pad_trade_history import pad_trade_history
 from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
-initialize_pandarallel()
-
 
 def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
     if os.path.isfile(PATH):
@@ -48,6 +46,7 @@ def restrict_number_of_trades(trade_history_series: pd.Series, num_trades: int, 
 
 def pad_trade_history_column(series: pd.Series, num_trades_in_history: int, min_trades_in_history: int, num_features_for_each_trade_in_history: int, processing_similar_trades: bool, use_multiprocessing: bool = True) -> pd.Series:
     '''`processing_similar_trades` is used solely for print output.'''
+    initialize_pandarallel()
     trade_history_prefix = 'similar ' if processing_similar_trades else ''
     print(f'Padding {trade_history_prefix}trade history')
     print(f'Minimum number of trades required in the {trade_history_prefix}trade history: {min_trades_in_history}')
