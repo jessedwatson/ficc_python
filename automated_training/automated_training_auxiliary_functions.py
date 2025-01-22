@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-10
+Last Edit Date: 2025-01-22
 '''
 import warnings
 import subprocess
@@ -74,7 +74,8 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    NUM_EPOCHS, \
                                                    MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
                                                    TESTING, \
-                                                   USE_PICKLED_DATA
+                                                   USE_PICKLED_DATA, \
+                                                   ROW_NAME_DETERMINING_MODEL_SWITCH
 from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
 from set_random_seed import set_seed
@@ -1078,7 +1079,8 @@ def remove_file(file_path: str) -> None:
         print(f'{type(e)}: {e}')
 
 
-def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None):
+def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None) -> bool:
+    '''Returns a boolean indicating whether the model traffic should be switched based to the newly trained model.'''
     check_that_model_is_supported(model)
     print(f'Python version: {sys.version}')
     current_datetime = datetime.now(EASTERN)
@@ -1123,9 +1125,18 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {test_data_date}. If there are three tables in this email, then this one evaluates on the same test dataset as the first table but with a different (previous business day) model. If the accuracy on this table is better than the first table, this may imply that the older model is more accurate. Note, however, that the model has not been (and, cannot be) evaluated yet on the trades that will occur today.', 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {business_date_before_test_data_date}. If there are three tables in this email, then this one evaluates the same model as the second table but on a different (previous business day) test dataset. If the accuracy on this table is better than the second table, this may mean that the trades in the test set used for the first two tables are more challenging (harder to predict) than the trades from the test set used for this table.']
             mae_df_list, description_list = list(zip(*[(mae_df, description) for (mae_df, description) in zip(mae_df_list, description_list) if mae_df is not None]))    # only keep the (`mae_df`, `description`) pair if the `mae_df` is not None, and then put them into separate lists
-            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text)
+            
+            newly_trained_model_mae = current_date_data_current_date_model_result_df.loc[ROW_NAME_DETERMINING_MODEL_SWITCH, 'Mean Absolute Error']
+            currently_deployed_model_mae = current_date_data_previous_business_date_model_result_df.loc[ROW_NAME_DETERMINING_MODEL_SWITCH, 'Mean Absolute Error']
+            switch_traffic = newly_trained_model_mae >= currently_deployed_model_mae
+            if switch_traffic:
+                email_intro_text_addendum = f'\n{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is greater than or equal to that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has been switched</b> to the newly trained model.\n'
+            else:
+                email_intro_text_addendum = f'\n{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is less than that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has NOT been switched</b> to the newly trained model. All traffic remains on the currently deployed model.\n'
+            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text + email_intro_text_addendum)
             # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
             # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
+            return switch_traffic
         except Exception as e:
             print(f'{type(e)}:', e)
 
