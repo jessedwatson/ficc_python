@@ -24,6 +24,7 @@ The -9 forces the operation.
 '''
 import os
 import sys
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -61,8 +62,16 @@ if TESTING:
 @function_timer
 def get_processed_data_pickle_file(model: str = MODEL) -> pd.DataFrame:
     file_name = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[model]
-    data, most_recent_trade_datetime, _ = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
-    print(f'Loaded data from gs://{BUCKET_NAME}/{file_name}. Most recent trade datetime: {most_recent_trade_datetime}')
+    if os.path.isfile(file_name):
+        with open(file_name, 'rb') as file:
+            data = pickle.load(file)
+        most_recent_trade_datetime = data.trade_datetime.max()
+    else:
+        data, most_recent_trade_datetime, _ = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
+        with open(file_name, 'wb') as file:
+            pickle.dump(data, file)
+        file_name = f'gs://{BUCKET_NAME}/{file_name}'    # used for print
+    print(f'Loaded data from {file_name}. Most recent trade datetime: {most_recent_trade_datetime}')
     return data
 
 
