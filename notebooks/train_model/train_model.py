@@ -38,7 +38,7 @@ from automated_training_auxiliary_variables import MODEL_TO_CUMULATIVE_DATA_PICK
 import automated_training_auxiliary_functions
 automated_training_auxiliary_functions.SAVE_MODEL_AND_DATA = False
 
-from automated_training_auxiliary_functions import train_model, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime
+from automated_training_auxiliary_functions import train_model, setup_gpus, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime
 from clean_training_log import remove_lines_with_tensorflow_progress_bar
 
 
@@ -83,6 +83,7 @@ def train_model_from_data_file(data: pd.DataFrame, num_days: int):
         
 
 if __name__ == '__main__':
+    setup_gpus(False)
     data = get_processed_data_pickle_file(MODEL)
     train_model_from_data_file(data, NUM_DAYS)
     remove_lines_with_tensorflow_progress_bar('output.txt')

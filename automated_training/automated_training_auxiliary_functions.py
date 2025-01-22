@@ -119,16 +119,24 @@ STORAGE_CLIENT = get_storage_client()
 BQ_CLIENT = get_bq_client()
 
 
-def setup_gpus(install_nvidia_drivers_if_gpu_not_present: bool = True):
+def setup_gpus(install_nvidia_drivers_if_gpu_not_present: bool = True, force_cpu: bool = False):
     import tensorflow as tf    # lazy loading for lower latency
 
+    if force_cpu:
+        print(f'Forcing use of CPU instead of GPU')
+        tf.config.set_visible_devices([], 'GPU')
+        return
+    
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if len(gpus) == 0:
         warnings.warn('No GPUs found')
         if install_nvidia_drivers_if_gpu_not_present:
             shell_script_path = f'{WORKING_DIRECTORY}/install-cuda_12_2_0-linux-x86_64-debian-11-network.sh'
-            shell_script_output = subprocess.check_output(['sh', shell_script_path])
-            print(f'Output of running shell script from {shell_script_path}:\n{shell_script_output.decode()}')
+            if os.path.isfile(shell_script_path):
+                shell_script_output = subprocess.check_output(['sh', shell_script_path])
+                print(f'Output of running shell script from {shell_script_path}:\n{shell_script_output.decode()}')
+            else:
+                print(f'{shell_script_path} not found')
             setup_gpus(False)    # if GPU still not found after installing CUDA toolkit, then proceed with training without the GPU
     else:
         print(f'Found {len(gpus)} GPUs: {gpus}')
