@@ -15,7 +15,9 @@ echo "Search for warnings in the logs (even on a successful training procedure) 
 # Assert that an argument is provided
 if [ -z "$1" ]; then
   echo "Error: No argument provided. Usage: bash ./model_deployment.sh <MODEL_NAME>"
+  # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
   sudo shutdown -h now
+  exit 1
 fi
 
 # Check if the argument is one of the valid values
@@ -25,7 +27,9 @@ case "$1" in
     ;;
   *)
     echo "Error: Invalid argument. Allowed values are: yield_spread_with_similar_trades, dollar_price."
+    # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
     sudo shutdown -h now
+    exit 1
     ;;
 esac
 
@@ -67,7 +71,9 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -ne 10 ] && [ $SWITCH_TRAFFIC_EXIT_CODE -ne 11 ];
   echo "$TRAINING_SCRIPT script failed with exit code $SWITCH_TRAFFIC_EXIT_CODE"
   python $AUTOMATED_TRAINING_DIRECTORY/clean_training_log.py $TRAINING_LOG_PATH
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details. However, if there is not enough new trades on the previous business day, then this is the desired behavior."
+  # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
   sudo shutdown -h now
+  exit 1
 fi
 echo "Model trained successfully (Exit Code: $SWITCH_TRAFFIC_EXIT_CODE)"
 
@@ -92,7 +98,9 @@ EXIT_CODE=$?
 if [ $? -ne 0 ]; then
   echo "Unzipping failed with exit code $EXIT_CODE"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Unzipping model failed. See attached logs for more details."
+  # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
   sudo shutdown -h now
+  exit 1
 fi
 
 if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
@@ -107,7 +115,9 @@ EXIT_CODE=$?
 if [ $? -ne 0 ]; then
   echo "Uploading model to $BUCKET failed with exit code $EXIT_CODE"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Uploading model to $BUCKET failed. See attached logs for more details."
+  # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
   sudo shutdown -h now
+  exit 1
 fi
 
 if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
@@ -120,7 +130,9 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   if [ $? -ne 0 ]; then
     echo "Model upload to Vertex AI failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."
+    # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
     sudo shutdown -h now
+    exit 1
   fi
 
   NEW_MODEL_ID=$(gcloud ai models list --region=$REGION --format='value(name)' --filter='displayName'=$MODEL_NAME)
@@ -133,7 +145,9 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   if [ $? -ne 0 ]; then
     echo "Model deployment to Vertex AI failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
+    # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
     sudo shutdown -h now
+    exit 1
   fi
 
   echo "Updating traffic split to 100% for new model with ID: $NEW_MODEL_ID"
@@ -142,7 +156,9 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   if [ $? -ne 0 ]; then
     echo "Traffic switch failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Traffic switch to new model failed. See attached logs for more details."
+    # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
     sudo shutdown -h now
+    exit 1
   fi
 
   # Undeploy the old model (if it exists); `[ -n "$OLD_MODEL_ID" ]` checks that the `OLD_MODEL_ID` is non-empty; `--quiet` suppresses the confirmation prompts allowing the command to run automatically
