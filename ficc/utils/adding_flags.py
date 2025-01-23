@@ -1,5 +1,5 @@
 '''
-Author: AMitas Ray
+Author: Mitas Ray
 Date: 2022-08-08
 Last Editor: Mitas Ray
 Last Edit Date: 2025-01-23
