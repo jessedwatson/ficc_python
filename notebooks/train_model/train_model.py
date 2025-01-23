@@ -51,7 +51,7 @@ from utils.auxiliary_functions import function_timer, get_ys_trade_history_featu
 
 
 MODEL = 'yield_spread_with_similar_trades'
-NUM_DAYS = 10
+NUM_DAYS = 5
 
 TESTING = False
 if TESTING:
@@ -82,17 +82,18 @@ def get_num_features_for_each_trade_in_history(model: str = MODEL) -> int:
     return len(trade_history_features)    # from `automated_training_auxiliary_functions.py::get_new_data(...)`
 
 
-def train_model_from_data_file(data: pd.DataFrame, num_days: int):
+def train_model_from_data_file(data: pd.DataFrame, num_days: int, output_file_path: str = None):
     most_recent_dates = np.sort(data['trade_date'].unique())[::-1]
     most_recent_dates = most_recent_dates[:num_days + 1]    # restrict to `num_days` most recent dates
     for day_idx in range(num_days):
         date_for_test_set, most_recent_date_for_training_set = most_recent_dates[day_idx], most_recent_dates[day_idx + 1]
         data = data[data['trade_date'] <= date_for_test_set]    # iteratively remove the last date from `data`
         model, _, _, _, _, mae, (mae_df, _), _ = train_model(data, most_recent_date_for_training_set, MODEL, get_num_features_for_each_trade_in_history())
+        if output_file_path is not None: remove_lines_with_tensorflow_progress_bar(output_file_path)
         
 
 if __name__ == '__main__':
     setup_gpus(False)
     data = get_processed_data_pickle_file(MODEL)
-    train_model_from_data_file(data, NUM_DAYS)
-    remove_lines_with_tensorflow_progress_bar('output.txt')
+    output_file_name = 'output.txt'
+    train_model_from_data_file(data, NUM_DAYS, output_file_name)
