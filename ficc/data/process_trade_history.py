@@ -1,10 +1,9 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2021-12-17
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-07
- # @ Description:
- '''
+Author: Ahmad Shayaan
+Date: 2021-12-17
+Last Editor: Mitas Ray
+Last Edit Date: 2025-01-23
+'''
 import os
 import pandas as pd
 import pickle
@@ -46,7 +45,7 @@ def restrict_number_of_trades(trade_history_series: pd.Series, num_trades: int, 
 
 def pad_trade_history_column(series: pd.Series, num_trades_in_history: int, min_trades_in_history: int, num_features_for_each_trade_in_history: int, processing_similar_trades: bool, use_multiprocessing: bool = True) -> pd.Series:
     '''`processing_similar_trades` is used solely for print output.'''
-    initialize_pandarallel()
+    if use_multiprocessing: initialize_pandarallel()
     trade_history_prefix = 'similar ' if processing_similar_trades else ''
     print(f'Padding {trade_history_prefix}trade history')
     print(f'Minimum number of trades required in the {trade_history_prefix}trade history: {min_trades_in_history}')
@@ -80,6 +79,7 @@ def process_trade_history(query: str,
                           save_data: bool = True, 
                           process_similar_trades_history: bool = False, 
                           use_multiprocessing: bool = True):
+    if use_multiprocessing: initialize_pandarallel()
     trades_df = fetch_trade_data(query, client, PATH, save_data)
     if len(trades_df) == 0:
         print('Raw data contains 0 trades')

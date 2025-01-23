@@ -1,10 +1,10 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2022-08-08
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-07-11
- # @ Description: Adds flags to trades to provide additional features
- '''
+Author: AMitas Ray
+Date: 2022-08-08
+Last Editor: Mitas Ray
+Last Edit Date: 2025-01-23
+Description: Adds flags to trades to provide additional features.
+'''
 import numpy as np
 import pandas as pd
 import multiprocess as mp
@@ -56,7 +56,7 @@ def subarray_sum_equaling_zero(lst, indices):
     return indices[left_idx_of_longest_subarray : right_idx_of_longest_subarray + 1] if left_idx_of_longest_subarray is not None else []
 
 
-def _select_apply_function(use_parallel_apply):
+def _select_apply_function(use_parallel_apply: bool):
     '''Choose between .apply(...) and .parallel_apply(...) for the groupby.'''
     if use_parallel_apply: initialize_pandarallel()
     return pd.core.groupby.GroupBy.parallel_apply if use_parallel_apply else pd.core.groupby.GroupBy.apply

@@ -1,10 +1,9 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2021-12-16
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-07
- # @ Description: Source code to process trade history from BigQuery
- '''
+Author: Ahmad Shayaan
+Date: 2021-12-16
+Last Editor: Mitas Ray
+Last Edit Date: 2025-01-23
+'''
 import warnings
 import numpy as np
 
@@ -70,7 +69,7 @@ def process_data(query,
                                       shape_parameter, 
                                       save_data, 
                                       process_similar_trades_history)
-    initialize_pandarallel()
+    if use_multiprocessing: initialize_pandarallel()
     
     if trades_df is None: return None    # no new trades
 
