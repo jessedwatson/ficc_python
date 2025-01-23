@@ -1,7 +1,7 @@
 # @ Author: Mitas Ray
 # @ Create date: 2025-01-06
 # @ Modified by: Mitas Ray
-# @ Modified date: 2025-01-22
+# @ Modified date: 2025-01-23
 # @ Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price". 
 #                The below are the cron jobs for the yield spread with similar trades and dollar price models set up on their respective automated training VMs.
 #                45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh dollar_price >> /home/mitas/training_logs/dollar_price_training_$(date +\%Y-\%m-\%d).log 2>&1
@@ -88,8 +88,9 @@ if [ -d "$TRAINED_MODELS_PATH/$MODEL_NAME" ]; then    # -d checks if the directo
   rm -rf "$TRAINED_MODELS_PATH/$MODEL_NAME"
 fi
 unzip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
+EXIT_CODE=$?
 if [ $? -ne 0 ]; then
-  echo "Unzipping failed with exit code $?"
+  echo "Unzipping failed with exit code $EXIT_CODE"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Unzipping model failed. See attached logs for more details."
   sudo shutdown -h now
 fi
@@ -102,8 +103,9 @@ fi
 
 echo "Uploading model to bucket: $BUCKET"
 gsutil cp -r $TRAINED_MODELS_PATH/$MODEL_NAME $BUCKET
+EXIT_CODE=$?
 if [ $? -ne 0 ]; then
-  echo "Uploading model to $BUCKET failed with exit code $?"
+  echo "Uploading model to $BUCKET failed with exit code $EXIT_CODE"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Uploading model to $BUCKET failed. See attached logs for more details."
   sudo shutdown -h now
 fi
@@ -114,8 +116,9 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   echo "MODEL_NAME $MODEL_NAME"
   echo "Uploading model to Vertex AI"
   gcloud ai models upload --region=$REGION --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-13:latest --artifact-uri=gs://automated_training/$MODEL_NAME
+  EXIT_CODE=$?
   if [ $? -ne 0 ]; then
-    echo "Model upload to Vertex AI failed with exit code $?"
+    echo "Model upload to Vertex AI failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."
     sudo shutdown -h now
   fi
@@ -126,16 +129,18 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   echo "OLD_MODEL_ID $OLD_MODEL_ID"
   echo "Deploying to endpoint"
   gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
+  EXIT_CODE=$?
   if [ $? -ne 0 ]; then
-    echo "Model deployment to Vertex AI failed with exit code $?"
+    echo "Model deployment to Vertex AI failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
     sudo shutdown -h now
   fi
 
   echo "Updating traffic split to 100% for new model with ID: $NEW_MODEL_ID"
   gcloud ai endpoints update $ENDPOINT_ID --region=$REGION --traffic-split=$NEW_MODEL_ID=100
+  EXIT_CODE=$?
   if [ $? -ne 0 ]; then
-    echo "Traffic switch failed with exit code $?"
+    echo "Traffic switch failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Traffic switch to new model failed. See attached logs for more details."
     sudo shutdown -h now
   fi
