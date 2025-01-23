@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-10
+Last Edit Date: 2025-01-22
 '''
 import warnings
 import subprocess
@@ -726,18 +726,24 @@ def trade_history_derived_features_dollar_price(row) -> list:
     return _trade_history_derived_features(row, 'dollar_price')
 
 
-def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
+def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer='Adam'):
     from tensorflow import keras    # lazy loading for lower latency
+
+    # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
+    # NOTE: SGD does not work on Apple Metal GPU
+    SUPPORTED_OPTIMIZERS = {'Adam': keras.optimizers.Adam(learning_rate=0.0001), 
+                            'SGD': keras.optimizers.legacy.SGD(learning_rate=0.01, momentum=0.9)}    # 0.9 is a well-tested industry / academic default for `momentum`
+
+    assert optimizer in SUPPORTED_OPTIMIZERS, f'optimizer: {optimizer} must be in {SUPPORTED_OPTIMIZERS.keys()}'
+    model.compile(optimizer=SUPPORTED_OPTIMIZERS[optimizer],
+                  loss=keras.losses.MeanAbsoluteError(),
+                  metrics=[keras.metrics.MeanAbsoluteError()])
 
     fit_callbacks = [keras.callbacks.EarlyStopping(monitor='val_loss',
                                                    patience=20,
                                                    verbose=0,
                                                    mode='auto',
                                                    restore_best_weights=True)]
-
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
-                  loss=keras.losses.MeanAbsoluteError(),
-                  metrics=[keras.metrics.MeanAbsoluteError()])
 
     history = model.fit(x_train, 
                         y_train, 
@@ -747,7 +753,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
                         validation_split=0.1,
                         callbacks=fit_callbacks,
                         use_multiprocessing=True,
-                        workers=8) 
+                        workers=8)
 
     _, mae = model.evaluate(x_test, 
                             y_test, 
