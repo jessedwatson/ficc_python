@@ -1,9 +1,9 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2023-12-18
- # @ Modified by: Mitas Ray
- # @ Modified date: 2025-01-07
- '''
+Author: Mitas Ray
+Date: 2023-12-18
+Last Editor: Mitas Ray
+Last Edit Date: 2025-01-22
+'''
 import warnings
 import subprocess
 import traceback    # used to print out the stack trace when there is an error
@@ -16,9 +16,6 @@ import numpy as np
 import pandas as pd
 from pandas.tseries.offsets import BusinessDay
 from sklearn import preprocessing
-import tensorflow as tf
-from tensorflow import keras
-from keras.callbacks import History
 from datetime import datetime
 
 from google.cloud import bigquery
@@ -28,15 +25,6 @@ from google.api_core.exceptions import NotFound as GCPNotFoundException
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
-from ficc.utils.gcp_storage_functions import upload_data, download_data
-from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
-from ficc.utils.nelson_siegel_model import yield_curve_level
-from ficc.utils.diff_in_days import diff_in_days_two_dates
-from ficc.utils.initialize_pandarallel import initialize_pandarallel
-
-initialize_pandarallel()
 
 from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    CATEGORICAL_FEATURES, \
@@ -67,6 +55,7 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    HOME_DIRECTORY, \
                                                    WORKING_DIRECTORY, \
                                                    PROJECT_ID, \
+                                                   AUXILIARY_VIEWS_DATASET_NAME, \
                                                    YIELD_CURVE_DATASET_NAME, \
                                                    BUCKET_NAME, \
                                                    MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
@@ -90,6 +79,18 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
 from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
 from set_random_seed import set_seed
+
+
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
+sys.path.append(ficc_package_dir)    # add the directory to sys.path
+
+
+from ficc.utils.gcp_storage_functions import upload_data, download_data
+from ficc.data.process_data import process_data
+from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
+from ficc.utils.nelson_siegel_model import yield_curve_level
+from ficc.utils.diff_in_days import diff_in_days_two_dates
+from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
 
 set_seed()
@@ -119,14 +120,24 @@ STORAGE_CLIENT = get_storage_client()
 BQ_CLIENT = get_bq_client()
 
 
-def setup_gpus(install_nvidia_drivers_if_gpu_not_present: bool = True):
+def setup_gpus(install_nvidia_drivers_if_gpu_not_present: bool = True, force_cpu: bool = False):
+    import tensorflow as tf    # lazy loading for lower latency
+
+    if force_cpu:
+        print(f'Forcing use of CPU instead of GPU')
+        tf.config.set_visible_devices([], 'GPU')
+        return
+    
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if len(gpus) == 0:
         warnings.warn('No GPUs found')
         if install_nvidia_drivers_if_gpu_not_present:
             shell_script_path = f'{WORKING_DIRECTORY}/install-cuda_12_2_0-linux-x86_64-debian-11-network.sh'
-            shell_script_output = subprocess.check_output(['sh', shell_script_path])
-            print(f'Output of running shell script from {shell_script_path}:\n{shell_script_output.decode()}')
+            if os.path.isfile(shell_script_path):
+                shell_script_output = subprocess.check_output(['sh', shell_script_path])
+                print(f'Output of running shell script from {shell_script_path}:\n{shell_script_output.decode()}')
+            else:
+                print(f'{shell_script_path} not found')
             setup_gpus(False)    # if GPU still not found after installing CUDA toolkit, then proceed with training without the GPU
     else:
         print(f'Found {len(gpus)} GPUs: {gpus}')
@@ -191,6 +202,8 @@ def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
 @function_timer
 def add_yield_curve(data):
     '''Add 'new_ficc_ycl' field to `data`.'''
+    initialize_pandarallel()    # only initialize if needed
+
     nelson_daily_params = get_parameters('nelson_siegel_coef_daily')
     scalar_daily_params = get_parameters('standardscaler_parameters_daily')
     shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
@@ -314,6 +327,7 @@ def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_tra
 
 @function_timer
 def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str) -> pd.DataFrame:
+    initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
     if new_data is None: return old_data    # there is new data since `last_trade_date`
 
@@ -355,6 +369,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 
 @function_timer
 def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False) -> pd.DataFrame:
+    initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
     trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if 'yield_spread' in model else trade_history_derived_features_dollar_price
@@ -527,7 +542,7 @@ def get_data_query(last_trade_datetime: str,    # may be a string representation
         query_conditions = query_conditions + [f'trade_datetime < "{latest_trade_date_to_query}"']
     conditions_as_string = ' AND '.join(query_conditions)
     return f'''SELECT {features_as_string}
-               FROM `{PROJECT_ID}.jesse_tests.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
+               FROM `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized`
                WHERE {conditions_as_string}
                ORDER BY trade_datetime DESC'''
 
@@ -598,8 +613,11 @@ def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
         encoders[feature] = fprep
     
     encoders_filename = get_encoders_filename(model)
-    with open(f'{WORKING_DIRECTORY}/{encoders_filename}', 'wb') as file:
-        pickle.dump(encoders, file)
+    if os.path.exists(WORKING_DIRECTORY):
+        with open(f'{WORKING_DIRECTORY}/{encoders_filename}', 'wb') as file:
+            pickle.dump(encoders, file)
+    else:
+        print(f'{WORKING_DIRECTORY} does not exist, so {WORKING_DIRECTORY}/{encoders_filename} was not written to')
     return encoders, fmax
 
 
@@ -710,17 +728,21 @@ def trade_history_derived_features_dollar_price(row) -> list:
 
 
 def get_early_stopping_callbacks(loss_type_to_monitor: str, patience: int):
+    from tensorflow import keras
+
     LOSS_TYPES_TO_MONITOR = ('validation', 'training')
     assert loss_type_to_monitor in LOSS_TYPES_TO_MONITOR, f'`loss_type_to_monitor` must be one of {LOSS_TYPES_TO_MONITOR} but was instead {loss_type_to_monitor}'
     loss_type_to_monitor = 'val_loss' if loss_type_to_monitor == 'validation' else 'loss'
-    return [keras.callbacks.EarlyStopping(monitor='val_loss', 
+    return [keras.callbacks.EarlyStopping(monitor=loss_type_to_monitor, 
                                           patience=patience, 
                                           verbose=0, 
                                           mode='auto', 
                                           restore_best_weights=True)]
 
 
-def combine_two_histories(history1: History, history2: History) -> History:
+def combine_two_histories(history1, history2):
+    from tensorflow.keras.callbacks import History
+
     combined_history_dict = {}
     all_keys = set(history1.history.keys()).union(history2.history.keys())  # Combine all unique keys
     for key in all_keys:
@@ -735,9 +757,17 @@ def combine_two_histories(history1: History, history2: History) -> History:
     return combined_history
 
 
-def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
-                  loss=keras.losses.MeanAbsoluteError(),
+def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer='Adam'):
+    from tensorflow import keras    # lazy loading for lower latency
+
+    # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
+    # NOTE: SGD does not work on Apple Metal GPU
+    SUPPORTED_OPTIMIZERS = {'Adam': keras.optimizers.Adam(learning_rate=0.0001), 
+                            'SGD': keras.optimizers.legacy.SGD(learning_rate=0.01, momentum=0.9)}    # 0.9 is a well-tested industry / academic default for `momentum`
+    
+    assert optimizer in SUPPORTED_OPTIMIZERS, f'optimizer: {optimizer} must be in {SUPPORTED_OPTIMIZERS.keys()}'
+    model.compile(optimizer=SUPPORTED_OPTIMIZERS[optimizer], 
+                  loss=keras.losses.MeanAbsoluteError(), 
                   metrics=[keras.metrics.MeanAbsoluteError()])
     
     def train_model(epochs, callbacks, **kwargs):
@@ -861,6 +891,8 @@ def load_model_from_date(date: str, folder: str, bucket: str):
     When using the `cache_output` decorator, we should not have any optional arguments as this may interfere with 
     how the cache lookup is done (optional arguments may not be put into the args set).
     As of 2024-06-07, we assume that the model name has the entire YYYY-MM-DD in the name.'''
+    from tensorflow import keras    # lazy loading for lower latency
+
     archived_folder_to_model_name = {archived_folder: model_name for model_name, archived_folder in MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER.items()}
     model = archived_folder_to_model_name[folder]
     check_that_model_is_supported(model)
@@ -928,9 +960,10 @@ def not_enough_trades_in_test_data(test_data, min_trades_to_use_test_data):
 
 
 @function_timer
-def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
+def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str = None, exclusions_function: callable = None):
     '''The final return value is a string that should be in the beginning of the email that is sent out 
-    which provides transparency on the training procedure.'''
+    which provides transparency on the training procedure. If `date_for_previous_model` is `None`, then 
+    do not attempt to load a previous model for accuracy comparison.'''
     check_that_model_is_supported(model)
     train_model_text_list = []    # store important data from the training procedure that will be outputted in summary email
     data = remove_old_trades(data, 240, last_trade_date, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
@@ -977,15 +1010,18 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
 
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
-    try:
-        previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, model)
-        result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
-    except Exception as e:
-        print(f'Unable to create the dataframe for the model evaluation email due to {type(e)}: {e}')
-        print('Stack trace:')
-        print(traceback.format_exc())
-        result_df_using_previous_day_model = None
-        if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
+    if date_for_previous_model is None:
+        previous_business_date_model, previous_business_date_model_date, result_df_using_previous_day_model = None, None, None
+    else:
+        try:
+            previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, model)
+            result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
+        except Exception as e:
+            print(f'Unable to create the dataframe for the model evaluation email due to {type(e)}: {e}')
+            print('Stack trace:')
+            print(traceback.format_exc())
+            result_df_using_previous_day_model = None
+            if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
     
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and 'yield_spread' in model:
@@ -1279,13 +1315,13 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <hr>
     If the error is unexpected, perform the following procedure:
     <br>
-    1. Check `{PROJECT_ID}.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized` to see if there are any trades from the most recent business date. If there are no trades, then a likely cause is that the S&P index data did not load correctly from the `update_sp_all_indices_and_maturities` cloud function.
+    1. Check `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized` to see if there are any trades from the most recent business date. If there are no trades, then a likely cause is that the S&P index data did not load correctly from the `update_sp_all_indices_and_maturities` cloud function.
     <br>
     2. Debug the `update_sp_all_indices_and_maturities` cloud function by inspecting the logs.
     <br>
     3. Follow the order of the following cloud functions below, and force run them to recover from the lost data. When force running the `compute_shape_parameter` cloud function, first update the `CURRENT_DATETIME` to be the previous business day if fixing it the next day.
     <br>
-    4. Go to GCP scheduled queries for the `{PROJECT_ID}.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized` that is used for training.  Click edit the scheduled query.  This will open the query in a new window and you need simply click “Run” and let the query run for ~20 mins and the table will be ready. This will not actually edit or change the scheduled query.
+    4. Go to GCP scheduled queries for the `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized` that is used for training. Click edit the scheduled query. This will open the query in a new window and you need simply click “Run” and let the query run for ~20 mins and the table will be ready. This will not actually edit or change the scheduled query.
     <br>
     5. Train the models by going into the VM, update your user using these instructions: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#463a8cb282e2454db42584317a31a42b. Then, run the corresponding command from https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#122eb87466c28077b8b9d87f9f9490ec.
     <hr>
@@ -1293,17 +1329,21 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <br>
     `update_sp_all_indices_and_maturities` runs at 11pm ET M-F. Updates all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`.
     <br>
-    `train_daily_etf_model` runs at 11:10pm ET M-F. Uses all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndex`, (2) `{PROJECT_ID}.ETF_daily_alphavantage`. Updates all of the tables of the following form: `{PROJECT_ID}.yield_curves_v2.*_index`.
+    `update_daily_etf_prices` runs at 11pm ET M-F. Uses all of the tables in the following dataset: `{PROJECT_ID}.ETF_daily_alphavantage`. Updates all of the tables in the following dataset: `{PROJECT_ID}.ETF_daily_alphavantage`.
     <br>
-    `train_daily_yield_curve` runs at 11:10pm ET M-F. Uses tables from datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Update the following tables: (1) `{PROJECT_ID}.yield_curves_v2.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.yield_curves_v2.standardscaler_parameters_daily`. Updates the yield curve redis, but the data with which it is updated is not currently used in production since we use the realtime yield curve in production.
+    `train_daily_etf_model` runs at 11:10pm ET M-F. Uses all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndex`, (2) `{PROJECT_ID}.ETF_daily_alphavantage`. Updates all of the tables of the following form: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.*_index`.
     <br>
-    `compute_shape_parameter` runs at 11:25pm ET M-F. Uses all of the tables in the following dataset: `{PROJECT_ID}.spBondIndexMaturities`. Updates the table: `{PROJECT_ID}.yield_curves_v2.shape_parameters`
+    `train_daily_yield_curve` runs at 11:10pm ET M-F. Uses tables from datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Update the following tables: (1) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.yield_curves_v2.standardscaler_parameters_daily`. Updates the yield curve redis, but the data with which it is updated is not currently used in production since we use the realtime yield curve in production.
     <br>
-    The following scheduled query runs at 5:05am ET: `create_same_issue_trade_history_ref_data`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `auxiliary_views.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `{PROJECT_ID}.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
+    `compute_shape_parameter` runs at 11:25pm ET M-F. Uses all of the tables in the following dataset: `{PROJECT_ID}.spBondIndexMaturities`. Updates the table: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters`
     <br>
-    Model training runs at 5:45am ET M-F. Uses tables: (1) `{PROJECT_ID}.yield_curves_v2.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.yield_curves_v2.standardscaler_parameters_daily`, (3) `{PROJECT_ID}.yield_curves_v2.shape_parameters`, (4) `{PROJECT_ID}.treasury_yield.daily_yield_rate`, (5) `{PROJECT_ID}.auxiliary_views.trade_history_same_issue_5_yr_mat_bucket_1_materialized`.
+    `daily_treasury_yield` runs at 11:45pm ET M-F. Updates the following table: `eng-reactor-287421.treasury_yield.daily_yield_rate`.
     <br>
-    `train-minute-yield-curve` runs from 9:30am - 3pm ET every minute on the minute. Uses the table: `{PROJECT_ID}.yield_curves_v2.shape_parameters` and all of the tables of the following form: `{PROJECT_ID}.yield_curves_v2.*_index` and all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Updates the following tables: (1) `{PROJECT_ID}.yield_curves_v2.nelson_siegel_coef_minute`, (2) `{PROJECT_ID}.finnhub_io.finnhub_etf_data`.
+    The following scheduled query runs at 5:05am ET: `create_same_issue_trade_history_ref_data`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `{AUXILIARY_VIEWS_DATASET_NAME}.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `{PROJECT_ID}.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
+    <br>
+    Model training runs at 5:45am ET M-F. Uses tables: (1) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.standardscaler_parameters_daily`, (3) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters`, (4) `{PROJECT_ID}.treasury_yield.daily_yield_rate`, (5) `{PROJECT_ID}.{AUXILIARY_VIEWS_DATASET_NAME}.trade_history_same_issue_5_yr_mat_bucket_1_materialized`.
+    <br>
+    `train-minute-yield-curve` runs from 9:30am - 3pm ET every minute on the minute. Uses the table: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters` and all of the tables of the following form: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.*_index` and all of the tables in the following datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Updates the following tables: (1) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_minute`, (2) `{PROJECT_ID}.finnhub_io.finnhub_etf_data`.
     </body>
     </html>
     '''

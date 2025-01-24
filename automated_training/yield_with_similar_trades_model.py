@@ -14,10 +14,13 @@ from tensorflow.keras.layers.experimental.preprocessing import Normalization
 
 from automated_training_auxiliary_variables import BATCH_SIZE, DROPOUT
 from set_random_seed import set_seed
-# from custom_attention import CustomAttention
 
 
 set_seed()
+
+# from tensorflow.keras import mixed_precision
+# mixed_precision.set_global_policy('mixed_float16')    # currently this causes numerical instability; supposed to speed up deep learning training by using both 16-bit (float16) and 32-bit (float32) floating-point arithmetic instead of computing everything in float32; Weights & activations → Converted to float16, Loss & gradients → Kept in float32 for stability, Computation → Uses float16 for faster GPU execution, Automatic Casting → TensorFlow automatically handles mixed precision
+# keras.backend.set_floatx('float32')    # currently does not make Apple Metal GPU more accurate; force float32 globally for higher accuracy
 
 
 def model_definition(trade_history_normalizer, 

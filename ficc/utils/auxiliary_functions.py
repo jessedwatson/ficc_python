@@ -2,7 +2,7 @@
  # @ Author: Anis Ahmad 
  # @ Create date: 2021-12-15
  # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-29
+ # @ Modified date: 2025-01-07
  # @ Description: This file contains function to help the functions 
  # to process training data
  '''
@@ -83,9 +83,12 @@ def convert_dates(df):
 
 
 def process_ratings(df):
-    # MR is for missing ratings
-    df.sp_long.fillna('MR', inplace=True)
-    df['rating'] = df['sp_long']
+    original_rating_column_name = 'sp_long'
+    null_rating_column = df[original_rating_column_name].isnull()
+    assert not null_rating_column.all(), f'Ratings data (`{original_rating_column_name}`) is missing from the dataframe (all values are null)'
+    df[original_rating_column_name].fillna('MR', inplace=True)    # MR is for missing ratings
+    print(f'Filled {original_rating_column_name} with "MR" for {null_rating_column.sum()} null rows')
+    df['rating'] = df[original_rating_column_name]
     return df
 
 
