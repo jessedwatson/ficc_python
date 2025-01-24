@@ -94,7 +94,6 @@ from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
 
 set_seed()
-initialize_pandarallel()
 
 
 # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
@@ -121,16 +120,24 @@ STORAGE_CLIENT = get_storage_client()
 BQ_CLIENT = get_bq_client()
 
 
-def setup_gpus(install_nvidia_drivers_if_gpu_not_present: bool = True):
+def setup_gpus(install_nvidia_drivers_if_gpu_not_present: bool = True, force_cpu: bool = False):
     import tensorflow as tf    # lazy loading for lower latency
 
+    if force_cpu:
+        print(f'Forcing use of CPU instead of GPU')
+        tf.config.set_visible_devices([], 'GPU')
+        return
+    
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if len(gpus) == 0:
         warnings.warn('No GPUs found')
         if install_nvidia_drivers_if_gpu_not_present:
             shell_script_path = f'{WORKING_DIRECTORY}/install-cuda_12_2_0-linux-x86_64-debian-11-network.sh'
-            shell_script_output = subprocess.check_output(['sh', shell_script_path])
-            print(f'Output of running shell script from {shell_script_path}:\n{shell_script_output.decode()}')
+            if os.path.isfile(shell_script_path):
+                shell_script_output = subprocess.check_output(['sh', shell_script_path])
+                print(f'Output of running shell script from {shell_script_path}:\n{shell_script_output.decode()}')
+            else:
+                print(f'{shell_script_path} not found')
             setup_gpus(False)    # if GPU still not found after installing CUDA toolkit, then proceed with training without the GPU
     else:
         print(f'Found {len(gpus)} GPUs: {gpus}')
@@ -195,6 +202,8 @@ def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
 @function_timer
 def add_yield_curve(data):
     '''Add 'new_ficc_ycl' field to `data`.'''
+    initialize_pandarallel()    # only initialize if needed
+
     nelson_daily_params = get_parameters('nelson_siegel_coef_daily')
     scalar_daily_params = get_parameters('standardscaler_parameters_daily')
     shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
@@ -318,6 +327,7 @@ def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_tra
 
 @function_timer
 def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str) -> pd.DataFrame:
+    initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
     if new_data is None: return old_data    # there is new data since `last_trade_date`
 
@@ -359,6 +369,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 
 @function_timer
 def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False) -> pd.DataFrame:
+    initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
     data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
     trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if 'yield_spread' in model else trade_history_derived_features_dollar_price
@@ -602,8 +613,11 @@ def fit_encoders(data: pd.DataFrame, categorical_features: list, model: str):
         encoders[feature] = fprep
     
     encoders_filename = get_encoders_filename(model)
-    with open(f'{WORKING_DIRECTORY}/{encoders_filename}', 'wb') as file:
-        pickle.dump(encoders, file)
+    if os.path.exists(WORKING_DIRECTORY):
+        with open(f'{WORKING_DIRECTORY}/{encoders_filename}', 'wb') as file:
+            pickle.dump(encoders, file)
+    else:
+        print(f'{WORKING_DIRECTORY} does not exist, so {WORKING_DIRECTORY}/{encoders_filename} was not written to')
     return encoders, fmax
 
 
@@ -713,18 +727,24 @@ def trade_history_derived_features_dollar_price(row) -> list:
     return _trade_history_derived_features(row, 'dollar_price')
 
 
-def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
+def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer='Adam'):
     from tensorflow import keras    # lazy loading for lower latency
+
+    # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
+    # NOTE: SGD does not work on Apple Metal GPU
+    SUPPORTED_OPTIMIZERS = {'Adam': keras.optimizers.Adam(learning_rate=0.0001), 
+                            'SGD': keras.optimizers.legacy.SGD(learning_rate=0.01, momentum=0.9)}    # 0.9 is a well-tested industry / academic default for `momentum`
+
+    assert optimizer in SUPPORTED_OPTIMIZERS, f'optimizer: {optimizer} must be in {SUPPORTED_OPTIMIZERS.keys()}'
+    model.compile(optimizer=SUPPORTED_OPTIMIZERS[optimizer],
+                  loss=keras.losses.MeanAbsoluteError(),
+                  metrics=[keras.metrics.MeanAbsoluteError()])
 
     fit_callbacks = [keras.callbacks.EarlyStopping(monitor='val_loss',
                                                    patience=20,
                                                    verbose=0,
                                                    mode='auto',
                                                    restore_best_weights=True)]
-
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),
-                  loss=keras.losses.MeanAbsoluteError(),
-                  metrics=[keras.metrics.MeanAbsoluteError()])
 
     history = model.fit(x_train, 
                         y_train, 
@@ -734,7 +754,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test):
                         validation_split=0.1,
                         callbacks=fit_callbacks,
                         use_multiprocessing=True,
-                        workers=8) 
+                        workers=8)
 
     _, mae = model.evaluate(x_test, 
                             y_test, 
@@ -906,9 +926,10 @@ def not_enough_trades_in_test_data(test_data, min_trades_to_use_test_data):
 
 
 @function_timer
-def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str, exclusions_function: callable = None):
+def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_features_for_each_trade_in_history: int, date_for_previous_model: str = None, exclusions_function: callable = None):
     '''The final return value is a string that should be in the beginning of the email that is sent out 
-    which provides transparency on the training procedure.'''
+    which provides transparency on the training procedure. If `date_for_previous_model` is `None`, then 
+    do not attempt to load a previous model for accuracy comparison.'''
     check_that_model_is_supported(model)
     train_model_text_list = []    # store important data from the training procedure that will be outputted in summary email
     data = remove_old_trades(data, 240, last_trade_date, dataset_name='training/testing dataset')    # 240 = 8 * 30, so we are using approximately 8 months of data for training
@@ -955,15 +976,18 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
 
     create_summary_of_results_for_test_data = lambda model: create_summary_of_results(model, test_data, x_test, y_test)
     result_df = create_summary_of_results_for_test_data(trained_model)
-    try:
-        previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, model)
-        result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
-    except Exception as e:
-        print(f'Unable to create the dataframe for the model evaluation email due to {type(e)}: {e}')
-        print('Stack trace:')
-        print(traceback.format_exc())
-        result_df_using_previous_day_model = None
-        if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
+    if date_for_previous_model is None:
+        previous_business_date_model, previous_business_date_model_date, result_df_using_previous_day_model = None, None, None
+    else:
+        try:
+            previous_business_date_model, previous_business_date_model_date = load_model(date_for_previous_model, model)
+            result_df_using_previous_day_model = create_summary_of_results_for_test_data(previous_business_date_model)
+        except Exception as e:
+            print(f'Unable to create the dataframe for the model evaluation email due to {type(e)}: {e}')
+            print('Stack trace:')
+            print(traceback.format_exc())
+            result_df_using_previous_day_model = None
+            if 'previous_business_date_model' not in locals(): previous_business_date_model, previous_business_date_model_date = None, None
     
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and 'yield_spread' in model:
@@ -1288,6 +1312,8 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     `train_daily_yield_curve` runs at 11:10pm ET M-F. Uses tables from datasets: (1) `{PROJECT_ID}.spBondIndexMaturities`, (2) `{PROJECT_ID}.spBondIndex`. Update the following tables: (1) `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.nelson_siegel_coef_daily`, (2) `{PROJECT_ID}.yield_curves_v2.standardscaler_parameters_daily`. Updates the yield curve redis, but the data with which it is updated is not currently used in production since we use the realtime yield curve in production.
     <br>
     `compute_shape_parameter` runs at 11:25pm ET M-F. Uses all of the tables in the following dataset: `{PROJECT_ID}.spBondIndexMaturities`. Updates the table: `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.shape_parameters`
+    <br>
+    `daily_treasury_yield` runs at 11:45pm ET M-F. Updates the following table: `eng-reactor-287421.treasury_yield.daily_yield_rate`.
     <br>
     The following scheduled query runs at 5:05am ET: `create_same_issue_trade_history_ref_data`. The way to access the scheduled queries is to go to BigQuery and then “Scheduled Queries”. One of the tables inside this scheduled query is the view: `{AUXILIARY_VIEWS_DATASET_NAME}.msrb_trans`, and this view has a WHERE clause that excludes trades where `sp_index.date` is null after joining with the `sp_index` table. The `sp_index` table is `{PROJECT_ID}.spBondIndex.sp_high_quality_short_intermediate_municipal_bond_index_yield`, and so if that table is not populated, there will be no trades in the data.
     <br>
