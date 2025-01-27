@@ -484,6 +484,7 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: b
     else:
         label_name = 'new_ys' if 'yield_spread' in model else 'dollar_price'
         labels = data[label_name]
+        assert all(data_input.shape[0] == labels.shape[0] for data_input in datalist), f'Mismatch between datalist inputs and labels: {[data_input.shape[0] for data_input in datalist]} vs {labels.shape[0]}'
     return datalist, labels
 
 
@@ -768,9 +769,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer:
     influence the weights so the model has exposure to the most recent data, but is done for a small number of epochs since 
     there is no validation set to ensure generalization.'''
     from tensorflow import keras    # lazy loading for lower latency
-    assert len(x_train) == len(y_train), f'Size of training input: {len(x_train)} must equal that of training labels: {len(y_train)}'
-    assert len(x_test) == len(y_test), f'Size of testing input: {len(x_test)} must equal that of testing labels: {len(y_test)}'
-
+    
     # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
     # NOTE: SGD does not work on Apple Metal GPU
     SUPPORTED_OPTIMIZERS = {'Adam': keras.optimizers.Adam(learning_rate=0.0001), 
