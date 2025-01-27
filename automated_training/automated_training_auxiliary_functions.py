@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-22
+Last Edit Date: 2025-01-27
 '''
 import warnings
 import subprocess
@@ -454,8 +454,9 @@ def get_feature_as_array(df: pd.DataFrame, feature_name: str) -> np.array:
 
 
 @function_timer
-def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False):
+def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False, column_to_be_sorted_by: str = None):
     check_that_model_is_supported(model)
+    if column_to_be_sorted_by is not None: assert data[column_to_be_sorted_by].is_monotonic_increasing, f'Data is not in ascending order of {column_to_be_sorted_by}'
     datalist = []
     if model == 'yield_spread_with_similar_trades': datalist.append(get_feature_as_array(data, 'similar_trade_history'))
     trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
@@ -757,8 +758,15 @@ def combine_two_histories(history1, history2):
     return combined_history
 
 
-def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer='Adam'):
+def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer: str = 'Adam'):
+    '''Two-phase training. Phase 1: train on the entire dataset leaving some of the data to be the validation set. Phase 2: 
+    train on only the validation set for a small number of epochs. Phase 1 learns large patterns in the data while focusing 
+    on validation loss to ensure generalization. Phase 2 trains only on the validation set to allow these datapoints to 
+    influence the weights so the model has exposure to the most recent data, but is done for a small number of epochs since 
+    there is no validation set to ensure generalization.'''
     from tensorflow import keras    # lazy loading for lower latency
+    assert len(x_train) == len(y_train), f'Size of training input: {len(x_train)} must equal that of training labels: {len(y_train)}'
+    assert len(x_test) == len(y_test), f'Size of testing input: {len(x_test)} must equal that of testing labels: {len(y_test)}'
 
     # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
     # NOTE: SGD does not work on Apple Metal GPU
@@ -770,25 +778,37 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer=
                   loss=keras.losses.MeanAbsoluteError(), 
                   metrics=[keras.metrics.MeanAbsoluteError()])
     
-    def train_model(epochs, callbacks, **kwargs):
-        return model.fit(x_train, 
-                         y_train, 
+    def train_model(epochs, callbacks, fraction_of_data_to_use=1, **kwargs):
+        '''`fraction_of_data_to_use` uses the most recent fraction fo the entire data for training. Assumes 
+        that the training data is sorted with the most recent data being at the end.'''
+        assert 0 <= fraction_of_data_to_use <= 1, f'{fraction_of_data_to_use} must be between 0 and 1'
+        if fraction_of_data_to_use != 1:
+            num_most_recent_data_points_to_use = int(len(x_train) * fraction_of_data_to_use)
+            x_train_subset, y_train_subset = x_train[-num_most_recent_data_points_to_use:], y_train[-num_most_recent_data_points_to_use:]
+        else:
+            x_train_subset, y_train_subset = x_train, y_train
+        return model.fit(x_train_subset, 
+                         y_train_subset, 
                          epochs=epochs, 
                          batch_size=BATCH_SIZE, 
                          verbose=1,    # prints out the progress bar; set to 2 to just have one line per epoch
-                         callbacks=callbacks,
-                         use_multiprocessing=True,
+                         callbacks=callbacks, 
+                         use_multiprocessing=True, 
                          workers=8, 
                          **kwargs)
 
+    validation_split = 0.1    # fraction of the data to be used as validation data
+    # phase 1: train on the entire dataset leaving some of the data to be the validation set
     history_optimizing_val_loss = train_model(epochs=NUM_EPOCHS, 
                                               callbacks=get_early_stopping_callbacks('validation', patience=PATIENCE), 
-                                              validation_split=0.1,    # fraction of the data to be used as validation data
+                                              validation_split=validation_split, 
                                               shuffle=False)    # take validation from the end instead of shuffling since we are working with time series data
     
     fraction_of_total_epochs_for_optimizing_training_loss = 0.2    # choose a fraction of the total number of epochs to not overfit; arbitrary choice based on general recommendations to be between 5-25%
+    # phase 2: train on only the validation set for a small number of epochs
     history_optimizing_training_loss = train_model(epochs=int(NUM_EPOCHS * fraction_of_total_epochs_for_optimizing_training_loss), 
-                                                   callbacks=get_early_stopping_callbacks('training', patience=int(PATIENCE * fraction_of_total_epochs_for_optimizing_training_loss)))
+                                                   callbacks=get_early_stopping_callbacks('training', patience=int(PATIENCE * fraction_of_total_epochs_for_optimizing_training_loss)), 
+                                                   fraction_of_data_to_use=validation_split)
 
     _, mae = model.evaluate(x_test, 
                             y_test, 
@@ -994,8 +1014,8 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     non_cat_features = NON_CAT_FEATURES if 'yield_spread' in model else NON_CAT_FEATURES_DOLLAR_PRICE
     binary = BINARY if 'yield_spread' in model else BINARY_DOLLAR_PRICE
 
-    x_train, y_train = create_input(train_data, encoders, model)
-    x_test, y_test = create_input(test_data, encoders, model)
+    x_train, y_train = create_input(train_data, encoders, model, column_to_be_sorted_by='trade_datetime')
+    x_test, y_test = create_input(test_data, encoders, model, column_to_be_sorted_by='trade_datetime')
 
     keras_model = MODEL_NAME_TO_KERAS_MODEL[model]
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
