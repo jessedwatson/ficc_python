@@ -371,7 +371,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False) -> pd.DataFrame:
     initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
-    data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
+    data = data.sort_values('trade_datetime', ascending=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
     trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if 'yield_spread' in model else trade_history_derived_features_dollar_price
     trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
     
@@ -380,7 +380,7 @@ def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treas
     data[cols] = pd.DataFrame(temp.tolist(), index=data.index)
     del temp
 
-    data.sort_values('trade_datetime', ascending=False, inplace=True)
+    data = data.sort_values('trade_datetime', ascending=False)    # reset the order of the data to `trade_datetime` descending which is what is assumed to be the original order
     return data
 
 
@@ -454,9 +454,12 @@ def get_feature_as_array(df: pd.DataFrame, feature_name: str) -> np.array:
 
 
 @function_timer
-def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False, column_to_be_sorted_by: str = None):
+def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False, column_to_be_sorted_by: str = 'trade_datetime'):
     check_that_model_is_supported(model)
-    if column_to_be_sorted_by is not None: assert data[column_to_be_sorted_by].is_monotonic_increasing, f'Data is not in ascending order of {column_to_be_sorted_by}'
+    if not data[column_to_be_sorted_by].is_monotonic_increasing:
+        print(f'Creating input data by first sorting the data by {column_to_be_sorted_by} ascending')
+        data = data.sort_values(column_to_be_sorted_by, ascending=True)    # sort by `column_to_be_sorted_by` so further downstream operations (e.g., creating the validation set) is done with respect to the time series nature of the data
+    
     datalist = []
     if model == 'yield_spread_with_similar_trades': datalist.append(get_feature_as_array(data, 'similar_trade_history'))
     trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
@@ -1014,8 +1017,8 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     non_cat_features = NON_CAT_FEATURES if 'yield_spread' in model else NON_CAT_FEATURES_DOLLAR_PRICE
     binary = BINARY if 'yield_spread' in model else BINARY_DOLLAR_PRICE
 
-    x_train, y_train = create_input(train_data, encoders, model, column_to_be_sorted_by='trade_datetime')
-    x_test, y_test = create_input(test_data, encoders, model, column_to_be_sorted_by='trade_datetime')
+    x_train, y_train = create_input(train_data, encoders, model)
+    x_test, y_test = create_input(test_data, encoders, model)
 
     keras_model = MODEL_NAME_TO_KERAS_MODEL[model]
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
