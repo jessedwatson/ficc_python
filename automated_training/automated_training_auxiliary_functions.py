@@ -785,8 +785,9 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer:
         that the training data is sorted with the most recent data being at the end.'''
         assert 0 <= fraction_of_data_to_use <= 1, f'{fraction_of_data_to_use} must be between 0 and 1'
         if fraction_of_data_to_use != 1:
-            num_most_recent_data_points_to_use = int(len(x_train) * fraction_of_data_to_use)
-            x_train_subset, y_train_subset = x_train[-num_most_recent_data_points_to_use:], y_train[-num_most_recent_data_points_to_use:]
+            num_most_recent_data_points_to_use = int(y_train.shape[0] * fraction_of_data_to_use)
+            x_train_subset = [x_input[-num_most_recent_data_points_to_use:] for x_input in x_train]    # `x_train` is a datalist and so each item in the list is an input of size `y_train.shape[0]`
+            y_train_subset = y_train[-num_most_recent_data_points_to_use:]
         else:
             x_train_subset, y_train_subset = x_train, y_train
         return model.fit(x_train_subset, 
