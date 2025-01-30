@@ -767,7 +767,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer:
     train on only the validation set for a small number of epochs. Phase 1 learns large patterns in the data while focusing 
     on validation loss to ensure generalization. Phase 2 trains only on the validation set to allow these datapoints to 
     influence the weights so the model has exposure to the most recent data, but is done for a small number of epochs since 
-    there is no validation set to ensure generalization.'''
+    there is no validation set to ensure generalization. Assumes that `*_train` is in ascending order of time (`trade_datetime`).'''
     from tensorflow import keras    # lazy loading for lower latency
     
     # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
@@ -780,38 +780,42 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer:
                   loss=keras.losses.MeanAbsoluteError(), 
                   metrics=[keras.metrics.MeanAbsoluteError()])
     
-    def train_model(epochs, callbacks, fraction_of_data_to_use=1, **kwargs):
-        '''`fraction_of_data_to_use` uses the most recent fraction fo the entire data for training. Assumes 
-        that the training data is sorted with the most recent data being at the end.'''
-        assert 0 <= fraction_of_data_to_use <= 1, f'{fraction_of_data_to_use} must be between 0 and 1'
-        if fraction_of_data_to_use != 1:
-            num_most_recent_data_points_to_use = int(y_train.shape[0] * fraction_of_data_to_use)
-            x_train_subset = [x_input[-num_most_recent_data_points_to_use:] for x_input in x_train]    # `x_train` is a datalist and so each item in the list is an input of size `y_train.shape[0]`
-            y_train_subset = y_train[-num_most_recent_data_points_to_use:]
-        else:
-            x_train_subset, y_train_subset = x_train, y_train
-        return model.fit(x_train_subset, 
-                         y_train_subset, 
+    def fit_model(inputs, labels, epochs, callbacks, **kwargs):
+        return model.fit(inputs, 
+                         labels, 
                          epochs=epochs, 
                          batch_size=BATCH_SIZE, 
                          verbose=1,    # prints out the progress bar; set to 2 to just have one line per epoch
                          callbacks=callbacks, 
                          use_multiprocessing=True, 
                          workers=8, 
+                         shuffle=True,    # shuffle data for each epoch for better generalization; shuffling is okay here because the input data is for separate CUSIPs and so the training does not need to maintain the original order of the data and does not learn anything temporal between instances
                          **kwargs)
 
     validation_split = 0.1    # fraction of the data to be used as validation data
+    num_data_points = y_train.shape[0]
+    num_most_recent_data_points_to_use = int(num_data_points * validation_split)
+
+    # assumes that the most recent data is at the end
+    x_val = [x_input[-num_most_recent_data_points_to_use:] for x_input in x_train]    # `x_train` is a datalist and so each item in the list is an input of size `y_train.shape[0]`
+    y_val = y_train[-num_most_recent_data_points_to_use:]
+    x_train = [x_input[:-num_most_recent_data_points_to_use] for x_input in x_train]    # `x_train` is a datalist and so each item in the list is an input of size `y_train.shape[0]`
+    y_train = y_train[:-num_most_recent_data_points_to_use]
+
     # phase 1: train on the entire dataset leaving some of the data to be the validation set
-    history_optimizing_val_loss = train_model(epochs=NUM_EPOCHS, 
-                                              callbacks=get_early_stopping_callbacks('validation', patience=PATIENCE), 
-                                              validation_split=validation_split, 
-                                              shuffle=False)    # take validation from the end instead of shuffling since we are working with time series data
+    history_optimizing_val_loss = fit_model(x_train, 
+                                            y_train, 
+                                            epochs=NUM_EPOCHS, 
+                                            callbacks=get_early_stopping_callbacks('validation', patience=PATIENCE), 
+                                            validation_data=(x_val, y_val))
     
     fraction_of_total_epochs_for_optimizing_training_loss = 0.2    # choose a fraction of the total number of epochs to not overfit; arbitrary choice based on general recommendations to be between 5-25%
+    
     # phase 2: train on only the validation set for a small number of epochs
-    history_optimizing_training_loss = train_model(epochs=int(NUM_EPOCHS * fraction_of_total_epochs_for_optimizing_training_loss), 
-                                                   callbacks=get_early_stopping_callbacks('training', patience=int(PATIENCE * fraction_of_total_epochs_for_optimizing_training_loss)), 
-                                                   fraction_of_data_to_use=validation_split)
+    history_optimizing_training_loss = fit_model(x_val, 
+                                                 y_val, 
+                                                 epochs=int(NUM_EPOCHS * fraction_of_total_epochs_for_optimizing_training_loss), 
+                                                 callbacks=get_early_stopping_callbacks('training', patience=int(PATIENCE * fraction_of_total_epochs_for_optimizing_training_loss)))
 
     _, mae = model.evaluate(x_test, 
                             y_test, 
