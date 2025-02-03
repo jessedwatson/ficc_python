@@ -5,6 +5,7 @@ Last Editor: Mitas Ray
 Last Edit Date: 2025-01-27
 '''
 import warnings
+import math
 import subprocess
 import traceback    # used to print out the stack trace when there is an error
 import os
@@ -12,6 +13,7 @@ import sys
 import shutil
 import holidays
 import pickle
+
 import numpy as np
 import pandas as pd
 from pandas.tseries.offsets import BusinessDay
@@ -733,23 +735,24 @@ def trade_history_derived_features_dollar_price(row) -> list:
 
 
 def get_early_stopping_callbacks(loss_type_to_monitor: str, patience: int):
-    from tensorflow import keras
+    from tensorflow.keras.callbacks import EarlyStopping    # lazy loading for lower latency
 
     LOSS_TYPES_TO_MONITOR = ('validation', 'training')
     assert loss_type_to_monitor in LOSS_TYPES_TO_MONITOR, f'`loss_type_to_monitor` must be one of {LOSS_TYPES_TO_MONITOR} but was instead {loss_type_to_monitor}'
+    assert patience > 0, f'`patience`: {patience} must be greater than 0'
     loss_type_to_monitor = 'val_loss' if loss_type_to_monitor == 'validation' else 'loss'
-    return [keras.callbacks.EarlyStopping(monitor=loss_type_to_monitor, 
-                                          patience=patience, 
-                                          verbose=0, 
-                                          mode='auto', 
-                                          restore_best_weights=True)]
+    return [EarlyStopping(monitor=loss_type_to_monitor, 
+                          patience=patience, 
+                          verbose=0, 
+                          mode='auto', 
+                          restore_best_weights=True)]
 
 
 def combine_two_histories(history1, history2):
-    from tensorflow.keras.callbacks import History
+    from tensorflow.keras.callbacks import History    # lazy loading for lower latency
 
     combined_history_dict = {}
-    all_keys = set(history1.history.keys()).union(history2.history.keys())  # Combine all unique keys
+    all_keys = set(history1.history.keys()).union(history2.history.keys())    # Combine all unique keys
     for key in all_keys:
         # Fill missing values with NaN for the history that lacks the key
         history1_values = history1.history.get(key, [np.nan] * len(history2.history.get(key, [])))
@@ -760,6 +763,36 @@ def combine_two_histories(history1, history2):
     combined_history = History()
     combined_history.history = combined_history_dict
     return combined_history
+
+
+def get_train_and_validation_set(inputs: list, labels: np.ndarray, validation_split: float):
+    '''Assumes that the most recent data is at the end. `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`.'''
+    assert 0 <= validation_split < 1, f'`validation_split`: {validation_split} must be >= 0 and < 1'
+    num_data_points = math.ceil(validation_split * labels.shape[0])
+    x_val = [x_input[-num_data_points:] for x_input in inputs]    # `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`
+    y_val = labels[-num_data_points:]
+    x_train = [x_input[:-num_data_points] for x_input in inputs]    # `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`
+    y_train = labels[:-num_data_points]
+    return x_train, y_train, x_val, y_val
+
+
+def fit_model(model, inputs: list, labels: np.ndarray, epochs: int, loss_type_to_monitor: str = None, patience: int = None, **kwargs):
+    if loss_type_to_monitor is None or patience is None:
+        print(f'Not using any callbacks because one of `loss_type_to_monitor`: {loss_type_to_monitor} and `patience`: {patience} is `None`')
+        callbacks = None
+    else:
+        print(f'Using early stopping callback for {loss_type_to_monitor} loss with patience of {patience} epochs')
+        callbacks = get_early_stopping_callbacks(loss_type_to_monitor, patience)
+    return model.fit(inputs, 
+                     labels, 
+                     epochs=epochs, 
+                     batch_size=BATCH_SIZE, 
+                     verbose=1,    # prints out the progress bar; set to 2 to just have one line per epoch
+                     callbacks=callbacks, 
+                     use_multiprocessing=True, 
+                     workers=8, 
+                     shuffle=False,    # setting `shuffle=False` since it was more accurate during experiments; originally thought to set `shuffle=True` since shuffling data for each epoch would lead to better generalization; shuffling is okay here because the input data is for separate CUSIPs and so the training does not need to maintain the original order of the data and does not learn anything temporal between instances
+                     **kwargs)
 
 
 def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer: str = 'Adam'):
@@ -779,43 +812,26 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer:
     model.compile(optimizer=SUPPORTED_OPTIMIZERS[optimizer], 
                   loss=keras.losses.MeanAbsoluteError(), 
                   metrics=[keras.metrics.MeanAbsoluteError()])
-    
-    def fit_model(inputs, labels, epochs, callbacks, **kwargs):
-        return model.fit(inputs, 
-                         labels, 
-                         epochs=epochs, 
-                         batch_size=BATCH_SIZE, 
-                         verbose=1,    # prints out the progress bar; set to 2 to just have one line per epoch
-                         callbacks=callbacks, 
-                         use_multiprocessing=True, 
-                         workers=8, 
-                         shuffle=True,    # shuffle data for each epoch for better generalization; shuffling is okay here because the input data is for separate CUSIPs and so the training does not need to maintain the original order of the data and does not learn anything temporal between instances
-                         **kwargs)
 
     validation_split = 0.1    # fraction of the data to be used as validation data
-    num_data_points = y_train.shape[0]
-    num_most_recent_data_points_to_use = int(num_data_points * validation_split)
-
-    # assumes that the most recent data is at the end
-    x_val = [x_input[-num_most_recent_data_points_to_use:] for x_input in x_train]    # `x_train` is a datalist and so each item in the list is an input of size `y_train.shape[0]`
-    y_val = y_train[-num_most_recent_data_points_to_use:]
-    x_train = [x_input[:-num_most_recent_data_points_to_use] for x_input in x_train]    # `x_train` is a datalist and so each item in the list is an input of size `y_train.shape[0]`
-    y_train = y_train[:-num_most_recent_data_points_to_use]
+    x_train, y_train, x_val, y_val = get_train_and_validation_set(x_train, y_train, validation_split)
 
     # phase 1: train on the entire dataset leaving some of the data to be the validation set
-    history_optimizing_val_loss = fit_model(x_train, 
-                                            y_train, 
-                                            epochs=NUM_EPOCHS, 
-                                            callbacks=get_early_stopping_callbacks('validation', patience=PATIENCE), 
-                                            validation_data=(x_val, y_val))
-    
-    fraction_of_total_epochs_for_optimizing_training_loss = 0.2    # choose a fraction of the total number of epochs to not overfit; arbitrary choice based on general recommendations to be between 5-25%
+    history_optimizing_val_loss = fit_model(model, 
+                                                   x_train, 
+                                                   y_train, 
+                                                   NUM_EPOCHS, 
+                                                   'validation', 
+                                                   PATIENCE, 
+                                                   validation_data=(x_val, y_val))
     
     # phase 2: train on only the validation set for a small number of epochs
-    history_optimizing_training_loss = fit_model(x_val, 
+    history_optimizing_training_loss = fit_model(model, 
+                                                 x_val, 
                                                  y_val, 
-                                                 epochs=int(NUM_EPOCHS * fraction_of_total_epochs_for_optimizing_training_loss), 
-                                                 callbacks=get_early_stopping_callbacks('training', patience=int(PATIENCE * fraction_of_total_epochs_for_optimizing_training_loss)))
+                                                 math.ceil(NUM_EPOCHS * validation_split), 
+                                                 'training', 
+                                                 math.ceil(PATIENCE * validation_split))
 
     _, mae = model.evaluate(x_test, 
                             y_test, 

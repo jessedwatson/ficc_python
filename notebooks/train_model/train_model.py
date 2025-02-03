@@ -55,7 +55,7 @@ NUM_DAYS = 5
 
 TESTING = False
 if TESTING:
-    automated_training_auxiliary_functions.NUM_EPOCHS = 5
+    automated_training_auxiliary_functions.NUM_EPOCHS = 4
     NUM_DAYS = 1
 
 
