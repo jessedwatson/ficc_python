@@ -2,11 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
-<<<<<<< HEAD:automated_training_auxiliary_variables.py
- # @ Modified date: 2025-01-07
-=======
  # @ Modified date: 2025-01-10
->>>>>>> main:automated_training/automated_training_auxiliary_variables.py
  '''
 import os
 import sys
@@ -180,7 +176,6 @@ if 'ficc_treasury_spread' not in NON_CAT_FEATURES: NON_CAT_FEATURES.append('ficc
 NUM_EPOCHS = 100
 BATCH_SIZE = 1000
 DROPOUT = 0.01
-PATIENCE = 20    # stop training if loss does not improve for `PATIENCE` consective epochs
 
 
 MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER = {'yield_spread': 'yield_spread_model', 

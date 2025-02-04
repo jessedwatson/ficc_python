@@ -74,7 +74,6 @@ from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                    SENDER_EMAIL, \
                                                    BATCH_SIZE, \
                                                    NUM_EPOCHS, \
-                                                   PATIENCE, \
                                                    MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
                                                    TESTING, \
                                                    USE_PICKLED_DATA
@@ -737,14 +736,13 @@ def trade_history_derived_features_dollar_price(row) -> list:
 def get_early_stopping_callbacks(loss_type_to_monitor: str, patience: int):
     from tensorflow.keras.callbacks import EarlyStopping    # lazy loading for lower latency
 
-    LOSS_TYPES_TO_MONITOR = ('validation', 'training')
+    LOSS_TYPES_TO_MONITOR = {'validation', 'training'}
     assert loss_type_to_monitor in LOSS_TYPES_TO_MONITOR, f'`loss_type_to_monitor` must be one of {LOSS_TYPES_TO_MONITOR} but was instead {loss_type_to_monitor}'
     assert patience > 0, f'`patience`: {patience} must be greater than 0'
-    loss_type_to_monitor = 'val_loss' if loss_type_to_monitor == 'validation' else 'loss'
-    return [EarlyStopping(monitor=loss_type_to_monitor, 
+    LOSS_MAPPING = {'validation': 'val_loss', 'training': 'loss'}
+    return [EarlyStopping(monitor=LOSS_MAPPING[loss_type_to_monitor], 
                           patience=patience, 
-                          verbose=0, 
-                          mode='auto', 
+                          verbose=1,  
                           restore_best_weights=True)]
 
 
@@ -767,12 +765,12 @@ def combine_two_histories(history1, history2):
 
 def get_train_and_validation_set(inputs: list, labels: np.ndarray, validation_split: float):
     '''Assumes that the most recent data is at the end. `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`.'''
-    assert 0 <= validation_split < 1, f'`validation_split`: {validation_split} must be >= 0 and < 1'
-    num_data_points = math.ceil(validation_split * labels.shape[0])
-    x_val = [x_input[-num_data_points:] for x_input in inputs]    # `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`
-    y_val = labels[-num_data_points:]
-    x_train = [x_input[:-num_data_points] for x_input in inputs]    # `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`
-    y_train = labels[:-num_data_points]
+    assert 0 <= validation_split < 1, f'`validation_split`: {validation_split} must be in [0, 1)'
+    num_data_points_for_validation = math.ceil(validation_split * labels.shape[0])
+    x_val = [x_input[-num_data_points_for_validation:] for x_input in inputs]    # `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`
+    y_val = labels[-num_data_points_for_validation:]
+    x_train = [x_input[:-num_data_points_for_validation] for x_input in inputs]    # `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`
+    y_train = labels[:-num_data_points_for_validation]
     return x_train, y_train, x_val, y_val
 
 
@@ -800,7 +798,8 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer:
     train on only the validation set for a small number of epochs. Phase 1 learns large patterns in the data while focusing 
     on validation loss to ensure generalization. Phase 2 trains only on the validation set to allow these datapoints to 
     influence the weights so the model has exposure to the most recent data, but is done for a small number of epochs since 
-    there is no validation set to ensure generalization. Assumes that `*_train` is in ascending order of time (`trade_datetime`).'''
+    there is no validation set to ensure generalization. Assumes that `*_train` is in ascending order of time (`trade_datetime`). 
+    Past experiments to choose a good training procedure: https://ficcai.atlassian.net/browse/FA-2461.'''
     from tensorflow import keras    # lazy loading for lower latency
     
     # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
@@ -817,22 +816,22 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer:
     x_train, y_train, x_val, y_val = get_train_and_validation_set(x_train, y_train, validation_split)
 
     # phase 1: train on the entire dataset leaving some of the data to be the validation set
+    patience = math.ceil(0.2 * NUM_EPOCHS)    # generally recommended patience from ChatGPT
     history_optimizing_val_loss = fit_model(model, 
-                                                   x_train, 
-                                                   y_train, 
-                                                   NUM_EPOCHS, 
-                                                   'validation', 
-                                                   PATIENCE, 
-                                                   validation_data=(x_val, y_val))
-    
+                                            x_train, 
+                                            y_train, 
+                                            NUM_EPOCHS, 
+                                            'validation', 
+                                            patience, 
+                                            validation_data=(x_val, y_val))
     # phase 2: train on only the validation set for a small number of epochs
     history_optimizing_training_loss = fit_model(model, 
                                                  x_val, 
                                                  y_val, 
                                                  math.ceil(NUM_EPOCHS * validation_split), 
                                                  'training', 
-                                                 math.ceil(PATIENCE * validation_split))
-
+                                                 math.ceil(patience * validation_split))
+    # evaluate on test set
     _, mae = model.evaluate(x_test, 
                             y_test, 
                             verbose=1, 
