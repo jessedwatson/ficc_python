@@ -16,7 +16,7 @@ ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 sys.path.append(ficc_package_dir)    # add the directory to sys.path
 
 
-from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `automated_training_auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `automated_training_auxiliary_functions.py`
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `auxiliary_functions.py`
 
 
 EASTERN = timezone('US/Eastern')
@@ -189,7 +189,7 @@ if TESTING:
     SAVE_MODEL_AND_DATA = False
     USE_PICKLED_DATA = True
     NUM_EPOCHS = 2
-    EARLIEST_TRADE_DATETIME = (datetime.now(EASTERN) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+    EARLIEST_TRADE_DATETIME = (datetime.now(EASTERN) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
     print(f'In TESTING mode; SAVE_MODEL_AND_DATA=False and NUM_EPOCHS={NUM_EPOCHS} and EARLIEST_TRADE_DATETIME={EARLIEST_TRADE_DATETIME}')
     print('Check `get_creds(...)` to make sure the credentials filepath is correct')
     print('Check `WORKING_DIRECTORY` to make sure the path is correct')

@@ -40,7 +40,7 @@ if [ "$1" == "yield_spread_with_similar_trades" ]; then
   MODEL="yield_spread_with_similar_trades"
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_yield_spread_with_similar_trades_model.py"
   MODEL_NAME='similar-trades-v2-model'-${DATE_WITH_YEAR}
-  MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `automated_training_auxiliary_functions.py::get_model_zip_filename(...)`
+  MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `auxiliary_functions.py::get_model_zip_filename(...)`
   ENDPOINT_ID=$(gcloud ai endpoints list --region=us-east4 --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
 else
   TRAINED_MODELS_PATH="$HOME_DIRECTORY/trained_models/dollar_price_model"

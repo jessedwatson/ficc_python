@@ -2,9 +2,10 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-22
+Last Edit Date: 2025-01-27
 '''
 import warnings
+import math
 import subprocess
 import traceback    # used to print out the stack trace when there is an error
 import os
@@ -12,6 +13,7 @@ import sys
 import shutil
 import holidays
 import pickle
+
 import numpy as np
 import pandas as pd
 from pandas.tseries.offsets import BusinessDay
@@ -26,55 +28,55 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
-                                                   CATEGORICAL_FEATURES, \
-                                                   CATEGORICAL_FEATURES_DOLLAR_PRICE, \
-                                                   NON_CAT_FEATURES, \
-                                                   NON_CAT_FEATURES_DOLLAR_PRICE, \
-                                                   BINARY, \
-                                                   BINARY_DOLLAR_PRICE, \
-                                                   PREDICTORS, \
-                                                   PREDICTORS_DOLLAR_PRICE, \
-                                                   YS_VARIANTS, \
-                                                   YS_FEATS, \
-                                                   DP_VARIANTS, \
-                                                   DP_FEATS, \
-                                                   YEAR_MONTH_DAY, \
-                                                   HOUR_MIN_SEC, \
-                                                   QUERY_FEATURES, \
-                                                   QUERY_CONDITIONS, \
-                                                   ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
-                                                   ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
-                                                   ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
-                                                   EASTERN, \
-                                                   BUSINESS_DAY, \
-                                                   NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
-                                                   NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
-                                                   CATEGORICAL_FEATURES_VALUES, \
-                                                   SAVE_MODEL_AND_DATA, \
-                                                   HOME_DIRECTORY, \
-                                                   WORKING_DIRECTORY, \
-                                                   PROJECT_ID, \
-                                                   AUXILIARY_VIEWS_DATASET_NAME, \
-                                                   YIELD_CURVE_DATASET_NAME, \
-                                                   BUCKET_NAME, \
-                                                   MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
-                                                   EARLIEST_TRADE_DATETIME, \
-                                                   MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
-                                                   MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
-                                                   OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
-                                                   OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
-                                                   TTYPE_DICT, \
-                                                   LONG_TIME_AGO_IN_NUM_SECONDS, \
-                                                   MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
-                                                   HISTORICAL_PREDICTION_TABLE, \
-                                                   EMAIL_RECIPIENTS, \
-                                                   SENDER_EMAIL, \
-                                                   BATCH_SIZE, \
-                                                   NUM_EPOCHS, \
-                                                   MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
-                                                   TESTING, \
-                                                   USE_PICKLED_DATA
+from auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
+                                CATEGORICAL_FEATURES, \
+                                CATEGORICAL_FEATURES_DOLLAR_PRICE, \
+                                NON_CAT_FEATURES, \
+                                NON_CAT_FEATURES_DOLLAR_PRICE, \
+                                BINARY, \
+                                BINARY_DOLLAR_PRICE, \
+                                PREDICTORS, \
+                                PREDICTORS_DOLLAR_PRICE, \
+                                YS_VARIANTS, \
+                                YS_FEATS, \
+                                DP_VARIANTS, \
+                                DP_FEATS, \
+                                YEAR_MONTH_DAY, \
+                                HOUR_MIN_SEC, \
+                                QUERY_FEATURES, \
+                                QUERY_CONDITIONS, \
+                                ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
+                                ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
+                                ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
+                                EASTERN, \
+                                BUSINESS_DAY, \
+                                NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
+                                NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
+                                CATEGORICAL_FEATURES_VALUES, \
+                                SAVE_MODEL_AND_DATA, \
+                                HOME_DIRECTORY, \
+                                WORKING_DIRECTORY, \
+                                PROJECT_ID, \
+                                AUXILIARY_VIEWS_DATASET_NAME, \
+                                YIELD_CURVE_DATASET_NAME, \
+                                BUCKET_NAME, \
+                                MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
+                                EARLIEST_TRADE_DATETIME, \
+                                MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
+                                MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
+                                OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
+                                OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
+                                TTYPE_DICT, \
+                                LONG_TIME_AGO_IN_NUM_SECONDS, \
+                                MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
+                                HISTORICAL_PREDICTION_TABLE, \
+                                EMAIL_RECIPIENTS, \
+                                SENDER_EMAIL, \
+                                BATCH_SIZE, \
+                                NUM_EPOCHS, \
+                                MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
+                                TESTING, \
+                                USE_PICKLED_DATA
 from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
 from set_random_seed import set_seed
@@ -95,7 +97,7 @@ from ficc.utils.initialize_pandarallel import initialize_pandarallel
 set_seed()
 
 
-# this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
+# this variable needs to be in this file instead of `auxiliary_variables.py` since importing the models in `auxiliary_variables.py` causes a circular import error
 MODEL_NAME_TO_KERAS_MODEL = {'dollar_price': dollar_price_model, 
                              'yield_spread_with_similar_trades': yield_spread_with_similar_trades_model}
 
@@ -370,7 +372,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treasury_spread: bool = False) -> pd.DataFrame:
     initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
-    data.sort_values('trade_datetime', inplace=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
+    data = data.sort_values('trade_datetime', ascending=True)    # when calling `trade_history_derived_features...(...)` the order of trades needs to be ascending for `trade_datetime`
     trade_history_derived_features = trade_history_derived_features_yield_spread(use_treasury_spread) if 'yield_spread' in model else trade_history_derived_features_dollar_price
     trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
     
@@ -379,7 +381,7 @@ def add_trade_history_derived_features(data: pd.DataFrame, model: str, use_treas
     data[cols] = pd.DataFrame(temp.tolist(), index=data.index)
     del temp
 
-    data.sort_values('trade_datetime', ascending=False, inplace=True)
+    data = data.sort_values('trade_datetime', ascending=False)    # reset the order of the data to `trade_datetime` descending which is what is assumed to be the original order
     return data
 
 
@@ -453,8 +455,12 @@ def get_feature_as_array(df: pd.DataFrame, feature_name: str) -> np.array:
 
 
 @function_timer
-def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False):
+def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False, column_to_be_sorted_by: str = 'trade_datetime'):
     check_that_model_is_supported(model)
+    if not data[column_to_be_sorted_by].is_monotonic_increasing:
+        print(f'Creating input data by first sorting the data by {column_to_be_sorted_by} ascending')
+        data = data.sort_values(column_to_be_sorted_by, ascending=True)    # sort by `column_to_be_sorted_by` so further downstream operations (e.g., creating the validation set) is done with respect to the time series nature of the data
+    
     datalist = []
     if model == 'yield_spread_with_similar_trades': datalist.append(get_feature_as_array(data, 'similar_trade_history'))
     trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
@@ -479,6 +485,7 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: b
     else:
         label_name = 'new_ys' if 'yield_spread' in model else 'dollar_price'
         labels = data[label_name]
+        assert all(data_input.shape[0] == labels.shape[0] for data_input in datalist), f'Mismatch between datalist inputs and labels: {[data_input.shape[0] for data_input in datalist]} vs {labels.shape[0]}'
     return datalist, labels
 
 
@@ -726,40 +733,110 @@ def trade_history_derived_features_dollar_price(row) -> list:
     return _trade_history_derived_features(row, 'dollar_price')
 
 
-def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer='Adam'):
-    from tensorflow import keras    # lazy loading for lower latency
+def get_early_stopping_callbacks(loss_type_to_monitor: str, patience: int):
+    from tensorflow.keras.callbacks import EarlyStopping    # lazy loading for lower latency
 
-    # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
+    LOSS_TYPES_TO_MONITOR = {'validation', 'training'}
+    assert loss_type_to_monitor in LOSS_TYPES_TO_MONITOR, f'`loss_type_to_monitor` must be one of {LOSS_TYPES_TO_MONITOR} but was instead {loss_type_to_monitor}'
+    assert patience > 0, f'`patience`: {patience} must be greater than 0'
+    LOSS_MAPPING = {'validation': 'val_loss', 'training': 'loss'}
+    return [EarlyStopping(monitor=LOSS_MAPPING[loss_type_to_monitor], 
+                          patience=patience, 
+                          verbose=1,  
+                          restore_best_weights=True)]
+
+
+def combine_two_histories(history1, history2):
+    from tensorflow.keras.callbacks import History    # lazy loading for lower latency
+
+    combined_history_dict = {}
+    all_keys = set(history1.history.keys()).union(history2.history.keys())    # Combine all unique keys
+    for key in all_keys:
+        # Fill missing values with NaN for the history that lacks the key
+        history1_values = history1.history.get(key, [np.nan] * len(history2.history.get(key, [])))
+        history2_values = history2.history.get(key, [np.nan] * len(history1.history.get(key, [])))
+        combined_history_dict[key] = history1_values + history2_values
+    
+    # Create a new History object and stored `combined_history_dict`
+    combined_history = History()
+    combined_history.history = combined_history_dict
+    return combined_history
+
+
+def get_train_and_validation_set(inputs: list, labels: np.ndarray, validation_split: float):
+    '''Assumes that the most recent data is at the end. `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`.'''
+    assert 0 <= validation_split < 1, f'`validation_split`: {validation_split} must be in [0, 1)'
+    num_data_points_for_validation = math.ceil(validation_split * labels.shape[0])
+    x_val = [x_input[-num_data_points_for_validation:] for x_input in inputs]    # `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`
+    y_val = labels[-num_data_points_for_validation:]
+    x_train = [x_input[:-num_data_points_for_validation] for x_input in inputs]    # `inputs` is a datalist and so each item in the list is an input of size `labels.shape[0]`
+    y_train = labels[:-num_data_points_for_validation]
+    return x_train, y_train, x_val, y_val
+
+
+def fit_model(model, inputs: list, labels: np.ndarray, epochs: int, loss_type_to_monitor: str = None, patience: int = None, **kwargs):
+    if loss_type_to_monitor is None or patience is None:
+        print(f'Not using any callbacks because one of `loss_type_to_monitor`: {loss_type_to_monitor} and `patience`: {patience} is `None`')
+        callbacks = None
+    else:
+        print(f'Using early stopping callback for {loss_type_to_monitor} loss with patience of {patience} epochs')
+        callbacks = get_early_stopping_callbacks(loss_type_to_monitor, patience)
+    return model.fit(inputs, 
+                     labels, 
+                     epochs=epochs, 
+                     batch_size=BATCH_SIZE, 
+                     verbose=1,    # prints out the progress bar; set to 2 to just have one line per epoch
+                     callbacks=callbacks, 
+                     use_multiprocessing=True, 
+                     workers=8, 
+                     shuffle=False,    # setting `shuffle=False` since it was more accurate during experiments; originally thought to set `shuffle=True` since shuffling data for each epoch would lead to better generalization; shuffling is okay here because the input data is for separate CUSIPs and so the training does not need to maintain the original order of the data and does not learn anything temporal between instances
+                     **kwargs)
+
+
+def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer: str = 'Adam'):
+    '''Two-phase training. Phase 1: train on the entire dataset leaving some of the data to be the validation set. Phase 2: 
+    train on only the validation set for a small number of epochs. Phase 1 learns large patterns in the data while focusing 
+    on validation loss to ensure generalization. Phase 2 trains only on the validation set to allow these datapoints to 
+    influence the weights so the model has exposure to the most recent data, but is done for a small number of epochs since 
+    there is no validation set to ensure generalization. Assumes that `*_train` is in ascending order of time (`trade_datetime`). 
+    Past experiments to choose a good training procedure: https://ficcai.atlassian.net/browse/FA-2461.'''
+    from tensorflow import keras    # lazy loading for lower latency
+    
+    # this variable needs to be in this file instead of `auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
     # NOTE: SGD does not work on Apple Metal GPU
     SUPPORTED_OPTIMIZERS = {'Adam': keras.optimizers.Adam(learning_rate=0.0001), 
                             'SGD': keras.optimizers.legacy.SGD(learning_rate=0.01, momentum=0.9)}    # 0.9 is a well-tested industry / academic default for `momentum`
-
+    
     assert optimizer in SUPPORTED_OPTIMIZERS, f'optimizer: {optimizer} must be in {SUPPORTED_OPTIMIZERS.keys()}'
-    model.compile(optimizer=SUPPORTED_OPTIMIZERS[optimizer],
-                  loss=keras.losses.MeanAbsoluteError(),
+    model.compile(optimizer=SUPPORTED_OPTIMIZERS[optimizer], 
+                  loss=keras.losses.MeanAbsoluteError(), 
                   metrics=[keras.metrics.MeanAbsoluteError()])
 
-    fit_callbacks = [keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                   patience=20,
-                                                   verbose=0,
-                                                   mode='auto',
-                                                   restore_best_weights=True)]
+    validation_split = 0.1    # fraction of the data to be used as validation data
+    x_train, y_train, x_val, y_val = get_train_and_validation_set(x_train, y_train, validation_split)
 
-    history = model.fit(x_train, 
-                        y_train, 
-                        epochs=NUM_EPOCHS, 
-                        batch_size=BATCH_SIZE,
-                        verbose=1,
-                        validation_split=0.1,
-                        callbacks=fit_callbacks,
-                        use_multiprocessing=True,
-                        workers=8)
-
+    # phase 1: train on the entire dataset leaving some of the data to be the validation set
+    patience = math.ceil(0.2 * NUM_EPOCHS)    # generally recommended patience from ChatGPT
+    history_optimizing_val_loss = fit_model(model, 
+                                            x_train, 
+                                            y_train, 
+                                            NUM_EPOCHS, 
+                                            'validation', 
+                                            patience, 
+                                            validation_data=(x_val, y_val))
+    # phase 2: train on only the validation set for a small number of epochs
+    history_optimizing_training_loss = fit_model(model, 
+                                                 x_val, 
+                                                 y_val, 
+                                                 math.ceil(NUM_EPOCHS * validation_split), 
+                                                 'training', 
+                                                 math.ceil(patience * validation_split))
+    # evaluate on test set
     _, mae = model.evaluate(x_test, 
                             y_test, 
                             verbose=1, 
                             batch_size=BATCH_SIZE)
-    return model, mae, history
+    return model, mae, combine_two_histories(history_optimizing_val_loss, history_optimizing_training_loss)
 
 
 def segment_results(data: pd.DataFrame, absolute_difference: np.array) -> pd.DataFrame:
