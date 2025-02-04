@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-27
+Last Edit Date: 2025-02-04
 '''
 import warnings
 import math
@@ -492,7 +492,7 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: b
 
 def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
-    data = None if file_name is None else download_data(STORAGE_CLIENT, bucket_name, file_name)
+    data = None if file_name is None else download_data(STORAGE_CLIENT, bucket_name, f'processed_data/{file_name}')
     if data is None: return None, EARLIEST_TRADE_DATETIME, EARLIEST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)

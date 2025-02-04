@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2025-01-21
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-21
+Last Edit Date: 2025-02-04
 Description: Used to train a model with a processed data file. Heavily uses code from `automated_training/`. Note: update `auxiliary_functions.py::get_creds(...)` with the correct file path.
 
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u train_model.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
@@ -70,7 +70,7 @@ def get_processed_data_pickle_file(model: str = MODEL) -> pd.DataFrame:
         data, most_recent_trade_datetime, _ = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
         with open(file_name, 'wb') as file:
             pickle.dump(data, file)
-        file_name = f'gs://{BUCKET_NAME}/{file_name}'    # used for print
+        file_name = f'gs://{BUCKET_NAME}/processed_data/{file_name}'    # used for print
     print(f'Loaded data from {file_name}. Most recent trade datetime: {most_recent_trade_datetime}')
     return data
 
