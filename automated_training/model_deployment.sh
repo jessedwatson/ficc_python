@@ -45,7 +45,7 @@ if [ "$1" == "yield_spread_with_similar_trades" ]; then
   MODEL="yield_spread_with_similar_trades"
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_yield_spread_with_similar_trades_model.py"
   MODEL_NAME='similar-trades-v2-model'-${DATE_WITH_YEAR}
-  MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `automated_training_auxiliary_functions.py::get_model_zip_filename(...)`
+  MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `auxiliary_functions.py::get_model_zip_filename(...)`
   ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
   ARCHIVED_DIRECTORY_IN_BUCKET='similar_trades_v2_model_inaccurate'
 else
@@ -54,7 +54,7 @@ else
   MODEL="dollar_price"
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_dollar_price_model.py"
   MODEL_NAME='dollar-v2-model'-${DATE_WITH_YEAR}
-  MODEL_ZIP_NAME='model_dollar_price_v2'
+  MODEL_ZIP_NAME='model_dollar_price_v2'    # must match `auxiliary_functions.py::get_model_zip_filename(...)`
   ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
   ARCHIVED_DIRECTORY_IN_BUCKET='dollar_price_model_v2_inaccurate'
 fi

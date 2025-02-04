@@ -7,7 +7,7 @@
 import sys
 from ficc.utils.auxiliary_functions import function_timer
 
-from automated_training_auxiliary_functions import setup_gpus, train_save_evaluate_model, apply_exclusions
+from auxiliary_functions import setup_gpus, train_save_evaluate_model, apply_exclusions
 
 
 @function_timer

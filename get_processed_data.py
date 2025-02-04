@@ -39,8 +39,8 @@ import pandas as pd
 
 from ficc.utils.auxiliary_functions import sqltodf, function_timer
 
-from automated_training.automated_training_auxiliary_variables import EASTERN, BUSINESS_DAY, YEAR_MONTH_DAY, EARLIEST_TRADE_DATETIME, MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, YEAR_MONTH_DAY
-from automated_training.automated_training_auxiliary_functions import BQ_CLIENT, get_data_query, check_that_model_is_supported, get_new_data, get_optional_arguments_for_process_data, combine_new_data_with_old_data, add_trade_history_derived_features, drop_features_with_null_value, save_data
+from automated_training.auxiliary_variables import EASTERN, BUSINESS_DAY, YEAR_MONTH_DAY, EARLIEST_TRADE_DATETIME, MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, YEAR_MONTH_DAY
+from automated_training.auxiliary_functions import BQ_CLIENT, get_data_query, check_that_model_is_supported, get_new_data, get_optional_arguments_for_process_data, combine_new_data_with_old_data, add_trade_history_derived_features, drop_features_with_null_value, save_data
 
 
 MODEL = 'yield_spread_with_similar_trades'
@@ -52,7 +52,7 @@ SAVE_DATA = True
 TESTING = False
 if TESTING:
     SAVE_DATA = False
-    EARLIEST_TRADE_DATETIME = (datetime.now(EASTERN) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+    EARLIEST_TRADE_DATETIME = (datetime.now(EASTERN) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
 
 
 @function_timer
@@ -101,7 +101,7 @@ def get_trades_for_all_dates(dates: list,
     check_that_df_is_sorted_by_column(trades_for_all_dates, 'trade_datetime', desc=True)
 
     optional_arguments_for_process_data = get_optional_arguments_for_process_data(MODEL)
-    # next few lines are very similar to `ficc_python/automated_training_auxiliary_functions.py::update_data(...)`
+    # next few lines are very similar to `ficc_python/auxiliary_functions.py::update_data(...)`
     trades_for_all_dates = combine_new_data_with_old_data(None, trades_for_all_dates, MODEL)
     trades_for_all_dates = add_trade_history_derived_features(trades_for_all_dates, MODEL, optional_arguments_for_process_data.get('use_treasury_spread', False))
     trades_for_all_dates = drop_features_with_null_value(trades_for_all_dates, MODEL)
@@ -150,7 +150,7 @@ def main():
     earliest_trade_datetime = sys.argv[2] if len(sys.argv) >= 3 else EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
     if latest_trade_date is not None:
         assert check_date_in_correct_format(latest_trade_date)
-        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `automated_training_auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
     return create_data_for_start_end_date_pair(earliest_trade_datetime, latest_trade_date)
 
 

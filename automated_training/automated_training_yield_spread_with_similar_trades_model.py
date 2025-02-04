@@ -7,7 +7,7 @@
 import os
 import sys
 
-from automated_training_auxiliary_functions import setup_gpus, train_save_evaluate_model, apply_exclusions
+from auxiliary_functions import setup_gpus, train_save_evaluate_model, apply_exclusions
 from exit_codes import SWITCH_TRAFFIC_EXIT_CODE, DO_NOT_SWITCH_TRAFFIC_EXIT_CODE
 
 
