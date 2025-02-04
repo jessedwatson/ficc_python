@@ -68,7 +68,7 @@ python --version
 python $TRAINING_SCRIPT
 SWITCH_TRAFFIC_EXIT_CODE=$?
 if [ $SWITCH_TRAFFIC_EXIT_CODE -ne 10 ] && [ $SWITCH_TRAFFIC_EXIT_CODE -ne 11 ]; then
-  echo "$TRAINING_SCRIPT script failed with exit code $SWITCH_TRAFFIC_EXIT_CODE"
+  echo "$TRAINING_SCRIPT script failed with exit code $SWITCH_TRAFFIC_EXIT_CODE which should have been either 10 or 11"
   python $AUTOMATED_TRAINING_DIRECTORY/clean_training_log.py $TRAINING_LOG_PATH
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model training failed. See attached logs for more details. However, if there is not enough new trades on the previous business day, then this is the desired behavior."
   # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
