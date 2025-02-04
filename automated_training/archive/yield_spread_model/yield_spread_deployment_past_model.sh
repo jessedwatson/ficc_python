@@ -4,7 +4,7 @@
 # @ Modified date: 2024-06-07
 echo "If there are errors, visit: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8"
 echo "Search for warnings in the logs (even on a successful training procedure) and investigate"
-echo "Set USE_PICKLED_DATA to True in automated_training_auxiliary_functions.py to use saved data instead of re-running the query every time"
+echo "Set USE_PICKLED_DATA to True in auxiliary_functions.py to use saved data instead of re-running the query every time"
 
 #!/bin/sh
 who

@@ -35,7 +35,7 @@ python $HOME/ficc_python/clean_training_log.py $TRAINING_LOG_PATH
 
 # Unzip model and uploading it to automated training bucket
 MODEL_NAME='similar-trades-v2-model'-${DATE_WITH_YEAR}
-MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `automated_training_auxiliary_functions.py::get_model_zip_filename(...)`
+MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `auxiliary_functions.py::get_model_zip_filename(...)`
 echo "Unzipping model $MODEL_NAME"
 gsutil cp -r gs://automated_training/$MODEL_ZIP_NAME.zip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip
 unzip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME

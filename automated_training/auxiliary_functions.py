@@ -28,55 +28,55 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from automated_training_auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
-                                                   CATEGORICAL_FEATURES, \
-                                                   CATEGORICAL_FEATURES_DOLLAR_PRICE, \
-                                                   NON_CAT_FEATURES, \
-                                                   NON_CAT_FEATURES_DOLLAR_PRICE, \
-                                                   BINARY, \
-                                                   BINARY_DOLLAR_PRICE, \
-                                                   PREDICTORS, \
-                                                   PREDICTORS_DOLLAR_PRICE, \
-                                                   YS_VARIANTS, \
-                                                   YS_FEATS, \
-                                                   DP_VARIANTS, \
-                                                   DP_FEATS, \
-                                                   YEAR_MONTH_DAY, \
-                                                   HOUR_MIN_SEC, \
-                                                   QUERY_FEATURES, \
-                                                   QUERY_CONDITIONS, \
-                                                   ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
-                                                   ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
-                                                   ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
-                                                   EASTERN, \
-                                                   BUSINESS_DAY, \
-                                                   NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
-                                                   NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
-                                                   CATEGORICAL_FEATURES_VALUES, \
-                                                   SAVE_MODEL_AND_DATA, \
-                                                   HOME_DIRECTORY, \
-                                                   WORKING_DIRECTORY, \
-                                                   PROJECT_ID, \
-                                                   AUXILIARY_VIEWS_DATASET_NAME, \
-                                                   YIELD_CURVE_DATASET_NAME, \
-                                                   BUCKET_NAME, \
-                                                   MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
-                                                   EARLIEST_TRADE_DATETIME, \
-                                                   MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
-                                                   MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
-                                                   OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
-                                                   OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
-                                                   TTYPE_DICT, \
-                                                   LONG_TIME_AGO_IN_NUM_SECONDS, \
-                                                   MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
-                                                   HISTORICAL_PREDICTION_TABLE, \
-                                                   EMAIL_RECIPIENTS, \
-                                                   SENDER_EMAIL, \
-                                                   BATCH_SIZE, \
-                                                   NUM_EPOCHS, \
-                                                   MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
-                                                   TESTING, \
-                                                   USE_PICKLED_DATA
+from auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
+                                CATEGORICAL_FEATURES, \
+                                CATEGORICAL_FEATURES_DOLLAR_PRICE, \
+                                NON_CAT_FEATURES, \
+                                NON_CAT_FEATURES_DOLLAR_PRICE, \
+                                BINARY, \
+                                BINARY_DOLLAR_PRICE, \
+                                PREDICTORS, \
+                                PREDICTORS_DOLLAR_PRICE, \
+                                YS_VARIANTS, \
+                                YS_FEATS, \
+                                DP_VARIANTS, \
+                                DP_FEATS, \
+                                YEAR_MONTH_DAY, \
+                                HOUR_MIN_SEC, \
+                                QUERY_FEATURES, \
+                                QUERY_CONDITIONS, \
+                                ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
+                                ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
+                                ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
+                                EASTERN, \
+                                BUSINESS_DAY, \
+                                NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
+                                NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
+                                CATEGORICAL_FEATURES_VALUES, \
+                                SAVE_MODEL_AND_DATA, \
+                                HOME_DIRECTORY, \
+                                WORKING_DIRECTORY, \
+                                PROJECT_ID, \
+                                AUXILIARY_VIEWS_DATASET_NAME, \
+                                YIELD_CURVE_DATASET_NAME, \
+                                BUCKET_NAME, \
+                                MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
+                                EARLIEST_TRADE_DATETIME, \
+                                MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
+                                MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
+                                OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
+                                OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
+                                TTYPE_DICT, \
+                                LONG_TIME_AGO_IN_NUM_SECONDS, \
+                                MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
+                                HISTORICAL_PREDICTION_TABLE, \
+                                EMAIL_RECIPIENTS, \
+                                SENDER_EMAIL, \
+                                BATCH_SIZE, \
+                                NUM_EPOCHS, \
+                                MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
+                                TESTING, \
+                                USE_PICKLED_DATA
 from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
 from set_random_seed import set_seed
@@ -97,7 +97,7 @@ from ficc.utils.initialize_pandarallel import initialize_pandarallel
 set_seed()
 
 
-# this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since importing the models in `automated_training_auxiliary_variables.py` causes a circular import error
+# this variable needs to be in this file instead of `auxiliary_variables.py` since importing the models in `auxiliary_variables.py` causes a circular import error
 MODEL_NAME_TO_KERAS_MODEL = {'dollar_price': dollar_price_model, 
                              'yield_spread_with_similar_trades': yield_spread_with_similar_trades_model}
 
@@ -802,7 +802,7 @@ def train_and_evaluate_model(model, x_train, y_train, x_test, y_test, optimizer:
     Past experiments to choose a good training procedure: https://ficcai.atlassian.net/browse/FA-2461.'''
     from tensorflow import keras    # lazy loading for lower latency
     
-    # this variable needs to be in this file instead of `automated_training_auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
+    # this variable needs to be in this file instead of `auxiliary_variables.py` since initializing tensorflow in another file causes `setup_gpus(...)` to fail
     # NOTE: SGD does not work on Apple Metal GPU
     SUPPORTED_OPTIMIZERS = {'Adam': keras.optimizers.Adam(learning_rate=0.0001), 
                             'SGD': keras.optimizers.legacy.SGD(learning_rate=0.01, momentum=0.9)}    # 0.9 is a well-tested industry / academic default for `momentum`

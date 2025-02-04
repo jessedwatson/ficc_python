@@ -7,7 +7,7 @@
 import os
 import sys
 
-from automated_training_auxiliary_functions import setup_gpus, train_save_evaluate_model
+from auxiliary_functions import setup_gpus, train_save_evaluate_model
 
 
 ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package

@@ -3,7 +3,7 @@ Author: Mitas Ray
 Date: 2025-01-21
 Last Editor: Mitas Ray
 Last Edit Date: 2025-01-21
-Description: Used to train a model with a processed data file. Heavily uses code from `automated_training/`. Note: update `automated_training_auxiliary_functions.py::get_creds(...)` with the correct file path.
+Description: Used to train a model with a processed data file. Heavily uses code from `automated_training/`. Note: update `auxiliary_functions.py::get_creds(...)` with the correct file path.
 
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u train_model.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
 Breakdown:
@@ -34,12 +34,12 @@ ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 sys.path.append(ficc_package_dir)    # add the directory to sys.path
 
 
-from automated_training_auxiliary_variables import MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, BUCKET_NAME
+from auxiliary_variables import MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, BUCKET_NAME
 
-import automated_training_auxiliary_functions
-automated_training_auxiliary_functions.SAVE_MODEL_AND_DATA = False
+import auxiliary_functions
+auxiliary_functions.SAVE_MODEL_AND_DATA = False
 
-from automated_training_auxiliary_functions import train_model, setup_gpus, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime
+from auxiliary_functions import train_model, setup_gpus, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime
 from clean_training_log import remove_lines_with_tensorflow_progress_bar
 
 
@@ -55,7 +55,7 @@ NUM_DAYS = 5
 
 TESTING = False
 if TESTING:
-    automated_training_auxiliary_functions.NUM_EPOCHS = 4
+    auxiliary_functions.NUM_EPOCHS = 4
     NUM_DAYS = 1
 
 
@@ -77,9 +77,9 @@ def get_processed_data_pickle_file(model: str = MODEL) -> pd.DataFrame:
 
 def get_num_features_for_each_trade_in_history(model: str = MODEL) -> int:
     optional_arguments = get_optional_arguments_for_process_data(model)
-    use_treasury_spread = optional_arguments.get('use_treasury_spread', False)    # from `automated_training_auxiliary_functions.py::update_data(...)`
-    trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()    # from `automated_training_auxiliary_functions.py::get_new_data(...)`
-    return len(trade_history_features)    # from `automated_training_auxiliary_functions.py::get_new_data(...)`
+    use_treasury_spread = optional_arguments.get('use_treasury_spread', False)    # from `auxiliary_functions.py::update_data(...)`
+    trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()    # from `automated_training/auxiliary_functions.py::get_new_data(...)`
+    return len(trade_history_features)    # from `auxiliary_functions.py::get_new_data(...)`
 
 
 def train_model_from_data_file(data: pd.DataFrame, num_days: int, output_file_path: str = None):
