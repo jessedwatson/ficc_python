@@ -1,7 +1,7 @@
 # @ Author: Mitas Ray
 # @ Create date: 2025-01-06
 # @ Modified by: Mitas Ray
-# @ Modified date: 2025-01-23
+# @ Modified date: 2025-02-05
 # @ Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price". 
 #                The below are the cron jobs for the yield spread with similar trades and dollar price models set up on their respective automated training VMs.
 #                45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh dollar_price >> /home/mitas/training_logs/dollar_price_training_$(date +\%Y-\%m-\%d).log 2>&1
@@ -137,8 +137,8 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
 
   NEW_MODEL_ID=$(gcloud ai models list --region=$REGION --format='value(name)' --filter='displayName'=$MODEL_NAME)
   echo "NEW_MODEL_ID $NEW_MODEL_ID"
-  OLD_MODEL_ID=$(gcloud ai endpoints describe $ENDPOINT_ID --region=$REGION --format='value(deployedModels[0].id)')
-  echo "OLD_MODEL_ID $OLD_MODEL_ID"
+  OLD_DEPLOYED_MODEL_ID=$(gcloud ai endpoints describe $ENDPOINT_ID --region=$REGION --format='value(deployedModels[0].id)')
+  echo "OLD_DEPLOYED_MODEL_ID $OLD_DEPLOYED_MODEL_ID"
   echo "Deploying to endpoint"
   gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
   EXIT_CODE=$?
@@ -150,8 +150,10 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
     exit 1
   fi
 
-  echo "Updating traffic split to 100% for new model with ID: $NEW_MODEL_ID"
-  gcloud ai endpoints update $ENDPOINT_ID --region=$REGION --traffic-split=$NEW_MODEL_ID=100
+  # Vertex AI assigns a new “deployed model ID” when you deploy a model to an endpoint (different from NEW_MODEL_ID which is the original model resource ID); when updating the traffic split in Vertex AI, you need to use the deployed model ID, not the original model ID
+  NEW_DEPLOYED_MODEL_ID=$(gcloud ai endpoints describe $ENDPOINT_ID --region=$REGION --format=json | jq -r --arg MODEL_ID "$NEW_MODEL_ID" '.deployedModels[] | select(.model | endswith($MODEL_ID)) | .id')
+  echo "Updating traffic split to 100% for new model (original model ID: $NEW_MODEL_ID) with deployed model ID: $NEW_DEPLOYED_MODEL_ID. When updating the traffic split in Vertex AI, the deployed model ID must be used, not the original model ID (the resource ID)."
+  gcloud ai endpoints update $ENDPOINT_ID --region=$REGION --traffic-split=$NEW_DEPLOYED_MODEL_ID=100
   EXIT_CODE=$?
   if [ $? -ne 0 ]; then
     echo "Traffic switch failed with exit code $EXIT_CODE"
@@ -161,10 +163,10 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
     exit 1
   fi
 
-  # Undeploy the old model (if it exists); `[ -n "$OLD_MODEL_ID" ]` checks that the `OLD_MODEL_ID` is non-empty; `--quiet` suppresses the confirmation prompts allowing the command to run automatically
-  if [ -n "$OLD_MODEL_ID" ]; then
-    echo "Undeploying old model: $OLD_MODEL_ID"
-    gcloud ai endpoints undeploy-model $ENDPOINT_ID --region=$REGION --deployed-model-id=$OLD_MODEL_ID --quiet
+  # Undeploy the old model (if it exists); `[ -n "$OLD_DEPLOYED_MODEL_ID" ]` checks that the `OLD_DEPLOYED_MODEL_ID` is non-empty; `--quiet` suppresses the confirmation prompts allowing the command to run automatically
+  if [ -n "$OLD_DEPLOYED_MODEL_ID" ]; then
+    echo "Undeploying old model with deployed model ID: $OLD_DEPLOYED_MODEL_ID"
+    gcloud ai endpoints undeploy-model $ENDPOINT_ID --region=$REGION --deployed-model-id=$OLD_DEPLOYED_MODEL_ID --quiet
   fi
 fi
 
