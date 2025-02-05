@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-02-04
+Last Edit Date: 2025-02-05
 '''
 import warnings
 import math
@@ -1229,12 +1229,12 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
             
             newly_trained_model_mae = current_date_data_current_date_model_result_df.loc[ROW_NAME_DETERMINING_MODEL_SWITCH, 'Mean Absolute Error']
             currently_deployed_model_mae = current_date_data_previous_business_date_model_result_df.loc[ROW_NAME_DETERMINING_MODEL_SWITCH, 'Mean Absolute Error']
-            switch_traffic = newly_trained_model_mae >= currently_deployed_model_mae
+            switch_traffic = newly_trained_model_mae <= currently_deployed_model_mae
             if switch_traffic:
-                email_intro_text_addendum = f'\n{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is greater than or equal to that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has been switched</b> to the newly trained model.\n'
+                email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is less than or equal to that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has been switched</b> to the newly trained model.'
             else:
-                email_intro_text_addendum = f'\n{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is less than that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has NOT been switched</b> to the newly trained model. All traffic remains on the currently deployed model.\n'
-            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text + email_intro_text_addendum)
+                email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is greater than that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has NOT been switched</b> to the newly trained model. All traffic remains on the currently deployed model.'
+            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text_addendum + '<br><br>' + email_intro_text)    # use '<br>' for the separator since this will create a new line in the HTML body that will be sent out by email
             # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
             # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
             return switch_traffic
