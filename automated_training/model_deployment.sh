@@ -44,7 +44,7 @@ if [ "$1" == "yield_spread_with_similar_trades" ]; then
   TRAINING_LOG_PATH="$HOME_DIRECTORY/training_logs/yield_spread_with_similar_trades_training_$DATE_WITH_YEAR.log"
   MODEL="yield_spread_with_similar_trades"
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_yield_spread_with_similar_trades_model.py"
-  MODEL_NAME='similar-trades-v2-model'-${DATE_WITH_YEAR}
+  MODEL_NAME="similar-trades-v2-model-${DATE_WITH_YEAR}"
   MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `auxiliary_functions.py::get_model_zip_filename(...)`
   ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
   ARCHIVED_DIRECTORY_IN_BUCKET='similar_trades_v2_model_inaccurate'
@@ -53,7 +53,7 @@ else
   TRAINING_LOG_PATH="$HOME_DIRECTORY/training_logs/dollar_price_training_$DATE_WITH_YEAR.log"
   MODEL="dollar_price"
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_dollar_price_model.py"
-  MODEL_NAME='dollar-v2-model'-${DATE_WITH_YEAR}
+  MODEL_NAME="dollar-v2-model-${DATE_WITH_YEAR}"
   MODEL_ZIP_NAME='model_dollar_price_v2'    # must match `auxiliary_functions.py::get_model_zip_filename(...)`
   ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
   ARCHIVED_DIRECTORY_IN_BUCKET='dollar_price_model_v2_inaccurate'
@@ -95,7 +95,7 @@ if [ -d "$TRAINED_MODELS_PATH/$MODEL_NAME" ]; then    # -d checks if the directo
 fi
 unzip $TRAINED_MODELS_PATH/$MODEL_ZIP_NAME.zip -d $TRAINED_MODELS_PATH/$MODEL_NAME
 EXIT_CODE=$?
-if [ $? -ne 0 ]; then
+if [ $EXIT_CODE -ne 0 ]; then
   echo "Unzipping failed with exit code $EXIT_CODE"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Unzipping model failed. See attached logs for more details."
   # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
@@ -112,7 +112,7 @@ fi
 echo "Uploading model to bucket: $BUCKET"
 gsutil cp -r $TRAINED_MODELS_PATH/$MODEL_NAME $BUCKET
 EXIT_CODE=$?
-if [ $? -ne 0 ]; then
+if [ $EXIT_CODE -ne 0 ]; then
   echo "Uploading model to $BUCKET failed with exit code $EXIT_CODE"
   python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Uploading model to $BUCKET failed. See attached logs for more details."
   # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
@@ -127,7 +127,7 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   echo "Uploading model to Vertex AI Model Registry"
   gcloud ai models upload --region=$REGION --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-13:latest --artifact-uri=gs://automated_training/$MODEL_NAME
   EXIT_CODE=$?
-  if [ $? -ne 0 ]; then
+  if [ $EXIT_CODE -ne 0 ]; then
     echo "Model upload to Vertex AI Model Registry failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI Model Registry failed. See attached logs for more details."
     # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
@@ -145,7 +145,7 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   echo "Deploying model with model ID: $NEW_MODEL_ID to endpoint: $ENDPOINT_ID"
   gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
   EXIT_CODE=$?
-  if [ $? -ne 0 ]; then
+  if [ $EXIT_CODE -ne 0 ]; then
     echo "Model deployment to Vertex AI endpoint: $ENDPOINT_ID failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI endpoint: $ENDPOINT_ID failed. See attached logs for more details."
     # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
@@ -158,7 +158,7 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   echo "Updating traffic split to 100% for new model (original model ID: $NEW_MODEL_ID) with deployed model ID: $NEW_DEPLOYED_MODEL_ID. When updating the traffic split in Vertex AI, the deployed model ID must be used, not the original model ID (the resource ID)."
   gcloud ai endpoints update $ENDPOINT_ID --region=$REGION --traffic-split=$NEW_DEPLOYED_MODEL_ID=100
   EXIT_CODE=$?
-  if [ $? -ne 0 ]; then
+  if [ $EXIT_CODE -ne 0 ]; then
     echo "Traffic switch failed with exit code $EXIT_CODE"
     python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Traffic switch to new model failed. See attached logs for more details."
     # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
