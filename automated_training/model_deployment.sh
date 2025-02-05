@@ -124,12 +124,12 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   # Getting the endpoint ID we want to deploy the model on
   echo "ENDPOINT_ID $ENDPOINT_ID"
   echo "MODEL_NAME $MODEL_NAME"
-  echo "Uploading model to Vertex AI"
+  echo "Uploading model to Vertex AI Model Registry"
   gcloud ai models upload --region=$REGION --display-name=$MODEL_NAME --container-image-uri=us-docker.pkg.dev/vertex-ai/prediction/tf2-gpu.2-13:latest --artifact-uri=gs://automated_training/$MODEL_NAME
   EXIT_CODE=$?
   if [ $? -ne 0 ]; then
-    echo "Model upload to Vertex AI failed with exit code $EXIT_CODE"
-    python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI failed. See attached logs for more details."
+    echo "Model upload to Vertex AI Model Registry failed with exit code $EXIT_CODE"
+    python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model upload to Vertex AI Model Registry failed. See attached logs for more details."
     # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
     sudo shutdown -h now
     exit 1
@@ -137,14 +137,17 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
 
   NEW_MODEL_ID=$(gcloud ai models list --region=$REGION --format='value(name)' --filter='displayName'=$MODEL_NAME)
   echo "NEW_MODEL_ID $NEW_MODEL_ID"
+
+  # getting the old deployed model ID here so for simplicity since there is only one model deployed to the endpoint
   OLD_DEPLOYED_MODEL_ID=$(gcloud ai endpoints describe $ENDPOINT_ID --region=$REGION --format='value(deployedModels[0].id)')
   echo "OLD_DEPLOYED_MODEL_ID $OLD_DEPLOYED_MODEL_ID"
-  echo "Deploying to endpoint"
+
+  echo "Deploying model with model ID: $NEW_MODEL_ID to endpoint: $ENDPOINT_ID"
   gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
   EXIT_CODE=$?
   if [ $? -ne 0 ]; then
-    echo "Model deployment to Vertex AI failed with exit code $EXIT_CODE"
-    python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI failed. See attached logs for more details."
+    echo "Model deployment to Vertex AI endpoint: $ENDPOINT_ID failed with exit code $EXIT_CODE"
+    python $AUTOMATED_TRAINING_DIRECTORY/send_email_with_training_log.py $TRAINING_LOG_PATH $MODEL "Model deployment to Vertex AI endpoint: $ENDPOINT_ID failed. See attached logs for more details."
     # sends the shutdown command to the VM, but this does not immediately stop the script (next few commands may run as the VM is shutting down) and so use `exit 1` to make sure no furhter commands are run
     sudo shutdown -h now
     exit 1
