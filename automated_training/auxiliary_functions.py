@@ -406,7 +406,9 @@ def save_data(data: pd.DataFrame, file_name: str, upload_to_google_cloud_bucket:
     data = remove_old_trades(data, MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, dataset_name='entire processed data file')
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
-    if upload_to_google_cloud_bucket: upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name, file_path)
+    if upload_to_google_cloud_bucket:
+        folder_prefix = 'processed_data/' if file_name.startswith('processed_data_') else ''
+        upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{folder_prefix}{file_name}', file_path)
 
 
 def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int, exclusions_function: callable, on_or_after: str = 'after'):

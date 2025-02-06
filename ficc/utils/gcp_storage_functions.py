@@ -1,10 +1,10 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2022-03-01
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-19
- # @ Description: Convenience functions to upload and download data from Google cloud buckets.
- '''
+Author: Ahmad Shayaan
+Date: 2022-03-01
+Last Editor: Mitas Ray
+Last Edit Date: 2024-02-19
+Description: Convenience functions to upload and download data from Google cloud buckets.
+'''
 import pickle
 
 from ficc.utils.auxiliary_functions import run_multiple_times_before_failing

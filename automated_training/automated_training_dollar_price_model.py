@@ -1,9 +1,9 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2024-01-24
- # @ Modified by: Mitas Ray
- # @ Modified date: 2025-01-22
- '''
+Author: Mitas Ray
+Date: 2024-01-24
+Last Editor: Mitas Ray
+Last Edit Date: 2025-01-22
+'''
 import os
 import sys
 
