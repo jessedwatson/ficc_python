@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-02-05
+Last Edit Date: 2025-02-07
 '''
 import warnings
 import math
@@ -1222,6 +1222,7 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
         raise RuntimeError(f'No new data was found for {model} training, so the procedure is terminating gracefully and without issue. Raising an error only so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(current_date_model, encoders, model)
+        switch_traffic = True    # default value for `switch_traffic` in case there are downstream issues with comparing the newly trained model with the currently deployed model
         try:
             mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, business_date_before_test_data_date_data_previous_business_date_model_result_df]
             description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred on {test_data_date}.', 
@@ -1237,11 +1238,10 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
             else:
                 email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is greater than that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has NOT been switched</b> to the newly trained model. All traffic remains on the currently deployed model.'
             send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text_addendum + '<br><br>' + email_intro_text)    # use '<br>' for the separator since this will create a new line in the HTML body that will be sent out by email
-            # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
-            # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
-            return switch_traffic
         except Exception as e:
+            print(f'Switching traffic to the newly trained model since there may have been an issue with comparing the accuracy of the newly trained model with the currently deployed model. There may not be a currently deployed model within the last {MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK} days')
             print(f'{type(e)}:', e)
+        return switch_traffic
 
 
 def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
