@@ -1,19 +1,21 @@
 '''
- # @ Author: Anis Ahmad 
- # @ Create date: 2021-12-15
- # @ Modified by: Mitas Ray
- # @ Modified date: 2025-01-07
- # @ Description: This file contains function to help the functions 
- # to process training data
- '''
+Author: Anis Ahmad 
+Date: 2021-12-15
+Last Editor: Mitas Ray
+Last Edit Date: 2025-02-12
+Description: This file contains function to help the functions to process training data
+'''
 import time
 from functools import wraps
+from datetime import datetime, timedelta
+import warnings
 
 import urllib3
 import requests
 
 import pandas as pd
-from datetime import datetime, timedelta
+
+from google.api_core.exceptions import BadRequest
 
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, YS_BASE_TRADE_HISTORY_FEATURES, DP_BASE_TRADE_HISTORY_FEATURES
 from ficc.utils.diff_in_days import diff_in_days_two_dates
@@ -37,22 +39,43 @@ def function_timer(function_to_time):
     return wrapper
 
 
-def run_multiple_times_before_failing(function):
+def run_multiple_times_before_failing(error_types: tuple, max_runs: int = 10, exponential_backoff: bool = False):
+    '''This function returns a decorator. It will run `function` over and over again until it does not 
+    raise an Exception for a maximum of `max_runs` times. If `exponential_backoff` is set to `True`, then 
+    the wait time is increased exponentially, otherwise it is a constant value.
+    NOTE: max_runs = 1 is the same functionality as not having this decorator.'''
+    def decorator(function):
+        @wraps(function)    # used to ensure that the function name is still the same after applying the decorator when running tests: https://stackoverflow.com/questions/6312167/python-unittest-cant-call-decorated-test
+        def wrapper(*args, **kwargs):    # using the same formatting from https://docs.python.org/3/library/functools.html
+            runs_so_far = 0
+            while runs_so_far < max_runs:    # NOTE: max_runs = 1 is the same functionality as not having this decorator
+                try:
+                    return function(*args, **kwargs)
+                except error_types as e:
+                    runs_so_far += 1
+                    if runs_so_far >= max_runs:
+                        warnings.warn(f'Already caught {type(e)}: {e}, {max_runs} times in {function.__name__}, so will now raise the error')    # python_logging.warning(f'Already caught {type(e)}: {e}, {max_runs} times in {function.__name__}, so will now raise the error')
+                        raise e
+                    warnings.warn(f'WARNING: Caught {type(e)}: {e}, and will retry {function.__name__} {max_runs - runs_so_far} more times')    # python_logging.warning(f'Caught {type(e)}: {e}, and will retry {function.__name__} {max_runs - runs_so_far} more times')
+                    delay = min(2 ** (runs_so_far - 1), 10) if exponential_backoff else 1
+                    time.sleep(delay)    # have a delay to prevent overloading the server
+        return wrapper
+    return decorator
+
+
+def run_ten_times_before_raising_gcp_bucket_access_error(function: callable) -> callable:
     '''This function is to be used as a decorator. It will run `function` over and over again until it does not 
-    raise an Exception for a maximum of `max_runs` (specified below) times. It solves the following problem: GCP 
-    limits how quickly files can be downloaded from buckets and raises an `SSLError` or a `KeyError` when the 
-    buckets are accessed too quickly in succession.'''
-    @wraps(function)    # used to ensure that the function name is still the same after applying the decorator when running tests: https://stackoverflow.com/questions/6312167/python-unittest-cant-call-decorated-test
-    def wrapper(*args, **kwargs):    # using the same formatting from https://docs.python.org/3/library/functools.html
-        max_runs = 10    # NOTE: max_runs = 1 is the same functionality as not having this decorator
-        while max_runs > 0:
-            try:
-                return function(*args, **kwargs)
-            except (KeyError, urllib3.exceptions.SSLError, requests.exceptions.SSLError) as e:    # catches KeyError: 'email', KeyError: 'expires_in', urllib3.exceptions.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad, requests.exceptions.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac 
-                max_runs -= 1
-                if max_runs == 0: raise e
-                time.sleep(1)    # have a one second delay to prevent overloading the server
-    return wrapper
+    raise an Exception for a specified number of times. It solves the following problem: GCP limits how quickly 
+    files can be downloaded from buckets and raises an `SSLError` or a `KeyError` when the buckets are accessed 
+    too quickly in succession.'''
+    return run_multiple_times_before_failing((KeyError, urllib3.exceptions.SSLError, requests.exceptions.SSLError), 10)(function)    # catches KeyError: 'email', KeyError: 'expires_in', urllib3.exceptions.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad, requests.exceptions.SSLError: [SSL: DECRYPTION_FAILED_OR_BAD_RECORD_MAC] decryption failed or bad record mac 
+
+
+def run_ten_times_before_raising_bigquery_error(function: callable) -> callable:
+    '''This function is to be used as a decorator. It will run `function` over and over again until it does not 
+    raise an Exception for a specified number of times. It solves the following problem: BigQuey has transient 
+    issues when querying a table.'''
+    return run_multiple_times_before_failing((BadRequest,), 10)(function)
 
 
 def double_quote_a_string(potential_string):
@@ -62,6 +85,7 @@ def double_quote_a_string(potential_string):
     return f'"{str(potential_string)}"' if type(potential_string) == str else potential_string
 
 
+@run_ten_times_before_raising_bigquery_error
 def sqltodf(sql, bq_client):
     bqr = bq_client.query(sql).result()
     return bqr.to_dataframe()

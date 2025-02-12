@@ -2,12 +2,12 @@
 Author: Ahmad Shayaan
 Date: 2022-03-01
 Last Editor: Mitas Ray
-Last Edit Date: 2024-02-19
+Last Edit Date: 2025-02-12
 Description: Convenience functions to upload and download data from Google cloud buckets.
 '''
 import pickle
 
-from ficc.utils.auxiliary_functions import run_multiple_times_before_failing
+from ficc.utils.auxiliary_functions import run_ten_times_before_raising_gcp_bucket_access_error
 
 
 def upload_data(storage_client, bucket_name, file_name, file_path: str = None):
@@ -19,7 +19,7 @@ def upload_data(storage_client, bucket_name, file_name, file_path: str = None):
     print(f'File from {file_path} uploaded to {file_name} in Google cloud bucket: {bucket_name}')
 
 
-@run_multiple_times_before_failing
+@run_ten_times_before_raising_gcp_bucket_access_error
 def download_data(storage_client, bucket_name, file_name):
     '''Download file `file_name` from the cloud bucket `bucket_name`. Assumes 
     that `file_name` is a pickle file.'''
