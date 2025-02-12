@@ -2,7 +2,7 @@
  # @ Author: Mitas Ray
  # @ Create date: 2024-03-28
  # @ Modified by: Mitas Ray
- # @ Modified date: 2025-01-10
+ # @ Modified date: 2025-01-22
  '''
 import os
 import sys
@@ -181,6 +181,9 @@ DROPOUT = 0.01
 MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER = {'yield_spread': 'yield_spread_model', 
                                        'dollar_price': 'dollar_price_model', 
                                        'yield_spread_with_similar_trades': 'similar_trades_model'}
+
+
+ROW_NAME_DETERMINING_MODEL_SWITCH = 'Investment Grade'
 
 
 # setting variables for when `TESTING` is `True`

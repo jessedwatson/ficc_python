@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-27
+Last Edit Date: 2025-02-10
 '''
 import warnings
 import math
@@ -76,7 +76,8 @@ from auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                 NUM_EPOCHS, \
                                 MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
                                 TESTING, \
-                                USE_PICKLED_DATA
+                                USE_PICKLED_DATA, \
+                                ROW_NAME_DETERMINING_MODEL_SWITCH
 from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from dollar_model import dollar_price_model
 from set_random_seed import set_seed
@@ -405,7 +406,9 @@ def save_data(data: pd.DataFrame, file_name: str, upload_to_google_cloud_bucket:
     data = remove_old_trades(data, MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, dataset_name='entire processed data file')
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
-    if upload_to_google_cloud_bucket: upload_data(STORAGE_CLIENT, BUCKET_NAME, file_name, file_path)
+    if upload_to_google_cloud_bucket:
+        folder_prefix = 'processed_data/' if file_name.startswith('processed_data_') else ''
+        upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{folder_prefix}{file_name}', file_path)
 
 
 def _get_trade_date_where_data_exists(date, data: pd.DataFrame, max_number_of_business_days_to_go_back: int, exclusions_function: callable, on_or_after: str = 'after'):
@@ -491,7 +494,7 @@ def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: b
 
 def get_data_and_last_trade_datetime(bucket_name: str, file_name: str):
     '''Get the dataframe from `bucket_name/file_name` and the most recent trade datetime from this dataframe.'''
-    data = None if file_name is None else download_data(STORAGE_CLIENT, bucket_name, file_name)
+    data = None if file_name is None else download_data(STORAGE_CLIENT, bucket_name, f'processed_data/{file_name}')
     if data is None: return None, EARLIEST_TRADE_DATETIME, EARLIEST_TRADE_DATETIME[:10]    # get trades starting from `EARLIEST_TRADE_DATETIME` if we do not have these trades already in a pickle file; string representation of datetime has the date as the first 10 characters (YYYY-MM-DD is 10 characters)
     last_trade_datetime = data.trade_datetime.max().strftime(YEAR_MONTH_DAY + 'T' + HOUR_MIN_SEC)
     last_trade_date = data.trade_date.max().date().strftime(YEAR_MONTH_DAY)
@@ -1179,7 +1182,8 @@ def remove_file(file_path: str) -> None:
         print(f'{type(e)}: {e}')
 
 
-def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None):
+def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None) -> bool:
+    '''Returns a boolean indicating whether the model traffic should be switched based to the newly trained model.'''
     check_that_model_is_supported(model)
     print(f'Python version: {sys.version}')
     current_datetime = datetime.now(EASTERN)
@@ -1218,17 +1222,26 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
         raise RuntimeError(f'No new data was found for {model} training, so the procedure is terminating gracefully and without issue. Raising an error only so that the shell script terminates.')
     else:
         if SAVE_MODEL_AND_DATA: save_model(current_date_model, encoders, model)
+        switch_traffic = True    # default value for `switch_traffic` in case there are downstream issues with comparing the newly trained model with the currently deployed model
         try:
             mae_df_list = [current_date_data_current_date_model_result_df, current_date_data_previous_business_date_model_result_df, business_date_before_test_data_date_data_previous_business_date_model_result_df]
             description_list = [f'The below table shows the accuracy of the newly trained {model} model for the trades that occurred on {test_data_date}.', 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {test_data_date}. If there are three tables in this email, then this one evaluates on the same test dataset as the first table but with a different (previous business day) model. If the accuracy on this table is better than the first table, this may imply that the older model is more accurate. Note, however, that the model has not been (and, cannot be) evaluated yet on the trades that will occur today.', 
                                 f'The below table shows the accuracy of the {model} model trained on {previous_business_date_model_date} which was the one deployed on {previous_business_date_model_date} for the trades that occurred on {business_date_before_test_data_date}. If there are three tables in this email, then this one evaluates the same model as the second table but on a different (previous business day) test dataset. If the accuracy on this table is better than the second table, this may mean that the trades in the test set used for the first two tables are more challenging (harder to predict) than the trades from the test set used for this table.']
             mae_df_list, description_list = list(zip(*[(mae_df, description) for (mae_df, description) in zip(mae_df_list, description_list) if mae_df is not None]))    # only keep the (`mae_df`, `description`) pair if the `mae_df` is not None, and then put them into separate lists
-            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text)
-            # send_results_email_table(current_date_data_current_date_model_result_df, current_date, EMAIL_RECIPIENTS, model)
-            # send_results_email(mae, current_date, EMAIL_RECIPIENTS, model)
+            
+            newly_trained_model_mae = current_date_data_current_date_model_result_df.loc[ROW_NAME_DETERMINING_MODEL_SWITCH, 'Mean Absolute Error']
+            currently_deployed_model_mae = current_date_data_previous_business_date_model_result_df.loc[ROW_NAME_DETERMINING_MODEL_SWITCH, 'Mean Absolute Error']
+            switch_traffic = newly_trained_model_mae <= currently_deployed_model_mae
+            if switch_traffic:
+                email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is less than or equal to that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has been switched</b> to the newly trained model.'
+            else:
+                email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is greater than that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has NOT been switched</b> to the newly trained model. All traffic remains on the currently deployed model.'
+            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text_addendum + '<hr>' + email_intro_text)    # use '<hr>' for the horizontal rule since this will create a horizontal line in the HTML body between the addendum and the other intro text
         except Exception as e:
+            print(f'Switching traffic to the newly trained model since there may have been an issue with comparing the accuracy of the newly trained model with the currently deployed model. There may not be a currently deployed model within the last {MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK} days')
             print(f'{type(e)}:', e)
+        return switch_traffic
 
 
 def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
