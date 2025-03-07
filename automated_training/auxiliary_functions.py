@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-02-10
+Last Edit Date: 2025-03-06
 '''
 import warnings
 import math
@@ -461,7 +461,7 @@ def get_feature_as_array(df: pd.DataFrame, feature_name: str) -> np.array:
 def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False, column_to_be_sorted_by: str = 'trade_datetime'):
     check_that_model_is_supported(model)
     if not data[column_to_be_sorted_by].is_monotonic_increasing:
-        print(f'Creating input data by first sorting the data by {column_to_be_sorted_by} ascending')
+        print(f'Creating input data by first sorting the data by {column_to_be_sorted_by} ascending to be able to separate the training data and the validation data by {column_to_be_sorted_by}')
         data = data.sort_values(column_to_be_sorted_by, ascending=True)    # sort by `column_to_be_sorted_by` so further downstream operations (e.g., creating the validation set) is done with respect to the time series nature of the data
     
     datalist = []
