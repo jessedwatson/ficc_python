@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2025-01-21
 Last Editor: Mitas Ray
-Last Edit Date: 2025-03-06
+Last Edit Date: 2025-03-07
 Description: Used to train a model with a processed data file. Heavily uses code from `automated_training/`. Note: update `auxiliary_functions.py::get_creds(...)` with the correct file path.
 
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u train_model.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
@@ -39,7 +39,7 @@ from auxiliary_variables import MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, BUCKET
 import auxiliary_functions
 auxiliary_functions.SAVE_MODEL_AND_DATA = False
 
-from auxiliary_functions import train_model, setup_gpus, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime
+from auxiliary_functions import train_model, setup_gpus, get_optional_arguments_for_process_data, get_data_and_last_trade_datetime    #, apply_exclusions
 from clean_training_log import remove_lines_with_tensorflow_progress_bar
 
 
@@ -92,13 +92,13 @@ def get_num_features_for_each_trade_in_history(model: str = MODEL) -> int:
     return len(trade_history_features)    # from `auxiliary_functions.py::get_new_data(...)`
 
 
-def train_model_from_data_file(data: pd.DataFrame, num_days: int, output_file_path: str = None):
+def train_model_from_data_file(data: pd.DataFrame, num_days: int, output_file_path: str = None, exclusions_function: callable = None):
     most_recent_dates = np.sort(data['trade_date'].unique())[::-1]    # sort the unique `trade_date`s in descending order (the descending order comes from the slice)
     most_recent_dates = most_recent_dates[:num_days + 1]    # restrict to `num_days` most recent dates
     for day_idx in range(num_days):
         date_for_test_set, most_recent_date_for_training_set = most_recent_dates[day_idx], most_recent_dates[day_idx + 1]
         data = data[data['trade_date'] <= date_for_test_set]    # iteratively remove the last date from `data`
-        model, _, _, _, _, mae, (mae_df, _), _ = train_model(data, most_recent_date_for_training_set, MODEL, get_num_features_for_each_trade_in_history())
+        model, _, _, _, _, mae, (mae_df, _), _ = train_model(data, most_recent_date_for_training_set, MODEL, get_num_features_for_each_trade_in_history(), exclusions_function=exclusions_function)
         if output_file_path is not None: remove_lines_with_tensorflow_progress_bar(output_file_path)
         
 
@@ -106,4 +106,4 @@ if __name__ == '__main__':
     setup_gpus(False)
     data = get_processed_data_pickle_file(MODEL)
     output_file_name = 'output.txt'
-    train_model_from_data_file(data, NUM_DAYS, output_file_name)
+    train_model_from_data_file(data, NUM_DAYS, output_file_name)    # , exclusions_function=apply_exclusions)
