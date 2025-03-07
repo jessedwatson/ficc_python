@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2025-01-21
 Last Editor: Mitas Ray
-Last Edit Date: 2025-02-04
+Last Edit Date: 2025-03-06
 Description: Used to train a model with a processed data file. Heavily uses code from `automated_training/`. Note: update `auxiliary_functions.py::get_creds(...)` with the correct file path.
 
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u train_model.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
@@ -59,6 +59,16 @@ if TESTING:
     NUM_DAYS = 1
 
 
+def restrict_trades_by_trade_datetime(df: pd.DataFrame, 
+                                      start_trade_datetime: str = None, 
+                                      end_trade_datetime: str = None) -> pd.DataFrame:
+    '''`start_trade_datetime` and `end_trade_datetime` can be string objects representing a date, e.g., '2025-01-17' 
+    because numpy automatically converts the string into a datetime object before making the comparison.'''
+    if start_trade_datetime is not None: df = df[df['trade_datetime'] >= start_trade_datetime]
+    if end_trade_datetime is not None: df = df[df['trade_datetime'] <= end_trade_datetime]
+    return df
+
+
 @function_timer
 def get_processed_data_pickle_file(model: str = MODEL) -> pd.DataFrame:
     file_name = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[model]
@@ -83,7 +93,7 @@ def get_num_features_for_each_trade_in_history(model: str = MODEL) -> int:
 
 
 def train_model_from_data_file(data: pd.DataFrame, num_days: int, output_file_path: str = None):
-    most_recent_dates = np.sort(data['trade_date'].unique())[::-1]
+    most_recent_dates = np.sort(data['trade_date'].unique())[::-1]    # sort the unique `trade_date`s in descending order (the descending order comes from the slice)
     most_recent_dates = most_recent_dates[:num_days + 1]    # restrict to `num_days` most recent dates
     for day_idx in range(num_days):
         date_for_test_set, most_recent_date_for_training_set = most_recent_dates[day_idx], most_recent_dates[day_idx + 1]
