@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-03-06
+Last Edit Date: 2025-03-27
 '''
 import warnings
 import math
@@ -60,6 +60,7 @@ from auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                 AUXILIARY_VIEWS_DATASET_NAME, \
                                 YIELD_CURVE_DATASET_NAME, \
                                 BUCKET_NAME, \
+                                TRAINING_LOGS_DIRECTORY, \
                                 MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
                                 EARLIEST_TRADE_DATETIME, \
                                 MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
@@ -1237,7 +1238,8 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
                 email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is less than or equal to that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has been switched</b> to the newly trained model.'
             else:
                 email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is greater than that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has NOT been switched</b> to the newly trained model. All traffic remains on the currently deployed model.'
-            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text_addendum + '<hr>' + email_intro_text)    # use '<hr>' for the horizontal rule since this will create a horizontal line in the HTML body between the addendum and the other intro text
+            training_logs_location = f'The training logs can be found in the Google Cloud Storage: `{BUCKET_NAME}/{TRAINING_LOGS_DIRECTORY}/'
+            send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text_addendum + '<hr>' + training_logs_location + '<hr>' + email_intro_text)    # use '<hr>' for the horizontal rule since this will create a horizontal line in the HTML body between the addendum and the other intro text
         except Exception as e:
             print(f'Switching traffic to the newly trained model since there may have been an issue with comparing the accuracy of the newly trained model with the currently deployed model. There may not be a currently deployed model within the last {MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK} days')
             print(f'{type(e)}:', e)

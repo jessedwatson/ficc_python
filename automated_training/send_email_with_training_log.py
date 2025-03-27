@@ -1,18 +1,17 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2024-01-29
- # @ Modified by: Mitas Ray
- # @ Modified date: 2025-03-27
- # @ Description: Used to send an email to a list of recipients with the training log attached. This allows the 
- the recipients to view the training log without having to ssh into the VM where the training occurs.
- '''
+Author: Mitas Ray
+Date: 2024-01-29
+Last Editor: Mitas Ray
+Last Edit Date: 2025-03-27
+Description: Used to send an email to a list of recipients with the training log attached. This allows the the recipients to view the training log without having to ssh into the VM where the training occurs.
+'''
 import os
 import sys
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 
-from auxiliary_variables import EMAIL_RECIPIENTS_FOR_LOGS, BUCKET_NAME
+from auxiliary_variables import EMAIL_RECIPIENTS_FOR_LOGS, BUCKET_NAME, TRAINING_LOGS_DIRECTORY
 from auxiliary_functions import send_email, check_that_model_is_supported, STORAGE_CLIENT
 
 
@@ -34,9 +33,9 @@ def get_filename_from_path(path: str) -> str:
 
 
 def store_logs_in_google_cloud_storage(file_name: str, file_path: str, model: str):
-    '''Store the logs in Google Cloud Storage.'''
+    '''Store the logs in Google Cloud Storage in bucket `BUCKET_NAME` and directory `TRAINING_LOGS_DIRECTORY`.'''
     print(f'Storing logs in Google Cloud Storage for {model} model')
-    upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{model}/{file_name}', file_path)
+    upload_data(STORAGE_CLIENT, BUCKET_NAME, f'{TRAINING_LOGS_DIRECTORY}/{model}/{file_name}', file_path)
 
 
 def send_training_log(attachment_path, recipients: list, model: str, message: str):
