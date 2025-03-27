@@ -1382,7 +1382,7 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <br>
     5. Train the models by going into the VM, update your user using these instructions: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#463a8cb282e2454db42584317a31a42b. Then, run the corresponding command from https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#122eb87466c28077b8b9d87f9f9490ec.
     <hr>
-    See [this Notion page](https://www.notion.so/Yield-Curve-0e9d3fb1a49a4789826083361257a962?pvs=4#189eb87466c280d9ad01dc717ba0c6ae) for more details on related cloud functions and procedures.
+    See [this Notion page](https://www.notion.so/Yield-Curve-0e9d3fb1a49a4789826083361257a962?pvs=4#189eb87466c280d9ad01dc717ba0c6ae) for more details on related cloud functions and procedures. The training logs can be found in the Google Cloud Storage: `{BUCKET_NAME}/{TRAINING_LOGS_DIRECTORY}/'.
     </body>
     </html>
     '''
