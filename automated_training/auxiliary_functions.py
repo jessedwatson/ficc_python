@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-03-27
+Last Edit Date: 2025-03-28
 '''
 import warnings
 import math
@@ -1238,7 +1238,7 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
                 email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is less than or equal to that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has been switched</b> to the newly trained model.'
             else:
                 email_intro_text_addendum = f'{ROW_NAME_DETERMINING_MODEL_SWITCH} MAE of newly trained model ({newly_trained_model_mae}) is greater than that of the currently deployed model ({currently_deployed_model_mae}) and so model traffic <b>has NOT been switched</b> to the newly trained model. All traffic remains on the currently deployed model.'
-            training_logs_location = f'The training logs can be found in the Google Cloud Storage: `{BUCKET_NAME}/{TRAINING_LOGS_DIRECTORY}/'
+            training_logs_location = f'The training logs can be found in the Google Cloud Storage bucket: {BUCKET_NAME}, inside the directory: {TRAINING_LOGS_DIRECTORY}/.'
             send_results_email_multiple_tables(mae_df_list, description_list, current_date, EMAIL_RECIPIENTS, model, email_intro_text_addendum + '<hr>' + training_logs_location + '<hr>' + email_intro_text)    # use '<hr>' for the horizontal rule since this will create a horizontal line in the HTML body between the addendum and the other intro text
         except Exception as e:
             print(f'Switching traffic to the newly trained model since there may have been an issue with comparing the accuracy of the newly trained model with the currently deployed model. There may not be a currently deployed model within the last {MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK} days')
@@ -1382,7 +1382,7 @@ def send_no_new_model_email(last_trade_date: str, recipients: list, model: str) 
     <br>
     5. Train the models by going into the VM, update your user using these instructions: https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#463a8cb282e2454db42584317a31a42b. Then, run the corresponding command from https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8?pvs=4#122eb87466c28077b8b9d87f9f9490ec.
     <hr>
-    See [this Notion page](https://www.notion.so/Yield-Curve-0e9d3fb1a49a4789826083361257a962?pvs=4#189eb87466c280d9ad01dc717ba0c6ae) for more details on related cloud functions and procedures. The training logs can be found in the Google Cloud Storage: `{BUCKET_NAME}/{TRAINING_LOGS_DIRECTORY}/'.
+    See [this Notion page](https://www.notion.so/Yield-Curve-0e9d3fb1a49a4789826083361257a962?pvs=4#189eb87466c280d9ad01dc717ba0c6ae) for more details on related cloud functions and procedures. The training logs can be found in the Google Cloud Storage bucket: {BUCKET_NAME}, inside the directory: {TRAINING_LOGS_DIRECTORY}/.
     </body>
     </html>
     '''
