@@ -97,7 +97,7 @@ def predict_ytw(maturity: np.array,
 @cache
 def yield_curve_level(maturity: float, target_date, nelson_params, scalar_params, shape_parameter):
     '''This is the main function takes as input a json containing two arguments: the maturity we want the yield-to-worst for and the target
-    ate from which we want the yield curve used in the ytw calculations to be from. There are several conditional statements to deal with
+    date from which we want the yield curve used in the ytw calculations to be from. There are several conditional statements to deal with
     different types of exceptions.
 
     The cloud function returns a json containing the status (Failed or Success), the error message (if any)

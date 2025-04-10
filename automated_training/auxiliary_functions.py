@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-04-09
+Last Edit Date: 2025-04-10
 '''
 import warnings
 import math
@@ -184,12 +184,11 @@ def target_trade_processing_for_attention(row):
 
 
 def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_parameter):
-    if pd.isnull(row['last_calc_date'])or pd.isnull(row['last_trade_date']):
-        # if there is no last trade, we use the duration of the current bond
-        duration = diff_in_days_two_dates(row['maturity_date'], row['trade_date']) / NUM_OF_DAYS_IN_YEAR
-        ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
-        return ycl
-    duration =  diff_in_days_two_dates(row['last_calc_date'], row['last_trade_date']) / NUM_OF_DAYS_IN_YEAR
+    if pd.isnull(row['last_calc_date']) or pd.isnull(row['last_trade_date']):    # if there is no last trade, we use the maturity date for duration computations
+        start_date, end_date = row['trade_date'], row['maturity_date']
+    else:
+        start_date, end_date = row['last_trade_date'], row['last_calc_date']
+    duration =  diff_in_days_two_dates(end_date, start_date) / NUM_OF_DAYS_IN_YEAR
     ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
     return ycl
 
