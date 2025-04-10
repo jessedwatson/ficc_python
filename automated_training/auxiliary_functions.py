@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-03-28
+Last Edit Date: 2025-04-09
 '''
 import warnings
 import math
@@ -459,12 +459,9 @@ def get_feature_as_array(df: pd.DataFrame, feature_name: str) -> np.array:
 
 
 @function_timer
-def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False, column_to_be_sorted_by: str = 'trade_datetime'):
+def create_input(data: pd.DataFrame, encoders: dict, model: str, ignore_label: bool = False):
     check_that_model_is_supported(model)
-    if not data[column_to_be_sorted_by].is_monotonic_increasing:
-        print(f'Creating input data by first sorting the data by {column_to_be_sorted_by} ascending to be able to separate the training data and the validation data by {column_to_be_sorted_by}')
-        data = data.sort_values(column_to_be_sorted_by, ascending=True)    # sort by `column_to_be_sorted_by` so further downstream operations (e.g., creating the validation set) is done with respect to the time series nature of the data
-    
+
     datalist = []
     if model == 'yield_spread_with_similar_trades': datalist.append(get_feature_as_array(data, 'similar_trade_history'))
     trade_history_feature_name = 'trade_history' if 'yield_spread' in model else 'trade_history_dollar_price'
@@ -1040,6 +1037,11 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     non_cat_features = NON_CAT_FEATURES if 'yield_spread' in model else NON_CAT_FEATURES_DOLLAR_PRICE
     binary = BINARY if 'yield_spread' in model else BINARY_DOLLAR_PRICE
 
+    column_to_be_sorted_by = 'trade_datetime'
+    if not train_data[column_to_be_sorted_by].is_monotonic_increasing:
+        print(f'Sorting the data by {column_to_be_sorted_by} ascending to be able to separate the training data and the validation data by {column_to_be_sorted_by}')
+        train_data = train_data.sort_values(column_to_be_sorted_by, ascending=True)    # sort by `column_to_be_sorted_by` so further downstream operations (e.g., creating the validation set) is done with respect to the time series nature of the data
+
     x_train, y_train = create_input(train_data, encoders, model)
     x_test, y_test = create_input(test_data, encoders, model)
 
@@ -1072,11 +1074,16 @@ def train_model(data: pd.DataFrame, last_trade_date: str, model: str, num_featur
     # uploading predictions to bigquery (only for yield spread model)
     if SAVE_MODEL_AND_DATA and 'yield_spread' in model:
         try:
-            test_data_before_exclusions_x_test, _ = create_input(test_data_before_exclusions, encoders, model)
+            test_data_before_exclusions_x_test, test_data_before_exclusions_y_test = create_input(test_data_before_exclusions, encoders, model)
+
+            print('Creating summary of results for test data before exclusions ...')
+            create_summary_of_results(trained_model, test_data_before_exclusions, test_data_before_exclusions_x_test, test_data_before_exclusions_y_test)
+            
             test_data_before_exclusions['new_ys_prediction'] = trained_model.predict(test_data_before_exclusions_x_test, batch_size=BATCH_SIZE)
             test_data_before_exclusions = test_data_before_exclusions[['rtrs_control_number', 'cusip', 'trade_date', 'dollar_price', 'yield', 'new_ficc_ycl', 'new_ys', 'new_ys_prediction']]
             test_data_before_exclusions['prediction_datetime'] = pd.to_datetime(datetime.now(EASTERN).replace(microsecond=0))
             test_data_before_exclusions['trade_date'] = pd.to_datetime(test_data_before_exclusions['trade_date']).dt.date
+            
             upload_predictions(test_data_before_exclusions, model)
         except Exception as e:
             print(f'Failed to upload predictions to BigQuery. {type(e)}:', e)
@@ -1247,6 +1254,7 @@ def train_save_evaluate_model(model: str, exclusions_function: callable = None, 
 
 
 def apply_exclusions(data: pd.DataFrame, dataset_name: str = None):
+    print(f'Applying the exclusions function defined in `apply_exclusions(...)` now ...')
     from_dataset_name = f' from {dataset_name}' if dataset_name is not None else ''
     data_before_exclusions = data[:]
     
