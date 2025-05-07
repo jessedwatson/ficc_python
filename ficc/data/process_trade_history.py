@@ -2,7 +2,7 @@
 Author: Ahmad Shayaan
 Date: 2021-12-17
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-23
+Last Edit Date: 2025-05-07
 '''
 import os
 import pandas as pd
@@ -14,7 +14,7 @@ from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
 
-def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
+def fetch_trade_data(query, bq_client, PATH='data.pkl', save_data=True):
     if os.path.isfile(PATH):
         print(f'Data file {PATH} found, reading data from it')
         with open(PATH, 'rb') as f: 
@@ -26,7 +26,7 @@ def fetch_trade_data(query, client, PATH='data.pkl', save_data=True):
     
     print(f'Grabbing data from BigQuery with query:')
     print(query)
-    trades_df = sqltodf(query, client)
+    trades_df = sqltodf(query, bq_client)
 
     if save_data:
         print(f'Saving query and data to {PATH}')
@@ -61,7 +61,7 @@ def restrict_number_of_trades_and_pad_trade_history(df: pd.DataFrame, trade_hist
 
 
 def process_trade_history(query: str,
-                          client, 
+                          bq_client, 
                           num_trades_in_history: int, 
                           num_features_for_each_trade_in_history: int, 
                           PATH: str,  
@@ -72,15 +72,16 @@ def process_trade_history(query: str,
                           add_rtrs_in_history: bool,
                           only_dollar_price_history: bool, 
                           yield_curve_to_use: str, 
-                          treasury_rate_dict: dict = None, 
-                          nelson_params: dict = None, 
-                          scalar_params: dict = None, 
-                          shape_parameter: dict = None, 
+                          treasury_rate_dict: dict, 
+                          nelson_params: dict, 
+                          scalar_params: dict, 
+                          shape_parameter: dict, 
                           save_data: bool = True, 
                           process_similar_trades_history: bool = False, 
-                          use_multiprocessing: bool = True):
+                          use_multiprocessing: bool = True, 
+                          end_of_day: bool = False):
     if use_multiprocessing: initialize_pandarallel()
-    trades_df = fetch_trade_data(query, client, PATH, save_data)
+    trades_df = fetch_trade_data(query, bq_client, PATH, save_data)
     if len(trades_df) == 0:
         print('Raw data contains 0 trades')
         return None
@@ -107,7 +108,8 @@ def process_trade_history(query: str,
                                                                  treasury_rate_dict, 
                                                                  nelson_params, 
                                                                  scalar_params, 
-                                                                 shape_parameter]))
+                                                                 shape_parameter, 
+                                                                 end_of_day]))
                                                                         
     trades_df[[processed_trade_history_column_name, last_features_column_name]] = pd.DataFrame(processed_trades_df.tolist(), index=trades_df.index)
     del processed_trades_df
@@ -149,7 +151,8 @@ def process_trade_history(query: str,
                                                                      treasury_rate_dict, 
                                                                      nelson_params, 
                                                                      scalar_params, 
-                                                                     shape_parameter]))
+                                                                     shape_parameter, 
+                                                                     end_of_day]))
         # TODO: speed the below line up by not storing the unnecessary information for the most recent trade (needed when processing same CUSIP trade history, but not for similar trade history)
         trades_df[[processed_trade_history_column_name, last_features_column_name]] = pd.DataFrame(processed_trades_df.tolist(), index=trades_df.index)
         del processed_trades_df

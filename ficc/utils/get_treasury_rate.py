@@ -1,10 +1,9 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2022-09-29
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-13
- # @ Description:
- '''
+Author: Ahmad Shayaan
+Date: 2022-09-29
+Last Editor: Mitas Ray
+Last Edit Date: 2024-02-13
+'''
 import numpy as np
 
 from ficc.utils.auxiliary_functions import sqltodf

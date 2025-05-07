@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-04-10
+Last Edit Date: 2025-05-07
 '''
 import warnings
 import math
@@ -94,6 +94,7 @@ from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade
 from ficc.utils.nelson_siegel_model import yield_curve_level
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
+from ficc.utils.get_treasury_rate import get_treasury_rate_dict, current_treasury_rate
 
 
 set_seed()
@@ -183,14 +184,14 @@ def target_trade_processing_for_attention(row):
     return np.tile(target_trade_features, (1, 1))
 
 
-def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_parameter):
+def get_yield_curve_level_for_last_duration(row, nelson_params: dict, scalar_params: dict, shape_params: dict, end_of_day: bool) -> float:
+    '''`end_of_day` is a boolean that indicates whether the data is end-of-day yield curve or the real-time (minute) yield curve.'''
     if pd.isnull(row['last_calc_date']) or pd.isnull(row['last_trade_date']):    # if there is no last trade, we use the maturity date for duration computations
         start_date, end_date = row['trade_date'], row['maturity_date']
     else:
         start_date, end_date = row['last_trade_date'], row['last_calc_date']
-    duration =  diff_in_days_two_dates(end_date, start_date) / NUM_OF_DAYS_IN_YEAR
-    ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
-    return ycl
+    duration = diff_in_days_two_dates(end_date, start_date) / NUM_OF_DAYS_IN_YEAR
+    return yield_curve_level(duration, row['trade_datetime'], nelson_params, scalar_params, shape_params, end_of_day) / 100
 
 
 def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
@@ -202,11 +203,16 @@ def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
 
 
 @function_timer
-def add_yield_curve(data):
-    '''Add 'new_ficc_ycl' field to `data`.'''
+def add_yield_curve(data, end_of_day: bool = False) -> pd.DataFrame:
+    '''Add 'new_ficc_ycl' field to `data`. `end_of_day` is a boolean that indicates whether the data is end-of-day yield curve or the real-time (minute) yield curve.'''
     initialize_pandarallel()    # only initialize if needed
 
-    nelson_daily_params = get_parameters('nelson_siegel_coef_daily')
+    # TODO: extract the minimum date from `data`, and pass it into `get_parameters(...)` to get the parameters for that date +/- a few days; this will speed up the querying and other downstream procedures
+    if end_of_day:
+        nelson_params = get_parameters('nelson_siegel_coef_daily')
+    else:
+        nelson_params = get_parameters('nelson_siegel_coef_minute')
+
     scalar_daily_params = get_parameters('standardscaler_parameters_daily')
     shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
 
@@ -215,8 +221,24 @@ def add_yield_curve(data):
                                  'last_settlement_date',
                                  'trade_date',
                                  'last_trade_date',
-                                 'maturity_date']].parallel_apply(lambda row: get_yield_for_last_duration(row, nelson_daily_params, scalar_daily_params, shape_params), axis=1)
+                                 'maturity_date']].parallel_apply(lambda row: get_yield_curve_level_for_last_duration(row, nelson_params, scalar_daily_params, shape_params, end_of_day), axis=1)
     data['new_ficc_ycl'] = data['new_ficc_ycl'] * 100
+    return data
+
+
+@function_timer
+def add_treasury_spread(data: pd.DataFrame, use_multiprocessing: bool = True) -> pd.DataFrame:
+    assert 'new_ficc_ycl' in data.columns, '`new_ficc_ycl` column is not present in the data. Please call `add_yield_curve(...)` before calling this function.'
+    treasury_rate_dict = get_treasury_rate_dict(BQ_CLIENT)
+    columns_needed_for_treasury_rate = ['trade_date', 'last_calc_date', 'settlement_date']
+    treasury_rate_apply_func = data[columns_needed_for_treasury_rate].parallel_apply if use_multiprocessing else data[columns_needed_for_treasury_rate].apply
+    data['treasury_rate'] = treasury_rate_apply_func(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
+    null_treasury_rate = data['treasury_rate'].isnull()
+    if null_treasury_rate.sum() > 0:
+        trade_dates_corresponding_to_null_treasury_rate = data.loc[null_treasury_rate, 'trade_date']
+        print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique().to_numpy()}')
+        data = data[~null_treasury_rate]
+    data['ficc_treasury_spread'] = data['new_ficc_ycl'] - (data['treasury_rate'] * 100)
     return data
 
 
@@ -328,7 +350,7 @@ def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_tra
 
 
 @function_timer
-def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str) -> pd.DataFrame:
+def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str, use_treasury_spread: bool) -> pd.DataFrame:
     initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
     if new_data is None: return old_data    # there is new data since `last_trade_date`
@@ -348,7 +370,9 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
             old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda history: history[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
     new_data['yield'] = new_data['yield'] * 100
-    if 'yield_spread' in model: new_data = add_yield_curve(new_data)
+    if 'yield_spread' in model:
+        new_data = add_yield_curve(new_data)    # adds `new_ficc_ycl` column to `new_data`
+        if use_treasury_spread: new_data = add_treasury_spread(new_data)    # adds `ficc_treasury_spread` column to `new_data`
     new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
 
     trade_history_sum_features = []    # remove these features after checking for null values
@@ -568,7 +592,7 @@ def update_data(model: str):
                                                                                                                                                               use_treasury_spread=use_treasury_spread, 
                                                                                                                                                               optional_arguments_for_process_data=optional_arguments_for_process_data)
     if data_from_last_trade_datetime is not None:    # no need to continue this procedure if there are no new trades since the below subprocedures were performed on the data before storing it on Google Cloud Storage
-        data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
+        data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model, use_treasury_spread)
         data = add_trade_history_derived_features(data, model, use_treasury_spread)
         data = drop_features_with_null_value(data, model)
         if SAVE_MODEL_AND_DATA: save_data(data, filename)

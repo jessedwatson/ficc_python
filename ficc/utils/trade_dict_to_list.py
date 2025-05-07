@@ -1,16 +1,10 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2021-12-16
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-09-24
- # @ Description:The trade_dict_to_list converts the recent trade dictionary to a list.
- # The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
- # 
- # A few blunt normalization are performed on the data. We will experiment with others as well. 
- # Multiplying the yield spreads by 100 to convert into basis points. 
- # Taking the log of the size of the trade to reduce the absolute scale 
- # Taking the log of the number of seconds between the historical trade and the latest trade
- '''
+Author: Ahmad Shayaan
+Date: 2021-12-16
+Last Editor: Mitas Ray
+Last Edit Date: 2025-05-07
+Description: Converts the recent trade dictionary to a list. The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
+'''
 import numpy as np
 import pandas as pd
 
@@ -33,7 +27,8 @@ def trade_dict_to_list(trade_dict: dict,
                        treasury_rate_dict: dict, 
                        nelson_params: dict, 
                        scalar_params: dict, 
-                       shape_parameter: dict) -> list:
+                       shape_parameter: dict, 
+                       end_of_day: bool) -> list:
     trade_type_mapping = {'D': [0, 0], 'S': [0, 1], 'P': [1, 0]}
     trade_list = []
     necessary_features = [
@@ -74,16 +69,17 @@ def trade_dict_to_list(trade_dict: dict,
                     print(f'{key}: {value}')
                 return None, None
 
-        target_date = trade_dict['trade_datetime'].date()
+        trade_datetime = trade_dict['trade_datetime']
+        trade_date = trade_datetime.date()
         calc_date = trade_dict['calc_date']
-        time_to_maturity = diff_in_days_two_dates(calc_date, target_date) / NUM_OF_DAYS_IN_YEAR
+        time_to_maturity = diff_in_days_two_dates(calc_date, trade_date) / NUM_OF_DAYS_IN_YEAR
 
         if time_to_maturity <= 0:
-            print(f'Skipped the following trade because the time to maturity is nonpositive. RTRS control number: {int(trade_dict["rtrs_control_number"])}\t\tTrade datetime: {trade_dict["trade_datetime"]}\t\tCalc date: {calc_date}')
+            print(f'Skipped the following trade because the time to maturity is nonpositive. RTRS control number: {int(trade_dict["rtrs_control_number"])}\t\tTrade datetime: {trade_datetime}\t\tCalc date: {calc_date}')
             return None, None
         
-        if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':    # ficc yield curve coefficients are only present before 2021-07-27 for the old yield curve and 2021-08-02 for the new yield curve
-            yield_at_that_time = yield_curve_level(time_to_maturity, target_date, nelson_params, scalar_params, shape_parameter)
+        if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':    # yield curve coefficients are only present before 2021-07-27 for the old yield curve and 2021-08-02 for the new yield curve
+            yield_at_that_time = yield_curve_level(time_to_maturity, trade_datetime, nelson_params, scalar_params, shape_parameter, end_of_day)
 
             if trade_dict['yield'] is not None and yield_at_that_time is not None:
                 yield_spread = trade_dict['yield'] * 100 - yield_at_that_time
@@ -96,7 +92,7 @@ def trade_dict_to_list(trade_dict: dict,
             maturity = min(treasury_maturities, key=lambda x: abs(x - time_to_maturity))
             maturity = 'year_' + str(maturity)
             try:
-                t_rate = treasury_rate_dict[target_date][maturity]
+                t_rate = treasury_rate_dict[trade_date][maturity]
             except Exception as e:
                 return None, None
 
@@ -124,7 +120,7 @@ def trade_dict_to_list(trade_dict: dict,
         trade_dict['next_call_date'],
         trade_dict['par_call_date'],
         trade_dict['refund_date'],
-        trade_dict['trade_datetime'],
+        trade_datetime,
         trade_dict['calc_day_cat'],
         trade_dict['settlement_date'],
         trade_dict['trade_type'],

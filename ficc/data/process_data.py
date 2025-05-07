@@ -2,7 +2,7 @@
 Author: Ahmad Shayaan
 Date: 2021-12-16
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-23
+Last Edit Date: 2025-05-07
 '''
 import warnings
 import numpy as np
@@ -11,17 +11,16 @@ from ficc.utils.process_features import process_features
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
 from ficc.data.process_trade_history import process_trade_history
-from ficc.utils.yield_curve import get_ficc_ycl
 from ficc.utils.auxiliary_functions import convert_dates
 from ficc.utils.auxiliary_variables import RELATED_TRADE_FEATURE_PREFIX, NUM_RELATED_TRADES, CATEGORICAL_REFERENCE_FEATURES_PER_RELATED_TRADE
-from ficc.utils.get_treasury_rate import get_treasury_rate_dict, current_treasury_rate
+from ficc.utils.get_treasury_rate import get_treasury_rate_dict
 from ficc.utils.adding_flags import add_bookkeeping_flag, add_replica_count_flag, add_same_day_flag, add_ntbc_precursor_flag
 from ficc.utils.related_trade import add_related_trades
 from ficc.utils.yield_curve_params import yield_curve_params
 
 
 def process_data(query, 
-                 client, 
+                 bq_client, 
                  num_trades_in_history: int, 
                  num_features_for_each_trade_in_history: int, 
                  path: str, 
@@ -37,22 +36,23 @@ def process_data(query,
                  save_data: bool = True, 
                  process_similar_trades_history: bool = False, 
                  use_multiprocessing: bool = True, 
+                 end_of_day: bool = False,
                  **kwargs):
     if len(kwargs) != 0: warnings.warn(f'**kwargs is not empty and has following arguments: {kwargs.keys()}', category=RuntimeWarning)
         
     yield_curve = yield_curve.upper()
     if yield_curve == 'FICC' or yield_curve == 'FICC_NEW':
-        print('Grabbing yield curve params')
+        print(f'Grabbing {"end of day" if end_of_day else "real-time (minute)"} yield curve params')
         try:
-            nelson_params, scalar_params, shape_parameter = yield_curve_params(client, yield_curve)
+            nelson_params, scalar_params, shape_parameter = yield_curve_params(bq_client, yield_curve, end_of_day)
         except Exception as e:
             print('Unable to grab yield curve parameters')
             raise e
     
-    print(f'Running with\n remove_short_maturity: {remove_short_maturity}\n trade_history_delay: {trade_history_delay}\n use_treasury_spread: {use_treasury_spread}\n min_trades_in_hist: {min_trades_in_history}\n add_flags: {add_flags}\n add_related_trades_bool: {add_related_trades_bool}\n add_rtrs_in_history: {add_rtrs_in_history}\n only_dollar_price_history: {only_dollar_price_history}\n save_data: {save_data}')
-    treasury_rate_dict = get_treasury_rate_dict(client) if use_treasury_spread is True else None
+    print(f'Calling `process_trade_history(...)` with\n\tremove_short_maturity: {remove_short_maturity}\n\ttrade_history_delay: {trade_history_delay}\n\tuse_treasury_spread: {use_treasury_spread}\n\tmin_trades_in_hist: {min_trades_in_history}\n\tadd_flags: {add_flags}\n\tadd_related_trades_bool: {add_related_trades_bool}\n\tadd_rtrs_in_history: {add_rtrs_in_history}\n\tonly_dollar_price_history: {only_dollar_price_history}\n\tsave_data: {save_data}')
+    treasury_rate_dict = get_treasury_rate_dict(bq_client) if use_treasury_spread is True else None
     trades_df = process_trade_history(query, 
-                                      client, 
+                                      bq_client, 
                                       num_trades_in_history, 
                                       num_features_for_each_trade_in_history, 
                                       path, 
@@ -68,33 +68,11 @@ def process_data(query,
                                       scalar_params, 
                                       shape_parameter, 
                                       save_data, 
-                                      process_similar_trades_history)
+                                      process_similar_trades_history, 
+                                      end_of_day=end_of_day)
     if use_multiprocessing: initialize_pandarallel()
     
     if trades_df is None: return None    # no new trades
-
-    if only_dollar_price_history is False:
-        if yield_curve == 'FICC' or yield_curve == 'FICC_NEW':
-            print('Calculating yield spread using ficc yield curve')
-            columns_needed_for_ficc_ycl = ['trade_date', 'calc_date']
-            yield_curve_apply_func = trades_df[columns_needed_for_ficc_ycl].parallel_apply if use_multiprocessing else trades_df[columns_needed_for_ficc_ycl].apply
-            trades_df['ficc_ycl'] = yield_curve_apply_func(lambda trade: get_ficc_ycl(trade, nelson_params, scalar_params, shape_parameter), axis=1)
-             
-        trades_df['yield_spread'] = trades_df['yield'] * 100 - trades_df['ficc_ycl']
-        num_trades_before_dropping_null_yield_spreads = len(trades_df)
-        trades_df.dropna(subset=['yield_spread'], inplace=True)
-        print(f'Yield spread calculated; removed {num_trades_before_dropping_null_yield_spreads - len(trades_df)} trades since these had a null yield spread')
-
-        if use_treasury_spread is True:
-            columns_needed_for_treasury_rate = ['trade_date', 'calc_date', 'settlement_date']
-            treasury_rate_apply_func = trades_df[columns_needed_for_treasury_rate].parallel_apply if use_multiprocessing else trades_df[columns_needed_for_treasury_rate].apply
-            trades_df['treasury_rate'] = treasury_rate_apply_func(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
-            null_treasury_rate = trades_df['treasury_rate'].isnull()
-            if null_treasury_rate.sum() > 0:
-                trade_dates_corresponding_to_null_treasury_rate = trades_df.loc[null_treasury_rate, 'trade_date']
-                print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique().to_numpy()}')
-                trades_df = trades_df[~null_treasury_rate]
-            trades_df['ficc_treasury_spread'] = trades_df['ficc_ycl'] - (trades_df['treasury_rate'] * 100)
 
     if len(trades_df) == 0:
         print(f'After dropping trades for not having a treasury rate, the dataframe is empty')

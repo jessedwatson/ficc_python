@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2024-04-19
 Last Editor: Mitas Ray
-Last Edit Date: 2024-11-18
+Last Edit Date: 2025-05-07
 Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
 use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
 This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
@@ -102,8 +102,9 @@ def get_trades_for_all_dates(dates: list,
 
     optional_arguments_for_process_data = get_optional_arguments_for_process_data(MODEL)
     # next few lines are very similar to `ficc_python/auxiliary_functions.py::update_data(...)`
-    trades_for_all_dates = combine_new_data_with_old_data(None, trades_for_all_dates, MODEL)
-    trades_for_all_dates = add_trade_history_derived_features(trades_for_all_dates, MODEL, optional_arguments_for_process_data.get('use_treasury_spread', False))
+    use_treasury_spread = optional_arguments_for_process_data.get('use_treasury_spread', False)
+    trades_for_all_dates = combine_new_data_with_old_data(None, trades_for_all_dates, MODEL, use_treasury_spread)
+    trades_for_all_dates = add_trade_history_derived_features(trades_for_all_dates, MODEL, use_treasury_spread)
     trades_for_all_dates = drop_features_with_null_value(trades_for_all_dates, MODEL)
     if SAVE_DATA: save_data(trades_for_all_dates, file_name, upload_to_google_cloud_bucket=False)
     return trades_for_all_dates

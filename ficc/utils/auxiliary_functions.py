@@ -2,7 +2,7 @@
 Author: Anis Ahmad 
 Date: 2021-12-15
 Last Editor: Mitas Ray
-Last Edit Date: 2025-02-12
+Last Edit Date: 2025-05-07
 Description: This file contains function to help the functions to process training data
 '''
 import time
@@ -176,11 +176,11 @@ def calculate_dollar_error(df, predicted_ys):
     assert len(predicted_ys) == len(df), 'There must be a predicted yield spread for each of the trades in the passed in dataframe'
     columns_set = set(df.columns)
     assert 'quantity' in columns_set    # assumes that the quantity is log10 transformed
-    assert 'ficc_ycl' in columns_set    # represents the ficc yield curve level
+    assert 'new_ficc_ycl' in columns_set    # represents the ficc yield curve level
     assert 'yield' in columns_set    # represents yield to worst from the MSRB data
     assert 'calc_date' in columns_set and 'settlement_date' in columns_set    # need these two features to compute the number of years from the settlement date to the calc date
     years_to_calc_date = diff_in_days_two_dates(df.calc_date,df.settlement_date) / NUM_OF_DAYS_IN_YEAR    # the division by `np.timedelta64(NUM_OF_DAYS_IN_YEAR, 'D')` converts the quantity to years according to the MSRB convention of NUM_OF_DAYS_IN_YEAR in a year
-    ytw_error = ((predicted_ys + df['ficc_ycl']) / 100 - df['yield']) / 100    # the second divide by 100 is because the unit of the dividend is in percent
+    ytw_error = ((predicted_ys + df['new_ficc_ycl']) / 100 - df['yield']) / 100    # the second divide by 100 is because the unit of the dividend is in percent
     return ytw_error * (10 ** df['quantity']) * years_to_calc_date    # dollar error = duration * quantity * ytw error; duration = calc_date - settlement_date [in years]
 
 
