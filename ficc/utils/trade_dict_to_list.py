@@ -10,7 +10,7 @@ import pandas as pd
 
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
-from ficc.utils.yield_curve import yield_curve_level
+from ficc.utils.nelson_siegel_model import yield_curve_level
 
 import warnings
 
