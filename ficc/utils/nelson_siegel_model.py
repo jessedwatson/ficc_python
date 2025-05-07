@@ -2,7 +2,7 @@
 Author: Issac Lim
 Date: 2021-08-23
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-06
+Last Edit Date: 2025-05-07
 Description: Implementation of the Nelson-Seigel interest rate model to predict the yield curve. Nelson-Seigel coefficeints are used from a dataframe instead of grabbing them from memory store.
 '''
 from functools import wraps
@@ -137,7 +137,7 @@ def load_model_parameters(target_datetime: datetime, nelson_params: dict, scalar
         target_datetime_for_nelson_params = iterate_backward_by_day(nelson_params, previous_date)
     else:    # if the data is real-time, we need to find the most recent minute
         target_datetime_for_nelson_params = iterate_backward_by_minute(nelson_params, target_datetime)
-    nelson_coeff = nelson_params[target_datetime_for_nelson_params].values()
+    nelson_coeff = list(nelson_params[target_datetime_for_nelson_params].values()) + [target_datetime_for_nelson_params]
 
     target_date_for_scalar_params = iterate_backward_by_day(scalar_params, previous_date)
     scalar_coeff = scalar_params[target_date_for_scalar_params].values()
@@ -180,6 +180,7 @@ def yield_curve_level(maturity: float, target_datetime, nelson_params, scalar_pa
     different types of exceptions. `end_of_day` is a boolean that indicates whether the data is end-of-day yield curve or the real-time 
     (minute) yield curve.'''
     nelson_siegel_coef, scaler_daily_parameters, shape_parameter = load_model_parameters(target_datetime, nelson_params, scalar_params, shape_params, end_of_day)
-    const, exponential, laguerre = nelson_siegel_coef
+    const, exponential, laguerre, target_datetime_for_nelson_params = nelson_siegel_coef
     exponential_mean, exponential_std, laguerre_mean, laguerre_std = scaler_daily_parameters
-    return predict_yield_curve_level(maturity, const, exponential, laguerre, exponential_mean, exponential_std, laguerre_mean, laguerre_std, shape_parameter)
+    ycl_prediction = predict_yield_curve_level(maturity, const, exponential, laguerre, exponential_mean, exponential_std, laguerre_mean, laguerre_std, shape_parameter)
+    return ycl_prediction, const, exponential, laguerre, target_datetime_for_nelson_params, exponential_mean, exponential_std, laguerre_mean, laguerre_std, shape_parameter

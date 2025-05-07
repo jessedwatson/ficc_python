@@ -217,11 +217,10 @@ def add_yield_curve(data, end_of_day: bool = False) -> pd.DataFrame:
     shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
 
     data['last_trade_date'] = data['last_trade_datetime'].dt.date
-    data['new_ficc_ycl'] = data[['last_calc_date',
-                                 'last_settlement_date',
-                                 'trade_date',
-                                 'last_trade_date',
-                                 'maturity_date']].parallel_apply(lambda row: get_yield_curve_level_for_last_duration(row, nelson_params, scalar_daily_params, shape_params, end_of_day), axis=1)
+    columns_needed_to_compute_ycl = ['last_calc_date', 'last_settlement_date', 'trade_date', 'last_trade_date', 'maturity_date']
+    columns_received_from_computing_ycl = ['new_ficc_ycl', 'const', 'exponential', 'laguerre', 'target_datetime_for_nelson_params', 'exponential_mean', 'exponential_std', 'laguerre_mean', 'laguerre_std', 'shape_parameter']
+    get_yield_curve_level_for_last_duration_caller = lambda row: get_yield_curve_level_for_last_duration(row, nelson_params, scalar_daily_params, shape_params, end_of_day)
+    data[columns_received_from_computing_ycl] = data[columns_needed_to_compute_ycl].parallel_apply(get_yield_curve_level_for_last_duration_caller, axis=1, result_type='expand')
     data['new_ficc_ycl'] = data['new_ficc_ycl'] * 100
     return data
 
@@ -386,7 +385,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     
     new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
 
-    data = pd.concat([new_data, old_data]) if old_data is not None else new_data    # concatenating `new_data` to the original `data` dataframe
+    data = pd.concat([new_data, old_data], sort=False) if old_data is not None else new_data    # concatenating `new_data` to the original `data` dataframe; `sort=False` is used to keep the original order of the columns
     data = data.drop(columns=trade_history_sum_features)
     if 'yield_spread' in model: data['new_ys'] = data['yield'] - data['new_ficc_ycl']
     print(f'{len(data)} trades after combining new and old data')

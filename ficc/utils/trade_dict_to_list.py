@@ -79,7 +79,7 @@ def trade_dict_to_list(trade_dict: dict,
             return None, None
         
         if yield_curve_to_use == 'FICC' or yield_curve_to_use == 'FICC_NEW':    # yield curve coefficients are only present before 2021-07-27 for the old yield curve and 2021-08-02 for the new yield curve
-            yield_at_that_time = yield_curve_level(time_to_maturity, trade_datetime, nelson_params, scalar_params, shape_parameter, end_of_day)
+            yield_at_that_time = yield_curve_level(time_to_maturity, trade_datetime, nelson_params, scalar_params, shape_parameter, end_of_day)[0]
 
             if trade_dict['yield'] is not None and yield_at_that_time is not None:
                 yield_spread = trade_dict['yield'] * 100 - yield_at_that_time
