@@ -9,18 +9,15 @@ This file was created to test different ways of getting the raw data to determin
 getting it day by day using multiprocessing and then concatenating it together.
 **NOTE**: To run this script, use `ficc_python/requirements_py310.txt`.
 **NOTE**: To get an entire month of trades using 32 CPUs, set the memory on the VM to 250 GB.
-**NOTE**: To see the output of this script in an `output.txt` file use the command: $ stdbuf -oL python get_processed_data.py >> output.txt. `stdbuf -oL` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
-**NOTE**: To run the procedure in the background, use the command: $ nohup stdbuf -oL python get_processed_data.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
+**NOTE**: To see the output of this script in an `output.txt` file use the command: $ python -u get_processed_data.py >> output.txt. `stdbuf -oL` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
+**NOTE**: To run the procedure in the background, use the command: $ nohup python -u get_processed_data.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
 Breakdown:
 1. `nohup`: This allows the script to continue running even after you log out or close the terminal.
-2. `stdbuf -oL`:
-    * stdbuf is used to modify the buffering operations for the command that follows it.
-    * -oL forces line buffering for the standard output (stdout), ensuring that the output is flushed line by line. This is useful if you want real-time logging in your output.txt file, rather than waiting for large chunks of data to be written.
-3. python get_processed_data.py: This part is executing your Python script. If you are using Python 3, you might want to specify python3 instead of just python, depending on your environment.
-4. >> output.txt 2>&1:
+2. `python -u get_processed_data.py`: This part is executing your Python script in unbuffered mode, forcing Python to write output immediately.
+3. >> output.txt 2>&1:
     * >> output.txt appends the standard output (stdout) of the script to output.txt instead of overwriting it.
     * 2>&1 redirects standard error (stderr) to the same file as standard output, so both stdout and stderr go into output.txt.
-5. &: This runs the command in the background.
+4. &: This runs the command in the background.
 
 To redirect the error to a different file, you can use 2> error.txt. Note that just ignoring it (not including 2>...) will just output to std out in this case.
 
@@ -147,6 +144,17 @@ def create_data_for_start_end_date_pairs(date_pairs: list) -> pd.DataFrame:
 
 @function_timer
 def main():
+    '''Get the trades for all dates in the date range. The date range is specified by the command line arguments.
+    The first argument is the latest trade date. The second argument is the earliest trade date. If no arguments are provided,
+    the default values are used. The default values are:
+    1. `latest_trade_date`: `None`
+    2. `earliest_trade_datetime`: `EARLIEST_TRADE_DATETIME`
+    The `earliest_trade_datetime` is the earliest trade date that is available in the database. The `latest_trade_date` is the latest trade date that is available in the database.
+    
+    Example usage:
+    $ python get_processed_data.py 2025-01-17 2025-01-15
+    $ python get_processed_data.py 2025-01-17
+    $ python get_processed_data.py'''
     latest_trade_date = sys.argv[1] if len(sys.argv) >= 2 else None
     earliest_trade_datetime = sys.argv[2] if len(sys.argv) >= 3 else EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
     if latest_trade_date is not None:

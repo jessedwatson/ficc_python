@@ -8,7 +8,7 @@ Description: Used to train a model with a processed data file. Heavily uses code
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u train_model.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
 Breakdown:
 1. `nohup`: This allows the script to continue running even after you log out or close the terminal.
-2. python -u train_model.py: This part is executing your Python script in unbuffered mode, forcing Python to write output immediately. If you are using Python 3, you might want to specify python3 instead of just python, depending on your environment.
+2. python -u train_model.py: This part is executing your Python script in unbuffered mode, forcing Python to write output immediately.
 3. >> output.txt 2>&1:
     * >> output.txt appends the standard output (stdout) of the script to output.txt instead of overwriting it.
     * 2>&1 redirects standard error (stderr) to the same file as standard output, so both stdout and stderr go into output.txt.
