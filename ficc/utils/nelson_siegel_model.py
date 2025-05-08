@@ -91,7 +91,7 @@ def iterate_backward_by_minute(dictionary: dict, most_recent_datetime: datetime)
             else:
                 if date_and_time.time() < MARKET_OPEN:    # if the time is before 9:30am ET (market open), then we need to go to the previous business day
                     date_and_time = date_and_time - (BUSINESS_DAY * 1)
-                date_and_time = date_and_time.replace(hour=15, minute=59)
+                date_and_time = date_and_time.replace(hour=MARKET_CLOSE.hour, minute=MARKET_CLOSE.minute)
             max_num_times -= 1
         return date_and_time, True
     
