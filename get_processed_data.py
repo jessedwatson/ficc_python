@@ -8,6 +8,7 @@ use multiprocessing to read the data from BigQuery for each date, since the conv
 This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
 getting it day by day using multiprocessing and then concatenating it together.
 **NOTE**: To run this script, use `ficc_python/requirements_py310.txt`.
+**NOTE**: To run this script, set the `TESTING` flag to `True` if just testing the data generation procedure.
 **NOTE**: To get an entire month of trades using 32 CPUs, set the memory on the VM to 250 GB.
 **NOTE**: To see the output of this script in an `output.txt` file use the command: $ python -u get_processed_data.py >> output.txt. `stdbuf -oL` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u get_processed_data.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
