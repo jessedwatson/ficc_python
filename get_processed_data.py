@@ -30,12 +30,14 @@ The -9 forces the operation.
 '''
 import os    # used for `os.cpu_count()` when setting the number of workers in `mp.Pool()`
 import sys
+import pickle
+from datetime import datetime
+
 from tqdm import tqdm
 import multiprocess as mp
-from datetime import datetime
 import pandas as pd
 
-from ficc.utils.auxiliary_functions import sqltodf, function_timer
+from ficc.utils.auxiliary_functions import sqltodf, function_timer, check_if_pickle_file_exists_and_matches_query
 
 from automated_training.auxiliary_variables import EASTERN, BUSINESS_DAY, YEAR_MONTH_DAY, EARLIEST_TRADE_DATETIME, MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, YEAR_MONTH_DAY
 from automated_training.auxiliary_functions import BQ_CLIENT, get_data_query, check_that_model_is_supported, get_new_data, get_optional_arguments_for_process_data, combine_new_data_with_old_data, add_trade_history_derived_features, drop_features_with_null_value, save_data
@@ -74,9 +76,25 @@ def get_processed_trades_for_particular_date(start_date_as_string: str, end_date
     data_query_date = data_query[:order_by_position] + f'AND trade_datetime <= "{end_date_as_string}T23:59:59" ' + data_query[order_by_position:]    # add condition of restricting all trades to the specified `date_as_string`
     # print(data_query_date)    # this gets printed inside `fetch_trade_data(...)`
 
+    file_name = f'processed_data_for_date_{start_date_as_string}.pkl'
+    if TESTING:
+        processed_data = check_if_pickle_file_exists_and_matches_query(data_query_date, file_name)
+        if processed_data is not None:
+            return processed_data
+
     optional_arguments_for_process_data = get_optional_arguments_for_process_data(MODEL)
     use_treasury_spread = optional_arguments_for_process_data.get('use_treasury_spread', False)
     _, processed_data, _, _, _ = get_new_data(None, MODEL, use_treasury_spread, optional_arguments_for_process_data, data_query_date, False, use_multiprocessing)
+    
+    if TESTING:
+        # save `processed_data` to a pickle file for re-using later
+        file_name = f'trades_for_date_{start_date_as_string}.pkl'
+        if os.path.isfile(file_name):
+            print(f'File {file_name} already exists. Deleting it.')
+            os.remove(file_name)
+        with open(file_name, 'wb') as file:
+            pickle.dump(processed_data, file)
+    
     return processed_data    # get just the raw data with `sqltodf(data_query_date, BQ_CLIENT)`
 
 

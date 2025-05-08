@@ -2,37 +2,31 @@
 Author: Ahmad Shayaan
 Date: 2021-12-17
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-07
+Last Edit Date: 2025-05-08
 '''
-import os
 import pandas as pd
 import pickle
 
-from ficc.utils.auxiliary_functions import sqltodf, process_ratings
+from ficc.utils.auxiliary_functions import sqltodf, process_ratings, check_if_pickle_file_exists_and_matches_query
 from ficc.utils.pad_trade_history import pad_trade_history
 from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
 
-def fetch_trade_data(query, bq_client, PATH='data.pkl', save_data=True):
-    if os.path.isfile(PATH):
-        print(f'Data file {PATH} found, reading data from it')
-        with open(PATH, 'rb') as f: 
-            (q, trades_df) = pickle.load(f)
-        if q == query:
-            return trades_df
-        else:
-            raise Exception (f'Saved query is incorrect:\n{q}')
+def fetch_trade_data(query: str, bq_client, path: str ='data.pkl', save_data: bool = True):
+    trades_df = check_if_pickle_file_exists_and_matches_query(query, path)
+    if trades_df is not None:
+        print(f'Using cached data from {path} since the query matches the one in the file')
+        return trades_df
     
     print(f'Grabbing data from BigQuery with query:')
     print(query)
     trades_df = sqltodf(query, bq_client)
 
     if save_data:
-        print(f'Saving query and data to {PATH}')
-        ds = (query, trades_df)
-        with open(PATH, 'wb') as f: 
-            pickle.dump(ds, f)
+        print(f'Saving query and data to {path}')
+        with open(path, 'wb') as f: 
+            pickle.dump((query, trades_df), f)
     return trades_df
 
 

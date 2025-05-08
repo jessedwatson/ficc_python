@@ -2,13 +2,15 @@
 Author: Anis Ahmad 
 Date: 2021-12-15
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-07
+Last Edit Date: 2025-05-08
 Description: This file contains function to help the functions to process training data
 '''
+import os
 import time
 from functools import wraps
 from datetime import datetime, timedelta
 import warnings
+import pickle
 
 import urllib3
 import requests
@@ -192,3 +194,20 @@ def get_ys_trade_history_features(treasury_spread=False):
 
 def get_dp_trade_history_features():
     return DP_BASE_TRADE_HISTORY_FEATURES
+
+
+def check_if_pickle_file_exists_and_matches_query(query: str, path: str) -> pd.DataFrame | None:
+    '''Checks if the pickle file exists and if it matches the query. If it does, it loads the data from the pickle file. 
+    Otherwise, it returns None.'''
+    if os.path.isfile(path):
+        print(f'Data file {path} found, reading data from it')
+        with open(path, 'rb') as f: 
+            (query_in_file, df) = pickle.load(f)
+        if query_in_file == query:
+            return df
+        else:
+            print('Query does not match. Returning None')
+            return None    # raise Exception(f'Saved query is incorrect:\n{q}')
+    else:
+        print(f'Data file {path} not found, returning None')
+        return None
