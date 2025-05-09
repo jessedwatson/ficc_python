@@ -89,7 +89,6 @@ def get_processed_trades_for_particular_date(start_date_as_string: str, end_date
     
     if TESTING:
         # save `processed_data` to a pickle file for re-using later
-        file_name = f'trades_for_date_{start_date_as_string}.pkl'
         if os.path.isfile(file_name):
             print(f'File {file_name} already exists. Deleting it.')
             os.remove(file_name)
