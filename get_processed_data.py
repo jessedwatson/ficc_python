@@ -7,8 +7,9 @@ Description: Gather train / test data from materialized trade history. First, fi
 use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
 This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
 getting it day by day using multiprocessing and then concatenating it together.
-**NOTE**: To run this script, use `ficc_python/requirements_py310.txt`.
-**NOTE**: To run this script, set the `TESTING` flag to `True` if just testing the data generation procedure.
+**NOTE**: Use `ficc_python/requirements_py310.txt`.
+**NOTE**: Set the `TESTING` flag to `True` if just testing the data generation procedure.
+**NOTE**: Set credentials appropriately in `automated_training/auxiliary_functions.py::get_creds()`.
 **NOTE**: To get an entire month of trades using 32 CPUs, set the memory on the VM to 250 GB.
 **NOTE**: To see the output of this script in an `output.txt` file use the command: $ python -u get_processed_data.py >> output.txt. `stdbuf -oL` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u get_processed_data.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
@@ -93,7 +94,7 @@ def get_processed_trades_for_particular_date(start_date_as_string: str, end_date
             print(f'File {file_name} already exists. Deleting it.')
             os.remove(file_name)
         with open(file_name, 'wb') as file:
-            pickle.dump(processed_data, file)
+            pickle.dump((data_query_date, processed_data), file)
     
     return processed_data    # get just the raw data with `sqltodf(data_query_date, BQ_CLIENT)`
 
@@ -143,9 +144,8 @@ def create_data_for_start_end_date_pair(start_datetime: str,    # may be a strin
     '''Create a file that contains the trades between `start_datetime` and `end_datetime`. Save the file 
     in a file with name: `file_name`.'''
     data_query = get_data_query(start_datetime, MODEL, end_datetime)
-    print('Getting data from the following query:\n', data_query)
-
     distinct_dates_query = 'SELECT DISTINCT trade_date ' + data_query[data_query.find('FROM') : data_query.find('ORDER BY')]    # remove all the original selected features and just get each unique `trade_date`; need to remove the `ORDER BY` clause since the `trade_datetime` feature is not selected in this query
+    print('Getting distinct dates from the following query:\n', distinct_dates_query)
     distinct_dates = sqltodf(distinct_dates_query, BQ_CLIENT)
     distinct_dates = sorted(distinct_dates['trade_date'].astype(str).values, reverse=True)    # convert the one column dataframe with column name `trade_date` from `sqltodf(...)` into a numpy array sorted by `trade_date`; going in descending order since the the query gets the trades in descending order of `trade_datetime` and so concatenating all the trades from each of the days will be in descending order of `trade_datetime` if the trade dates are in descending order
     print('Distinct dates:', distinct_dates)
@@ -178,7 +178,8 @@ def main():
     earliest_trade_datetime = sys.argv[2] if len(sys.argv) >= 3 else EARLIEST_TRADE_DATETIME    # create this variable to easily modify the value instead of trying to modify `EARLIEST_TRADE_DATETIME` which gives `UnboundLocalError: local variable 'EARLIEST_TRADE_DATETIME' referenced before assignment`
     if latest_trade_date is not None:
         assert check_date_in_correct_format(latest_trade_date)
-        if TESTING: earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
+        if TESTING and earliest_trade_datetime == EARLIEST_TRADE_DATETIME:
+            earliest_trade_datetime = (datetime.strptime(latest_trade_date, YEAR_MONTH_DAY) - (BUSINESS_DAY * 2)).strftime(YEAR_MONTH_DAY) + 'T00:00:00'    # 2 business days before the current datetime (start of the day) to have enough days for training and testing; same logic as `auxiliary_functions::decrement_business_days(...)` but cannot import from there due to circular import issue
     return create_data_for_start_end_date_pair(earliest_trade_datetime, latest_trade_date)
 
 

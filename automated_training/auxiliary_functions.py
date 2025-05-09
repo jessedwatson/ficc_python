@@ -28,60 +28,60 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
-                                CATEGORICAL_FEATURES, \
-                                CATEGORICAL_FEATURES_DOLLAR_PRICE, \
-                                NON_CAT_FEATURES, \
-                                NON_CAT_FEATURES_DOLLAR_PRICE, \
-                                BINARY, \
-                                BINARY_DOLLAR_PRICE, \
-                                PREDICTORS, \
-                                PREDICTORS_DOLLAR_PRICE, \
-                                YS_VARIANTS, \
-                                YS_FEATS, \
-                                DP_VARIANTS, \
-                                DP_FEATS, \
-                                YEAR_MONTH_DAY, \
-                                HOUR_MIN_SEC, \
-                                QUERY_FEATURES, \
-                                QUERY_CONDITIONS, \
-                                ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
-                                ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
-                                ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
-                                EASTERN, \
-                                BUSINESS_DAY, \
-                                NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
-                                NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
-                                CATEGORICAL_FEATURES_VALUES, \
-                                SAVE_MODEL_AND_DATA, \
-                                HOME_DIRECTORY, \
-                                WORKING_DIRECTORY, \
-                                PROJECT_ID, \
-                                AUXILIARY_VIEWS_DATASET_NAME, \
-                                YIELD_CURVE_DATASET_NAME, \
-                                BUCKET_NAME, \
-                                TRAINING_LOGS_DIRECTORY, \
-                                MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
-                                EARLIEST_TRADE_DATETIME, \
-                                MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
-                                MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
-                                OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
-                                OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
-                                TTYPE_DICT, \
-                                LONG_TIME_AGO_IN_NUM_SECONDS, \
-                                MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
-                                HISTORICAL_PREDICTION_TABLE, \
-                                EMAIL_RECIPIENTS, \
-                                SENDER_EMAIL, \
-                                BATCH_SIZE, \
-                                NUM_EPOCHS, \
-                                MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
-                                TESTING, \
-                                USE_PICKLED_DATA, \
-                                ROW_NAME_DETERMINING_MODEL_SWITCH
-from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
-from dollar_model import dollar_price_model
-from set_random_seed import set_seed
+from automated_training.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
+                                                    CATEGORICAL_FEATURES, \
+                                                    CATEGORICAL_FEATURES_DOLLAR_PRICE, \
+                                                    NON_CAT_FEATURES, \
+                                                    NON_CAT_FEATURES_DOLLAR_PRICE, \
+                                                    BINARY, \
+                                                    BINARY_DOLLAR_PRICE, \
+                                                    PREDICTORS, \
+                                                    PREDICTORS_DOLLAR_PRICE, \
+                                                    YS_VARIANTS, \
+                                                    YS_FEATS, \
+                                                    DP_VARIANTS, \
+                                                    DP_FEATS, \
+                                                    YEAR_MONTH_DAY, \
+                                                    HOUR_MIN_SEC, \
+                                                    QUERY_FEATURES, \
+                                                    QUERY_CONDITIONS, \
+                                                    ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
+                                                    ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
+                                                    ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
+                                                    EASTERN, \
+                                                    BUSINESS_DAY, \
+                                                    NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
+                                                    NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
+                                                    CATEGORICAL_FEATURES_VALUES, \
+                                                    SAVE_MODEL_AND_DATA, \
+                                                    HOME_DIRECTORY, \
+                                                    WORKING_DIRECTORY, \
+                                                    PROJECT_ID, \
+                                                    AUXILIARY_VIEWS_DATASET_NAME, \
+                                                    YIELD_CURVE_DATASET_NAME, \
+                                                    BUCKET_NAME, \
+                                                    TRAINING_LOGS_DIRECTORY, \
+                                                    MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
+                                                    EARLIEST_TRADE_DATETIME, \
+                                                    MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
+                                                    MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
+                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
+                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
+                                                    TTYPE_DICT, \
+                                                    LONG_TIME_AGO_IN_NUM_SECONDS, \
+                                                    MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
+                                                    HISTORICAL_PREDICTION_TABLE, \
+                                                    EMAIL_RECIPIENTS, \
+                                                    SENDER_EMAIL, \
+                                                    BATCH_SIZE, \
+                                                    NUM_EPOCHS, \
+                                                    MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
+                                                    TESTING, \
+                                                    USE_PICKLED_DATA, \
+                                                    ROW_NAME_DETERMINING_MODEL_SWITCH
+from automated_training.yield_with_similar_trades_model import yield_spread_with_similar_trades_model
+from automated_training.dollar_model import dollar_price_model
+from automated_training.set_random_seed import set_seed
 
 
 ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
@@ -191,7 +191,7 @@ def get_yield_curve_level_for_last_duration(row, nelson_params: dict, scalar_par
     else:
         start_date, end_date = row['last_trade_date'], row['last_calc_date']
     duration = diff_in_days_two_dates(end_date, start_date) / NUM_OF_DAYS_IN_YEAR
-    return yield_curve_level(duration, row['trade_datetime'], nelson_params, scalar_params, shape_params, end_of_day) / 100
+    return yield_curve_level(duration, row['trade_datetime'], nelson_params, scalar_params, shape_params, end_of_day)
 
 
 def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
@@ -217,11 +217,10 @@ def add_yield_curve(data, end_of_day: bool = False) -> pd.DataFrame:
     shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
 
     data['last_trade_date'] = data['last_trade_datetime'].dt.date
-    columns_needed_to_compute_ycl = ['last_calc_date', 'last_settlement_date', 'trade_date', 'last_trade_date', 'maturity_date']
+    columns_needed_to_compute_ycl = ['last_calc_date', 'last_settlement_date', 'trade_date', 'trade_datetime', 'last_trade_date', 'maturity_date']
     columns_received_from_computing_ycl = ['new_ficc_ycl', 'const', 'exponential', 'laguerre', 'target_datetime_for_nelson_params', 'exponential_mean', 'exponential_std', 'laguerre_mean', 'laguerre_std', 'shape_parameter']
     get_yield_curve_level_for_last_duration_caller = lambda row: get_yield_curve_level_for_last_duration(row, nelson_params, scalar_daily_params, shape_params, end_of_day)
     data[columns_received_from_computing_ycl] = data[columns_needed_to_compute_ycl].parallel_apply(get_yield_curve_level_for_last_duration_caller, axis=1, result_type='expand')
-    data['new_ficc_ycl'] = data['new_ficc_ycl'] * 100
     return data
 
 
@@ -235,7 +234,7 @@ def add_treasury_spread(data: pd.DataFrame, use_multiprocessing: bool = True) ->
     null_treasury_rate = data['treasury_rate'].isnull()
     if null_treasury_rate.sum() > 0:
         trade_dates_corresponding_to_null_treasury_rate = data.loc[null_treasury_rate, 'trade_date']
-        print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique().to_numpy()}')
+        print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique()}')
         data = data[~null_treasury_rate]
     data['ficc_treasury_spread'] = data['new_ficc_ycl'] - (data['treasury_rate'] * 100)
     return data

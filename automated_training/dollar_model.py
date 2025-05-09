@@ -1,17 +1,17 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2023-02-01
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-14
- '''
+Author: Ahmad Shayaan
+Date: 2023-02-01
+Last Editor: Mitas Ray
+Last Edit Date: 2024-02-14
+'''
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 
-from auxiliary_variables import BATCH_SIZE, DROPOUT
-from set_random_seed import set_seed
+from automated_training.auxiliary_variables import BATCH_SIZE, DROPOUT
+from automated_training.set_random_seed import set_seed
 
 
 set_seed()

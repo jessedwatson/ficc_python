@@ -7,8 +7,8 @@ Last Edit Date: 2025-01-22
 import os
 import sys
 
-from auxiliary_functions import setup_gpus, train_save_evaluate_model, apply_exclusions
-from exit_codes import SWITCH_TRAFFIC_EXIT_CODE, DO_NOT_SWITCH_TRAFFIC_EXIT_CODE
+from automated_training.auxiliary_functions import setup_gpus, train_save_evaluate_model, apply_exclusions
+from automated_training.exit_codes import SWITCH_TRAFFIC_EXIT_CODE, DO_NOT_SWITCH_TRAFFIC_EXIT_CODE
 
 
 ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package

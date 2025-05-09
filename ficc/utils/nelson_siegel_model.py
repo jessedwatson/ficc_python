@@ -13,13 +13,10 @@ import numpy as np
 import pandas as pd
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tseries.holiday import USFederalHolidayCalendar, GoodFriday
-from pytz import timezone
 
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-
-EASTERN = timezone('US/Eastern')    # We only use datetime aware datetimes in ET; naive datetimes should be localized
 
 PROJECT_ID = 'eng-reactor-287421'
 
@@ -84,7 +81,7 @@ def iterate_backward_by_minute(dictionary: dict, most_recent_datetime: datetime)
         `max_num_times`. If the date and time are not found, i.e., the `max_num_times` has been 
         reached, then return the last searched date and time, with the second argument as `False`. 
         Otherwise, return the second argument as `True`, with the date and time whenever it is found.'''
-        while date_and_time.strftime(YEAR_MONTH_DAY_HOUR_MIN) + ':00' in dictionary:    # find the `date_and_time` that is at most `num_mins_back` minutes in the past
+        while date_and_time not in dictionary:    # find the `date_and_time` that is at most `num_mins_back` minutes in the past
             if max_num_times == 0: return date_and_time, False
             if is_time_between(MARKET_OPEN, MARKET_CLOSE, date_and_time.time()):    # only in between 9:30 am ET (market open) to 4pm ET
                 date_and_time -= pd.Timedelta(minutes=num_mins_back)
@@ -99,7 +96,7 @@ def iterate_backward_by_minute(dictionary: dict, most_recent_datetime: datetime)
         '''Iterate forward from `date_and_time` until the date and time is no longer found in the 
         redis. Once it is not found, return the previous date and time inspected to be the most 
         recent date and time that was found in the redis.'''
-        while date_and_time.strftime(YEAR_MONTH_DAY_HOUR_MIN) + ':00' in dictionary:    # after finding `date_and_time` to most `num_mins_back` minutes in the past, increment up by 1 minute until we cannot find it anymore
+        while date_and_time in dictionary:    # after finding `date_and_time` to most `num_mins_back` minutes in the past, increment up by 1 minute until we cannot find it anymore
             date_and_time += pd.Timedelta(minutes=num_mins_forward)
         return date_and_time - pd.Timedelta(minutes=num_mins_forward)
     
@@ -113,10 +110,10 @@ def iterate_backward_by_minute(dictionary: dict, most_recent_datetime: datetime)
         date_and_time, _ = iterate_backward(date_and_time, num_mins)
         return iterate_forward(date_and_time, 1)
 
-    most_recent_datetime_as_string = most_recent_datetime.strftime('%Y-%m-%d:%H:%M')
-    start_date_time = START_DATE + ':' + START_TIME
-    if most_recent_datetime_as_string < start_date_time:    # string comparison is identical to the datetime comparison since the datetime is formatted as YYYY-MM-DD:HH:MM
-        return EASTERN.localize(datetime.strptime(start_date_time, YEAR_MONTH_DAY_HOUR_MIN))
+    most_recent_datetime = most_recent_datetime.replace(second=0, microsecond=0)    # remove seconds and milliseconds since downstream comparisons do not use them
+    start_date_time = datetime.strptime(START_DATE + ':' + START_TIME, YEAR_MONTH_DAY_HOUR_MIN)
+    if most_recent_datetime <= start_date_time:
+        return start_date_time
     else:
         return iterate_backward_backward_forward(most_recent_datetime, 5)
 

@@ -2,7 +2,7 @@
 Author: Ahmad Shayaan
 Date: 2021-12-16
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-07
+Last Edit Date: 2025-05-08
 '''
 import warnings
 import numpy as np
@@ -49,7 +49,10 @@ def process_data(query,
             print('Unable to grab yield curve parameters')
             raise e
     
-    print(f'Calling `process_trade_history(...)` with\n\tremove_short_maturity: {remove_short_maturity}\n\ttrade_history_delay: {trade_history_delay}\n\tuse_treasury_spread: {use_treasury_spread}\n\tmin_trades_in_hist: {min_trades_in_history}\n\tadd_flags: {add_flags}\n\tadd_related_trades_bool: {add_related_trades_bool}\n\tadd_rtrs_in_history: {add_rtrs_in_history}\n\tonly_dollar_price_history: {only_dollar_price_history}\n\tsave_data: {save_data}')
+    arguments_to_print_for_calling_process_trade_history = ['remove_short_maturity', 'trade_history_delay', 'use_treasury_spread', 'min_trades_in_history', 'add_flags', 'add_related_trades_bool', 'add_rtrs_in_history', 'only_dollar_price_history', 'save_data', 'process_similar_trades_history', 'end_of_day']
+    locals_args_dict = locals()    # must create this dictionary to avoid using `locals()` in the list comprehension which otherwise causes an error due to scoping
+    joined_arguments_and_values = "\n\t".join([f"{arg}: {locals_args_dict[arg]}" for arg in arguments_to_print_for_calling_process_trade_history])
+    print(f'Calling `process_trade_history(...)` with\n\t{joined_arguments_and_values}')
     treasury_rate_dict = get_treasury_rate_dict(bq_client) if use_treasury_spread is True else None
     trades_df = process_trade_history(query, 
                                       bq_client, 
