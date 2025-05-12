@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-07
+Last Edit Date: 2025-05-12
 '''
 import warnings
 import math
@@ -218,7 +218,7 @@ def add_yield_curve(data, end_of_day: bool = False) -> pd.DataFrame:
 
     data['last_trade_date'] = data['last_trade_datetime'].dt.date
     columns_needed_to_compute_ycl = ['last_calc_date', 'last_settlement_date', 'trade_date', 'trade_datetime', 'last_trade_date', 'maturity_date']
-    columns_received_from_computing_ycl = ['new_ficc_ycl', 'const', 'exponential', 'laguerre', 'target_datetime_for_nelson_params', 'exponential_mean', 'exponential_std', 'laguerre_mean', 'laguerre_std', 'shape_parameter']
+    columns_received_from_computing_ycl = ['new_ficc_ycl', 'const', 'exponential', 'laguerre', 'target_datetime_for_nelson_params', 'exponential_mean', 'exponential_std', 'laguerre_mean', 'laguerre_std', 'target_date_for_scaler_params', 'shape_parameter', 'target_date_for_shape_parameter']
     get_yield_curve_level_for_last_duration_caller = lambda row: get_yield_curve_level_for_last_duration(row, nelson_params, scalar_daily_params, shape_params, end_of_day)
     data[columns_received_from_computing_ycl] = data[columns_needed_to_compute_ycl].parallel_apply(get_yield_curve_level_for_last_duration_caller, axis=1, result_type='expand')
     return data
