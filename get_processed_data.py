@@ -11,7 +11,7 @@ getting it day by day using multiprocessing and then concatenating it together.
 **NOTE**: Set the `TESTING` flag to `True` if just testing the data generation procedure.
 **NOTE**: Set credentials appropriately in `automated_training/auxiliary_functions.py::get_creds()`.
 **NOTE**: To get an entire month of trades using 32 CPUs, set the memory on the VM to 250 GB.
-**NOTE**: To see the output of this script in an `output.txt` file use the command: $ python -u get_processed_data.py >> output.txt. `stdbuf -oL` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
+**NOTE**: To see the output of this script in an `output.txt` file use the command: $ python -u get_processed_data.py >> output.txt. `-u` ensures that the text is immediately written to the output file instead of waiting for the entire procedure to complete.
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u get_processed_data.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
 Breakdown:
 1. `nohup`: This allows the script to continue running even after you log out or close the terminal.
