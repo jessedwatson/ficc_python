@@ -172,10 +172,9 @@ def predict_yield_curve_level(maturity: np.array,
 
 @cache
 def yield_curve_level(maturity: float, target_datetime, nelson_params, scalar_params, shape_params, end_of_day: bool):
-    '''Main function takes as input a json containing two arguments: the maturity we want the yield-to-worst for and the target
-    date from which we want the yield curve used in the ytw calculations to be from. There are several conditional statements to deal with
-    different types of exceptions. `end_of_day` is a boolean that indicates whether the data is end-of-day yield curve or the real-time 
-    (minute) yield curve.'''
+    '''`maturity` is the gap in years between the yield-to-worst date and the target date from which we want the yield 
+    curve used in the ytw calculations to be from. `end_of_day` is a boolean that indicates whether the data is end-of-day 
+    yield curve or the real-time (minute) yield curve.'''
     nelson_siegel_coef, scaler_daily_parameters, shape_parameter = load_model_parameters(target_datetime, nelson_params, scalar_params, shape_params, end_of_day)
     const, exponential, laguerre, target_datetime_for_nelson_params = nelson_siegel_coef
     exponential_mean, exponential_std, laguerre_mean, laguerre_std, target_date_for_scaler_params = scaler_daily_parameters
