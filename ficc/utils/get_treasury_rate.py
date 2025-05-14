@@ -7,7 +7,7 @@ Last Edit Date: 2025-05-08
 import numpy as np
 
 from ficc.utils.auxiliary_functions import sqltodf
-from ficc.utils.yc_data import get_duration
+from ficc.utils.nelson_siegel_model import get_duration
 
 
 def get_treasury_rate_dict(client) -> dict:

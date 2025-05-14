@@ -14,6 +14,9 @@ import pandas as pd
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tseries.holiday import USFederalHolidayCalendar, GoodFriday
 
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
+from ficc.utils.diff_in_days import diff_in_days_two_dates
+
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -48,6 +51,54 @@ def cache(function):
 
     wrapper.cache = dict()
     return wrapper
+
+
+def get_duration(row, use_last_calc_day_cat: bool) -> float:
+    '''Get the duration in years from `row`. If `use_last_calc_day_cat` is `True`, then the function will 
+    use the last duration for the yield curve level. Otherwise, it will use the current duration by 
+    using the calculation date computed upstream.
+
+    NOTE: there is an argument the logic when setting `use_last_calc_day_cat` to `False` causes leakage 
+    because in production we do not have the `calc_date` column. However, the objective is to train a 
+    model that performs as well as possible IF we had the correct calc date. In production, we have a 
+    subprocedure to infer what the calc date is, so it makes sense to train a model that performs as well 
+    as possible if the calc date were to be correct. Subpoint: in most cases, the calc date is known (e.g., 
+    for bond without a call option, a called bond, etc.).'''
+    start_date = row['settlement_date']    # this value is never null (verified from inspecting the materialized trade history on 2025-05-13)
+    
+    maturity_date = row['maturity_date']    # this value is never null (verified from inspecting the materialized trade history on 2025-05-13)
+    if use_last_calc_day_cat:
+        # the reason that we need to use the logic below instead of just using row['last_calc_date'] is because 
+        # (1) if the bond has been called, then the last calc date is incorrect
+        # (2) if the reference data is updated, then using the category and selecting the correct date is more accurate since last_calc_date may be a date in the past since the next_call_date has been updated
+        is_called, is_callable, last_calc_day_cat = row['is_called'], row['is_callable'], row['last_calc_day_cat']
+        if is_called is True:
+            end_date = row['refund_date']    # this value is never null if `is_called` is True (verified from inspecting the materialized trade history on 2025-05-13)
+        elif is_callable is False:
+            end_date = maturity_date
+        elif last_calc_day_cat == 0 and pd.notna(row['next_call_date']):    # sometimes the case that `next_call_date` is null, but `first_call_date` is not null, and in this case, the correct value is perhaps `first_call_date` but requires complicated upstream code to correct it and deeper investigation before making the change here (1.3% of materialized trade history on 2025-05-13, and only new issues)
+            end_date = row['next_call_date']
+        elif last_calc_day_cat == 1 and pd.notna(row['par_call_date']):
+            end_date = row['par_call_date']
+        else:
+            end_date = maturity_date
+    else:    # `use_last_calc_day_cat` is `False`
+        calc_date = row['calc_date']
+        if pd.isna(calc_date):
+            end_date = maturity_date
+        else:
+            end_date = calc_date
+
+    return diff_in_days_two_dates(end_date, start_date) / NUM_OF_DAYS_IN_YEAR
+
+
+def get_yield_curve_level(row, nelson_params: dict, scalar_params: dict, shape_params: dict, end_of_day: bool, use_last_calc_day_cat: bool) -> float:
+    '''`end_of_day` is a boolean that indicates whether the data is end-of-day yield curve or the real-time (minute) yield curve. 
+    `use_last_calc_day_cat` is a boolean that indicates whether to use the last duration for the yield curve level. If `use_last_calc_day_cat` 
+    is `True`, then the function will use the last duration for the yield curve level. Otherwise, it will use the current duration by 
+    using the calculation date computed upstream.'''
+    return yield_curve_level(get_duration(row, use_last_calc_day_cat), row['trade_datetime'], nelson_params, scalar_params, shape_params, end_of_day)
+
 
 
 def decay_transformation(t: np.array, L: float):
