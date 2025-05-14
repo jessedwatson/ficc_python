@@ -186,7 +186,7 @@ def target_trade_processing_for_attention(row):
 def add_treasury_spread(data: pd.DataFrame, use_multiprocessing: bool = True) -> pd.DataFrame:
     assert 'new_ficc_ycl' in data.columns, '`new_ficc_ycl` column is not present in the data. Please call `add_yield_curve(...)` before calling this function.'
     treasury_rate_dict = get_treasury_rate_dict(BQ_CLIENT)
-    columns_needed_for_treasury_rate = ['trade_date', 'calc_date', 'settlement_date']
+    columns_needed_for_treasury_rate = ['trade_date', 'calc_date', 'settlement_date', 'maturity_date']
     treasury_rate_apply_func = data[columns_needed_for_treasury_rate].parallel_apply if use_multiprocessing else data[columns_needed_for_treasury_rate].apply
     data['treasury_rate'] = treasury_rate_apply_func(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
     null_treasury_rate = data['treasury_rate'].isnull()
@@ -327,7 +327,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 
     new_data['yield'] = new_data['yield'] * 100
     if 'yield_spread' in model:
-        new_data = add_yield_curve(new_data)    # adds `new_ficc_ycl` column to `new_data`
+        new_data = add_yield_curve(new_data, BQ_CLIENT)    # adds `new_ficc_ycl` column to `new_data`
         if use_treasury_spread: new_data = add_treasury_spread(new_data)    # adds `ficc_treasury_spread` column to `new_data`
     new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
 
