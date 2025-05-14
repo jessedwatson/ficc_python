@@ -157,21 +157,6 @@ def calculate_a_over_e(df):
         return df['accrued_days'] / NUM_OF_DAYS_IN_YEAR
 
 
-def convert_calc_date_to_category(row):
-    '''Converts calc date to calc date category these labels are used to train the calc date model.'''
-    if row.last_calc_date == row.next_call_date:
-        calc_date_selection = 0
-    elif row.last_calc_date == row.par_call_date:
-        calc_date_selection = 1
-    elif row.last_calc_date == row.maturity_date:
-        calc_date_selection = 2
-    elif row.last_calc_date == row.refund_date:
-        calc_date_selection = 3
-    else:
-        calc_date_selection = 4
-    return calc_date_selection
-
-
 def calculate_dollar_error(df, predicted_ys):
     '''Computes the dollar error from the predicted yield spreads and MSRB data. 
     Assumes that the predicted yield spreads are in basis points.'''

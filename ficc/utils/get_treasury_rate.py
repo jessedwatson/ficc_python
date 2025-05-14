@@ -7,8 +7,7 @@ Last Edit Date: 2025-05-08
 import numpy as np
 
 from ficc.utils.auxiliary_functions import sqltodf
-from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR
-from ficc.utils.diff_in_days import diff_in_days_two_dates
+from ficc.utils.yc_data import get_duration
 
 
 def get_treasury_rate_dict(client) -> dict:
@@ -31,6 +30,6 @@ def current_treasury_rate(treasury_rate_dict: dict, trade):
     trade_date = trade['trade_date'].date()    # converts pd.Timestamp (original version of `trade['trade_date']`) to datetime.date since this is the type of the keys in `treasury_rate_dict`
     if trade_date not in treasury_rate_dict: return np.nan
     treasury_maturities = np.array([1, 2, 3, 5, 7, 10, 20, 30])
-    time_to_maturity = diff_in_days_two_dates(trade['last_calc_date'], trade['settlement_date']) / NUM_OF_DAYS_IN_YEAR
+    time_to_maturity = get_duration(trade, use_last_calc_day_cat=False)
     maturity = treasury_maturities[np.argmin(np.abs(treasury_maturities - time_to_maturity))]    # faster than using `min(...)` (e.g., `min(treasury_maturities, key=lambda treasury_maturity: abs(treasury_maturity - time_to_maturity))`) because numpy vectorizes the operation
     return treasury_rate_dict[trade_date][f'year_{maturity}']

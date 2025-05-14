@@ -3,7 +3,7 @@
 Author: Ahmad Shayaan
 Date: 2021-12-17
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-06
+Last Edit Date: 2025-05-13
 '''
 import io
 
@@ -12,6 +12,7 @@ import pandas as pd
 import gcsfs
 from google.cloud import storage
 
+from ficc.utils.auxiliary_variables import PROJECT_ID
 from ficc.utils.auxiliary_functions import sqltodf
 from ficc.utils.gcp_storage_functions import download_data
 
@@ -43,7 +44,7 @@ def get_historical_yield_curves(use_gcsfs: bool = True) -> pd.DataFrame:
     file_name = 'historical_yield_curves.csv'
 
     if use_gcsfs:    # when running this code locally, `gcsfs` was having problems with certificates
-        fs = gcsfs.GCSFileSystem(project='eng-reactor-287421')
+        fs = gcsfs.GCSFileSystem(project=PROJECT_ID)
         with fs.open(f'{bucket_name}/{file_name}') as file:
             historical_yield_curves = pd.read_csv(file)
     else:

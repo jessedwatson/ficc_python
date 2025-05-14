@@ -28,8 +28,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from automated_training.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
-                                                    CATEGORICAL_FEATURES, \
+from automated_training.auxiliary_variables import CATEGORICAL_FEATURES, \
                                                     CATEGORICAL_FEATURES_DOLLAR_PRICE, \
                                                     NON_CAT_FEATURES, \
                                                     NON_CAT_FEATURES_DOLLAR_PRICE, \
@@ -58,7 +57,6 @@ from automated_training.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
                                                     WORKING_DIRECTORY, \
                                                     PROJECT_ID, \
                                                     AUXILIARY_VIEWS_DATASET_NAME, \
-                                                    YIELD_CURVE_DATASET_NAME, \
                                                     BUCKET_NAME, \
                                                     TRAINING_LOGS_DIRECTORY, \
                                                     MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
@@ -90,11 +88,11 @@ sys.path.append(ficc_package_dir)    # add the directory to sys.path
 
 from ficc.utils.gcp_storage_functions import upload_data, download_data
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
-from ficc.utils.nelson_siegel_model import yield_curve_level
+from ficc.utils.auxiliary_functions import function_timer, get_ys_trade_history_features, get_dp_trade_history_features
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
 from ficc.utils.get_treasury_rate import get_treasury_rate_dict, current_treasury_rate
+from ficc.utils.yc_data import add_yield_curve
 
 
 set_seed()
@@ -184,90 +182,11 @@ def target_trade_processing_for_attention(row):
     return np.tile(target_trade_features, (1, 1))
 
 
-def get_duration(row, use_last_duration: bool) -> float:
-    '''Get the duration in years from `row`. If `use_last_duration` is `True`, then the function will 
-    use the last duration for the yield curve level. Otherwise, it will use the current duration by 
-    using the calculation date computed upstream.
-
-    NOTE: there is an argument the logic when setting `use_last_duration` to `False` causes leakage 
-    because in production we do not have the `calc_date` column. However, the objective is to train a 
-    model that performs as well as possible IF we had the correct calc date. In production, we have a 
-    subprocedure to infer what the calc date is, so it makes sense to train a model that performs as well 
-    as possible if the calc date were to be correct. Subpoint: in most cases, the calc date is known (e.g., 
-    for bond without a call option, a called bond, etc.).'''
-    start_date = row['settlement_date']    # this value is never null (verified from inspecting the materialized trade history on 2025-05-13)
-    
-    maturity_date = row['maturity_date']    # this value is never null (verified from inspecting the materialized trade history on 2025-05-13)
-    if use_last_duration:
-        # the reason that we need to use the logic below instead of just using row['last_calc_date'] is because 
-        # (1) if the bond has been called, then the last calc date is incorrect
-        # (2) if the reference data is updated, then using the category and selecting the correct date is more accurate since last_calc_date may be a date in the past since the next_call_date has been updated
-        is_called, is_callable, last_calc_day_cat = row['is_called'], row['is_callable'], row['last_calc_day_cat']
-        if is_called is True:
-            end_date = row['refund_date']    # this value is never null if `is_called` is True (verified from inspecting the materialized trade history on 2025-05-13)
-        elif is_callable is False:
-            end_date = maturity_date
-        elif last_calc_day_cat == 0 and pd.notna(row['next_call_date']):    # sometimes the case that `next_call_date` is null, but `first_call_date` is not null, and in this case, the correct value is perhaps `first_call_date` but requires complicated upstream code to correct it and deeper investigation before making the change here (1.3% of materialized trade history on 2025-05-13, and only new issues)
-            end_date = row['next_call_date']
-        elif last_calc_day_cat == 1 and pd.notna(row['par_call_date']):
-            end_date = row['par_call_date']
-        else:
-            end_date = maturity_date
-    else:    # `use_last_duration` is `False`
-        calc_date = row['calc_date']
-        if pd.isa(calc_date):
-            end_date = maturity_date
-        else:
-            end_date = calc_date
-
-    return diff_in_days_two_dates(end_date, start_date) / NUM_OF_DAYS_IN_YEAR
-
-
-def get_yield_curve_level(row, nelson_params: dict, scalar_params: dict, shape_params: dict, end_of_day: bool, use_last_duration: bool) -> float:
-    '''`end_of_day` is a boolean that indicates whether the data is end-of-day yield curve or the real-time (minute) yield curve. 
-    `use_last_duration` is a boolean that indicates whether to use the last duration for the yield curve level. If `use_last_duration` 
-    is `True`, then the function will use the last duration for the yield curve level. Otherwise, it will use the current duration by 
-    using the calculation date computed upstream.'''
-    return yield_curve_level(get_duration(row, use_last_duration), row['trade_datetime'], nelson_params, scalar_params, shape_params, end_of_day)
-
-
-def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
-    '''Return the parameters from `table_name` as a dictionary.'''
-    params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.{table_name}` ORDER BY {date_column_name} DESC', BQ_CLIENT)
-    params.set_index(date_column_name, drop=True, inplace=True)
-    params = params[~params.index.duplicated(keep='first')]
-    return params.transpose().to_dict()
-
-
-@function_timer
-def add_yield_curve(data, end_of_day: bool = False, use_last_duration: bool = False) -> pd.DataFrame:
-    '''Add 'new_ficc_ycl' field to `data`. `end_of_day` is a boolean that indicates whether the data is end-of-day yield curve or the real-time (minute) yield curve. 
-    `use_last_duration` is a boolean that indicates whether to use the last duration for the yield curve level. If `use_last_duration` is `True`, then the function 
-    will use the last duration for the yield curve level. Otherwise, it will use the current duration by using the calculation date computed upstream.'''
-    initialize_pandarallel()    # only initialize if needed
-
-    # TODO: extract the minimum date from `data`, and pass it into `get_parameters(...)` to get the parameters for that date +/- a few days; this will speed up the querying and other downstream procedures
-    if end_of_day:
-        nelson_params = get_parameters('nelson_siegel_coef_daily')
-    else:
-        nelson_params = get_parameters('nelson_siegel_coef_minute')
-
-    scalar_daily_params = get_parameters('standardscaler_parameters_daily')
-    shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
-
-    data['last_trade_date'] = data['last_trade_datetime'].dt.date
-    columns_needed_to_compute_ycl = ['last_calc_date', 'last_settlement_date', 'trade_date', 'trade_datetime', 'last_trade_date', 'maturity_date']
-    columns_received_from_computing_ycl = ['new_ficc_ycl', 'const', 'exponential', 'laguerre', 'target_datetime_for_nelson_params', 'exponential_mean', 'exponential_std', 'laguerre_mean', 'laguerre_std', 'target_date_for_scaler_params', 'shape_parameter', 'target_date_for_shape_parameter']
-    get_yield_curve_level_caller = lambda row: get_yield_curve_level(row, nelson_params, scalar_daily_params, shape_params, end_of_day, use_last_duration)
-    data[columns_received_from_computing_ycl] = data[columns_needed_to_compute_ycl].parallel_apply(get_yield_curve_level_caller, axis=1, result_type='expand')
-    return data
-
-
 @function_timer
 def add_treasury_spread(data: pd.DataFrame, use_multiprocessing: bool = True) -> pd.DataFrame:
     assert 'new_ficc_ycl' in data.columns, '`new_ficc_ycl` column is not present in the data. Please call `add_yield_curve(...)` before calling this function.'
     treasury_rate_dict = get_treasury_rate_dict(BQ_CLIENT)
-    columns_needed_for_treasury_rate = ['trade_date', 'last_calc_date', 'settlement_date']
+    columns_needed_for_treasury_rate = ['trade_date', 'calc_date', 'settlement_date']
     treasury_rate_apply_func = data[columns_needed_for_treasury_rate].parallel_apply if use_multiprocessing else data[columns_needed_for_treasury_rate].apply
     data['treasury_rate'] = treasury_rate_apply_func(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
     null_treasury_rate = data['treasury_rate'].isnull()

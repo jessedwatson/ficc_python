@@ -2,7 +2,7 @@
 Author: Issac Lim
 Date: 2021-08-23
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-12
+Last Edit Date: 2025-05-13
 Description: Implementation of the Nelson-Seigel interest rate model to predict the yield curve. Nelson-Seigel coefficeints are used from a dataframe instead of grabbing them from memory store.
 '''
 from functools import wraps
@@ -17,8 +17,6 @@ from pandas.tseries.holiday import USFederalHolidayCalendar, GoodFriday
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-
-PROJECT_ID = 'eng-reactor-287421'
 
 YEAR_MONTH_DAY_HOUR_MIN = '%Y-%m-%d:%H:%M'
 YEAR_MONTH_DAY_HOUR_MIN_SEC = '%Y-%m-%d:%H:%M:%S'

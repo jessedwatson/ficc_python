@@ -18,3 +18,4 @@ from . import trade_list_to_array
 from . import trade_mapping
 from . import truncation
 from . import yield_curve_params
+from . import yc_data
