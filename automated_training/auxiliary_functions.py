@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-13
+Last Edit Date: 2025-05-16
 '''
 import warnings
 import math
@@ -383,6 +383,7 @@ def drop_features_with_null_value(df: pd.DataFrame, model: str) -> pd.DataFrame:
 @function_timer
 def save_data(data: pd.DataFrame, file_name: str, upload_to_google_cloud_bucket: bool = True) -> None:
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     data = remove_old_trades(data, MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, dataset_name='entire processed data file')
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
