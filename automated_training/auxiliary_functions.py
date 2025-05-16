@@ -262,7 +262,8 @@ def get_new_data(file_name,
                  optional_arguments_for_process_data: dict = dict(), 
                  data_query: str = None, 
                  save_data: bool = SAVE_MODEL_AND_DATA, 
-                 use_multiprocessing: bool = True):
+                 use_multiprocessing: bool = True, 
+                 raw_data_file_path: str = None):
     '''`data_query` will always be `None` unless the user is attempting to get processed data for a specific 
     slice of data by calling `get_new_data(...)` from another function.'''
     check_that_model_is_supported(model)
@@ -274,12 +275,12 @@ def get_new_data(file_name,
     trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
-    raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
+    if raw_data_file_path is None: raw_data_file_path = f'raw_data_{file_timestamp}.pkl'
     data_from_last_trade_datetime = process_data(data_query, 
                                                  BQ_CLIENT, 
                                                  num_trades_in_history, 
                                                  num_features_for_each_trade_in_history, 
-                                                 raw_data_filepath, 
+                                                 raw_data_file_path, 
                                                  save_data=save_data, 
                                                  process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
                                                  use_multiprocessing=use_multiprocessing, 
@@ -293,7 +294,7 @@ def get_new_data(file_name,
             last_trade_date = decremented_last_trade_date
         
         if model == 'dollar_price': data_from_last_trade_datetime = data_from_last_trade_datetime.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
-    return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
+    return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_file_path
 
 
 def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_trade_date: str = None, dataset_name: str = None) -> pd.DataFrame:
@@ -383,7 +384,7 @@ def drop_features_with_null_value(df: pd.DataFrame, model: str) -> pd.DataFrame:
 @function_timer
 def save_data(data: pd.DataFrame, file_name: str, upload_to_google_cloud_bucket: bool = True) -> None:
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
     data = remove_old_trades(data, MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, dataset_name='entire processed data file')
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)

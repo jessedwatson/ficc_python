@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2024-04-19
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-07
+Last Edit Date: 2025-05-16
 Description: Gather train / test data from materialized trade history. First, find all dates for which there are trades. Then, 
 use multiprocessing to read the data from BigQuery for each date, since the conversion of the query results to a dataframe is costly. 
 This file was created to test different ways of getting the raw data to determine which one was faster: getting it all at once, or 
@@ -85,7 +85,7 @@ def get_processed_trades_for_particular_date(start_date_as_string: str, end_date
 
     optional_arguments_for_process_data = get_optional_arguments_for_process_data(MODEL)
     use_treasury_spread = optional_arguments_for_process_data.get('use_treasury_spread', False)
-    _, processed_data, _, _, _ = get_new_data(None, MODEL, use_treasury_spread, optional_arguments_for_process_data, data_query_date, False, use_multiprocessing)
+    _, processed_data, _, _, _ = get_new_data(None, MODEL, use_treasury_spread, optional_arguments_for_process_data, data_query_date, SAVE_DATA, use_multiprocessing, f'{os.path.dirname(__file__)}/files/raw_data_{start_date_as_string}.pkl')
     
     if TESTING:
         # save `processed_data` to a pickle file for re-using later
