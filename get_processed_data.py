@@ -109,6 +109,8 @@ def get_trades_for_all_dates(dates: list,
         if len(dates) > 1 and MULTIPROCESSING:
             num_workers = os.cpu_count()    # consider trying with lesser processes if running out of RAM (e.g., set `num_workers` to `os.cpu_count() // 4`)
             print(f'Using multiprocessing with {num_workers} workers for calling `get_trades_for_particular_date(...) on each of the {len(dates)} items in {dates}')
+            if sys.platform == "darwin":    # macOS; sys.platform returns "darwin" for macOS, "linux" for Linux, "win32" for Windows
+                mp.set_start_method("spawn", force=True)    # when on macOS safer, especially when GUI/network/system calls are involved, to use `spawn` instead of `fork` to avoid issues with pickling the function and its arguments; see https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods; spawn starts a fresh Python interpreter process instead of duplicating the parent process memory via fork; `force=True` forces the start method to be changed even if it was already set before
             with mp.Pool(num_workers) as pool_object:    # using template from https://docs.python.org/3/library/multiprocessing.html
                 trades_for_all_dates = pool_object.map(lambda start_date_as_string: get_processed_trades_for_particular_date(start_date_as_string, use_multiprocessing=False), dates)
         else:
