@@ -73,10 +73,12 @@ def restrict_trades_by_trade_datetime(df: pd.DataFrame,
 def get_processed_data_pickle_file(model: str = MODEL) -> pd.DataFrame:
     file_name = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[model]
     if os.path.isfile(file_name):
+        print(f'Loading data from {file_name} which was found locally...')
         with open(file_name, 'rb') as file:
             data = pickle.load(file)
         most_recent_trade_datetime = data.trade_datetime.max()
     else:
+        print(f'Did not find {file_name} locally so downloading it from Google Cloud Storage...')
         data, most_recent_trade_datetime, _ = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
         with open(file_name, 'wb') as file:
             pickle.dump(data, file)
