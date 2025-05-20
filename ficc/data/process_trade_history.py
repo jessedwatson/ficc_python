@@ -2,7 +2,7 @@
 Author: Ahmad Shayaan
 Date: 2021-12-17
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-16
+Last Edit Date: 2025-05-20
 '''
 import os
 import pickle
@@ -15,7 +15,7 @@ from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
 
 
-def fetch_trade_data(query: str, bq_client, path: str ='data.pkl', save_data: bool = True):
+def fetch_trade_data(query: str, bq_client, path: str = 'data.pkl', save_data: bool = True):
     trades_df = check_if_pickle_file_exists_and_matches_query(query, path)
     if trades_df is not None:
         print(f'Using cached data from {path} since the query matches the one in the file')
@@ -27,7 +27,9 @@ def fetch_trade_data(query: str, bq_client, path: str ='data.pkl', save_data: bo
 
     if save_data:
         print(f'Saving query and data to {path}')
-        os.makedirs(os.path.dirname(path), exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
+        dir_name = os.path.dirname(path)
+        if dir_name:    # Only make directories if there's a directory in the path, i.e., `dir_name` is not '' or `None`
+            os.makedirs(dir_name, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
         with open(path, 'wb') as f: 
             pickle.dump((query, trades_df), f)
     return trades_df
