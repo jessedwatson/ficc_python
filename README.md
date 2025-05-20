@@ -40,10 +40,10 @@ An example of each API is available [here](https://github.com/Ficc-ai/ficc_pytho
 ### Automated Training
 The yield spread model trains on the `yield_spread_model_training_vm` and the dollar price model trains on the `dollar_price_model_training_vm`. Both [VM instances](https://console.cloud.google.com/compute/instances?authuser=1&project=eng-reactor-287421&supportedpurview=project&tab=instances) are automatically switched on at 2:30am every day between Monday and Friday using the `automated-training-schedule` configured in the [Instance Schedules](https://console.cloud.google.com/compute/instances/instanceSchedules?authuser=1&project=eng-reactor-287421&supportedpurview=project&tab=instanceSchedules). The training and uploading to VertexAI is executed with a cron job. The cron job on the `yield_spread_model_training_vm` is
 
-```45 10 * * 1-5 sh /home/mitas/ficc_python/yield_spread_deployment.sh >> /home/mitas/training_logs/yield_spread_training_$(date +\%Y-\%m-\%d).log 2>&1```
+```45 10 * * 1-5 sh /home/mitas/ficc_python/yield_spread_deployment.sh >> /home/mitas/training_logs/yield_spread_training_$(TZ=America/New_York date +\%Y-\%m-\%d).log 2>&1```
 
 and the cron job on the `dollar_price_model_training_vm` is
 
-```45 10 * * 1-5 sh /home/mitas/ficc_python/dollar_price_deployment.sh >> /home/mitas/training_logs/dollar_price_training_$(date +\%Y-\%m-\%d).log 2>&1```.
+```45 10 * * 1-5 sh /home/mitas/ficc_python/dollar_price_deployment.sh >> /home/mitas/training_logs/dollar_price_training_$(TZ=America/New_York date +\%Y-\%m-\%d).log 2>&1```.
 
 More details [here](https://www.notion.so/Daily-Model-Deployment-Process-d055c30e3c954d66b888015226cbd1a8).
