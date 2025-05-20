@@ -11,12 +11,13 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 
-from automated_training.auxiliary_variables import EMAIL_RECIPIENTS_FOR_LOGS, BUCKET_NAME, TRAINING_LOGS_DIRECTORY
-from automated_training.auxiliary_functions import send_email, check_that_model_is_supported, STORAGE_CLIENT
-
 
 ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
 sys.path.append(ficc_package_dir)    # add the directory to sys.path
+
+
+from automated_training.auxiliary_variables import EMAIL_RECIPIENTS_FOR_LOGS, BUCKET_NAME, TRAINING_LOGS_DIRECTORY
+from automated_training.auxiliary_functions import send_email, check_that_model_is_supported, STORAGE_CLIENT
 
 
 from ficc.utils.gcp_storage_functions import upload_data

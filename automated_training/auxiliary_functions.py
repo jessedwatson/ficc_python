@@ -28,6 +28,11 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
+sys.path.append(ficc_package_dir)    # add the directory to sys.path
+
+
 from automated_training.auxiliary_variables import CATEGORICAL_FEATURES, \
                                                     CATEGORICAL_FEATURES_DOLLAR_PRICE, \
                                                     NON_CAT_FEATURES, \
@@ -80,11 +85,6 @@ from automated_training.auxiliary_variables import CATEGORICAL_FEATURES, \
 from automated_training.yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from automated_training.dollar_model import dollar_price_model
 from automated_training.set_random_seed import set_seed
-
-
-ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
-sys.path.append(ficc_package_dir)    # add the directory to sys.path
-
 
 from ficc.utils.gcp_storage_functions import upload_data, download_data
 from ficc.data.process_data import process_data

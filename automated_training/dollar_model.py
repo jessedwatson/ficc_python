@@ -4,11 +4,19 @@ Date: 2023-02-01
 Last Editor: Mitas Ray
 Last Edit Date: 2024-02-14
 '''
+import os
+import sys
+
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
+
+
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
+sys.path.append(ficc_package_dir)    # add the directory to sys.path
+
 
 from automated_training.auxiliary_variables import BATCH_SIZE, DROPOUT
 from automated_training.set_random_seed import set_seed
