@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-16
+Last Edit Date: 2025-05-20
 '''
 import warnings
 import math
@@ -270,12 +270,12 @@ def get_new_data(file_name,
     old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
     if data_query is None: data_query = get_data_query(last_trade_datetime, model)
-    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M:%S')
+    file_date = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY)
 
     trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
-    if raw_data_file_path is None: raw_data_file_path = f'raw_data_{file_timestamp}.pkl'
+    if raw_data_file_path is None: raw_data_file_path = f'raw_data_{file_date}.pkl'
     data_from_last_trade_datetime = process_data(data_query, 
                                                  BQ_CLIENT, 
                                                  num_trades_in_history, 
