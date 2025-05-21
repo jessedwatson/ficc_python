@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-04-09
+Last Edit Date: 2025-05-20
 '''
 import warnings
 import math
@@ -28,72 +28,71 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from auxiliary_variables import NUM_OF_DAYS_IN_YEAR, \
-                                CATEGORICAL_FEATURES, \
-                                CATEGORICAL_FEATURES_DOLLAR_PRICE, \
-                                NON_CAT_FEATURES, \
-                                NON_CAT_FEATURES_DOLLAR_PRICE, \
-                                BINARY, \
-                                BINARY_DOLLAR_PRICE, \
-                                PREDICTORS, \
-                                PREDICTORS_DOLLAR_PRICE, \
-                                YS_VARIANTS, \
-                                YS_FEATS, \
-                                DP_VARIANTS, \
-                                DP_FEATS, \
-                                YEAR_MONTH_DAY, \
-                                HOUR_MIN_SEC, \
-                                QUERY_FEATURES, \
-                                QUERY_CONDITIONS, \
-                                ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
-                                ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
-                                ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
-                                EASTERN, \
-                                BUSINESS_DAY, \
-                                NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
-                                NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
-                                CATEGORICAL_FEATURES_VALUES, \
-                                SAVE_MODEL_AND_DATA, \
-                                HOME_DIRECTORY, \
-                                WORKING_DIRECTORY, \
-                                PROJECT_ID, \
-                                AUXILIARY_VIEWS_DATASET_NAME, \
-                                YIELD_CURVE_DATASET_NAME, \
-                                BUCKET_NAME, \
-                                TRAINING_LOGS_DIRECTORY, \
-                                MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
-                                EARLIEST_TRADE_DATETIME, \
-                                MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
-                                MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
-                                OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
-                                OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
-                                TTYPE_DICT, \
-                                LONG_TIME_AGO_IN_NUM_SECONDS, \
-                                MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
-                                HISTORICAL_PREDICTION_TABLE, \
-                                EMAIL_RECIPIENTS, \
-                                SENDER_EMAIL, \
-                                BATCH_SIZE, \
-                                NUM_EPOCHS, \
-                                MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
-                                TESTING, \
-                                USE_PICKLED_DATA, \
-                                ROW_NAME_DETERMINING_MODEL_SWITCH
-from yield_with_similar_trades_model import yield_spread_with_similar_trades_model
-from dollar_model import dollar_price_model
-from set_random_seed import set_seed
-
 
 ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
 sys.path.append(ficc_package_dir)    # add the directory to sys.path
 
 
+from automated_training.auxiliary_variables import CATEGORICAL_FEATURES, \
+                                                    CATEGORICAL_FEATURES_DOLLAR_PRICE, \
+                                                    NON_CAT_FEATURES, \
+                                                    NON_CAT_FEATURES_DOLLAR_PRICE, \
+                                                    BINARY, \
+                                                    BINARY_DOLLAR_PRICE, \
+                                                    PREDICTORS, \
+                                                    PREDICTORS_DOLLAR_PRICE, \
+                                                    YS_VARIANTS, \
+                                                    YS_FEATS, \
+                                                    DP_VARIANTS, \
+                                                    DP_FEATS, \
+                                                    YEAR_MONTH_DAY, \
+                                                    HOUR_MIN_SEC, \
+                                                    QUERY_FEATURES, \
+                                                    QUERY_CONDITIONS, \
+                                                    ADDITIONAL_QUERY_CONDITIONS_FOR_YIELD_SPREAD_MODEL, \
+                                                    ADDITIONAL_QUERY_FEATURES_FOR_DOLLAR_PRICE_MODEL, \
+                                                    ADDITIONAL_QUERY_FEATURES_FOR_YIELD_SPREAD_WITH_SIMILAR_TRADES_MODEL, \
+                                                    EASTERN, \
+                                                    BUSINESS_DAY, \
+                                                    NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL, \
+                                                    NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL, \
+                                                    CATEGORICAL_FEATURES_VALUES, \
+                                                    SAVE_MODEL_AND_DATA, \
+                                                    HOME_DIRECTORY, \
+                                                    WORKING_DIRECTORY, \
+                                                    PROJECT_ID, \
+                                                    AUXILIARY_VIEWS_DATASET_NAME, \
+                                                    BUCKET_NAME, \
+                                                    TRAINING_LOGS_DIRECTORY, \
+                                                    MAX_NUM_WEEK_DAYS_IN_THE_PAST_TO_CHECK, \
+                                                    EARLIEST_TRADE_DATETIME, \
+                                                    MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, \
+                                                    MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME, \
+                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD, \
+                                                    OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE, \
+                                                    TTYPE_DICT, \
+                                                    LONG_TIME_AGO_IN_NUM_SECONDS, \
+                                                    MIN_TRADES_NEEDED_TO_BE_CONSIDERED_BUSINESS_DAY, \
+                                                    HISTORICAL_PREDICTION_TABLE, \
+                                                    EMAIL_RECIPIENTS, \
+                                                    SENDER_EMAIL, \
+                                                    BATCH_SIZE, \
+                                                    NUM_EPOCHS, \
+                                                    MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
+                                                    TESTING, \
+                                                    USE_PICKLED_DATA, \
+                                                    ROW_NAME_DETERMINING_MODEL_SWITCH
+from automated_training.yield_with_similar_trades_model import yield_spread_with_similar_trades_model
+from automated_training.dollar_model import dollar_price_model
+from automated_training.set_random_seed import set_seed
+
 from ficc.utils.gcp_storage_functions import upload_data, download_data
 from ficc.data.process_data import process_data
-from ficc.utils.auxiliary_functions import function_timer, sqltodf, get_ys_trade_history_features, get_dp_trade_history_features
-from ficc.utils.nelson_siegel_model import yield_curve_level
+from ficc.utils.auxiliary_functions import function_timer, get_ys_trade_history_features, get_dp_trade_history_features
 from ficc.utils.diff_in_days import diff_in_days_two_dates
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
+from ficc.utils.get_treasury_rate import get_treasury_rate_dict, current_treasury_rate
+from ficc.utils.yc_data import add_yield_curve
 
 
 set_seed()
@@ -183,41 +182,19 @@ def target_trade_processing_for_attention(row):
     return np.tile(target_trade_features, (1, 1))
 
 
-def get_yield_for_last_duration(row, nelson_params, scalar_params, shape_parameter):
-    if pd.isnull(row['last_calc_date'])or pd.isnull(row['last_trade_date']):
-        # if there is no last trade, we use the duration of the current bond
-        duration = diff_in_days_two_dates(row['maturity_date'], row['trade_date']) / NUM_OF_DAYS_IN_YEAR
-        ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
-        return ycl
-    duration =  diff_in_days_two_dates(row['last_calc_date'], row['last_trade_date']) / NUM_OF_DAYS_IN_YEAR
-    ycl = yield_curve_level(duration, row['trade_date'].date(), nelson_params, scalar_params, shape_parameter) / 100
-    return ycl
-
-
-def get_parameters(table_name: str, date_column_name: str = 'date') -> dict:
-    '''Return the parameters from `table_name` as a dictionary.'''
-    params = sqltodf(f'SELECT * FROM `{PROJECT_ID}.{YIELD_CURVE_DATASET_NAME}.{table_name}` ORDER BY {date_column_name} DESC', BQ_CLIENT)
-    params.set_index(date_column_name, drop=True, inplace=True)
-    params = params[~params.index.duplicated(keep='first')]
-    return params.transpose().to_dict()
-
-
 @function_timer
-def add_yield_curve(data):
-    '''Add 'new_ficc_ycl' field to `data`.'''
-    initialize_pandarallel()    # only initialize if needed
-
-    nelson_daily_params = get_parameters('nelson_siegel_coef_daily')
-    scalar_daily_params = get_parameters('standardscaler_parameters_daily')
-    shape_params = get_parameters('shape_parameters', 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
-
-    data['last_trade_date'] = data['last_trade_datetime'].dt.date
-    data['new_ficc_ycl'] = data[['last_calc_date',
-                                 'last_settlement_date',
-                                 'trade_date',
-                                 'last_trade_date',
-                                 'maturity_date']].parallel_apply(lambda row: get_yield_for_last_duration(row, nelson_daily_params, scalar_daily_params, shape_params), axis=1)
-    data['new_ficc_ycl'] = data['new_ficc_ycl'] * 100
+def add_treasury_spread(data: pd.DataFrame, use_multiprocessing: bool = True) -> pd.DataFrame:
+    assert 'new_ficc_ycl' in data.columns, '`new_ficc_ycl` column is not present in the data. Please call `add_yield_curve(...)` before calling this function.'
+    treasury_rate_dict = get_treasury_rate_dict(BQ_CLIENT)
+    columns_needed_for_treasury_rate = ['trade_date', 'calc_date', 'settlement_date', 'maturity_date']
+    treasury_rate_apply_func = data[columns_needed_for_treasury_rate].parallel_apply if use_multiprocessing else data[columns_needed_for_treasury_rate].apply
+    data['treasury_rate'] = treasury_rate_apply_func(lambda trade: current_treasury_rate(treasury_rate_dict, trade), axis=1)
+    null_treasury_rate = data['treasury_rate'].isnull()
+    if null_treasury_rate.sum() > 0:
+        trade_dates_corresponding_to_null_treasury_rate = data.loc[null_treasury_rate, 'trade_date']
+        print(f'The following `trade_date`s have no corresponding `treasury_rate`, so all {null_treasury_rate.sum()} trades with these `trade_date`s have been removed: {trade_dates_corresponding_to_null_treasury_rate.unique()}')
+        data = data[~null_treasury_rate]
+    data['ficc_treasury_spread'] = data['new_ficc_ycl'] - (data['treasury_rate'] * 100)
     return data
 
 
@@ -285,24 +262,25 @@ def get_new_data(file_name,
                  optional_arguments_for_process_data: dict = dict(), 
                  data_query: str = None, 
                  save_data: bool = SAVE_MODEL_AND_DATA, 
-                 use_multiprocessing: bool = True):
+                 use_multiprocessing: bool = True, 
+                 raw_data_file_path: str = None):
     '''`data_query` will always be `None` unless the user is attempting to get processed data for a specific 
     slice of data by calling `get_new_data(...)` from another function.'''
     check_that_model_is_supported(model)
     old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
     if data_query is None: data_query = get_data_query(last_trade_datetime, model)
-    file_timestamp = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY + '-%H:%M:%S')
+    file_date = datetime.now(EASTERN).strftime(YEAR_MONTH_DAY)
 
     trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
-    raw_data_filepath = f'raw_data_{file_timestamp}.pkl'
+    if raw_data_file_path is None: raw_data_file_path = f'raw_data_{file_date}.pkl'
     data_from_last_trade_datetime = process_data(data_query, 
                                                  BQ_CLIENT, 
                                                  num_trades_in_history, 
                                                  num_features_for_each_trade_in_history, 
-                                                 raw_data_filepath, 
+                                                 raw_data_file_path, 
                                                  save_data=save_data, 
                                                  process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
                                                  use_multiprocessing=use_multiprocessing, 
@@ -316,7 +294,7 @@ def get_new_data(file_name,
             last_trade_date = decremented_last_trade_date
         
         if model == 'dollar_price': data_from_last_trade_datetime = data_from_last_trade_datetime.rename(columns={'trade_history': 'trade_history_dollar_price'})    # change the trade history column name to match with `PREDICTORS_DOLLAR_PRICE`
-    return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath
+    return old_data, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_file_path
 
 
 def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_trade_date: str = None, dataset_name: str = None) -> pd.DataFrame:
@@ -329,7 +307,7 @@ def remove_old_trades(data: pd.DataFrame, num_days_to_keep: int, most_recent_tra
 
 
 @function_timer
-def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str) -> pd.DataFrame:
+def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFrame, model: str, use_treasury_spread: bool) -> pd.DataFrame:
     initialize_pandarallel()    # only initialize if needed
     check_that_model_is_supported(model)
     if new_data is None: return old_data    # there is new data since `last_trade_date`
@@ -349,7 +327,9 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
             old_data[trade_history_feature_name] = old_data[trade_history_feature_name].apply(lambda history: history[:num_trades_in_history])    # done in case `num_trades_in_history` has decreased from before
 
     new_data['yield'] = new_data['yield'] * 100
-    if 'yield_spread' in model: new_data = add_yield_curve(new_data)
+    if 'yield_spread' in model:
+        new_data = add_yield_curve(new_data, BQ_CLIENT)    # adds `new_ficc_ycl` column to `new_data`
+        if use_treasury_spread: new_data = add_treasury_spread(new_data)    # adds `ficc_treasury_spread` column to `new_data`
     new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
 
     trade_history_sum_features = []    # remove these features after checking for null values
@@ -363,7 +343,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
     
     new_data.issue_amount = new_data.issue_amount.replace([np.inf, -np.inf], np.nan)
 
-    data = pd.concat([new_data, old_data]) if old_data is not None else new_data    # concatenating `new_data` to the original `data` dataframe
+    data = pd.concat([new_data, old_data], sort=False) if old_data is not None else new_data    # concatenating `new_data` to the original `data` dataframe; `sort=False` is used to keep the original order of the columns
     data = data.drop(columns=trade_history_sum_features)
     if 'yield_spread' in model: data['new_ys'] = data['yield'] - data['new_ficc_ycl']
     print(f'{len(data)} trades after combining new and old data')
@@ -404,6 +384,7 @@ def drop_features_with_null_value(df: pd.DataFrame, model: str) -> pd.DataFrame:
 @function_timer
 def save_data(data: pd.DataFrame, file_name: str, upload_to_google_cloud_bucket: bool = True) -> None:
     file_path = f'{WORKING_DIRECTORY}/files/{file_name}'
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
     data = remove_old_trades(data, MAX_NUM_DAYS_IN_THE_PAST_TO_KEEP_DATA, dataset_name='entire processed data file')
     print(f'Saving data to pickle file with name {file_path}')
     data.to_pickle(file_path)
@@ -569,7 +550,7 @@ def update_data(model: str):
                                                                                                                                                               use_treasury_spread=use_treasury_spread, 
                                                                                                                                                               optional_arguments_for_process_data=optional_arguments_for_process_data)
     if data_from_last_trade_datetime is not None:    # no need to continue this procedure if there are no new trades since the below subprocedures were performed on the data before storing it on Google Cloud Storage
-        data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model)
+        data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model, use_treasury_spread)
         data = add_trade_history_derived_features(data, model, use_treasury_spread)
         data = drop_features_with_null_value(data, model)
         if SAVE_MODEL_AND_DATA: save_data(data, filename)

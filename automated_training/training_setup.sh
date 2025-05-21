@@ -1,7 +1,7 @@
 # @ Author: Mitas Ray
 # @ Create date: 2024-12-09
 # @ Modified by: Mitas Ray
-# @ Modified date: 2025-01-06
+# @ Modified date: 2025-05-20
 # @ Description: This shell script sets up a new VM for automated training by: (1) cloning both ficc repositories, (2) setting up 
 #                necessary directories, (3) creating a virtual environment with all necessary packages, and (4) setting up the cron job. 
 #                The user must set the `MODEL_NAME` correctly and put in their Github credentials. Additionally, the user must copy 
@@ -122,7 +122,7 @@ echo "Setup complete. Use 'source $VENV_DIR/bin/activate' to activate the virtua
 
 
 # Define the cron job
-CRON_JOB="45 10 * * 1-5 sh $HOME/ficc_python/automated_training/model_deployment.sh $MODEL_NAME >> $HOME/training_logs/${MODEL_NAME}_training_\$(date +\\%Y-\\%m-\\%d).log 2>&1"
+CRON_JOB="45 10 * * 1-5 sh $HOME/ficc_python/automated_training/model_deployment.sh $MODEL_NAME >> $HOME/training_logs/${MODEL_NAME}_training_\$(TZ=America/New_York date +\\%Y-\\%m-\\%d).log 2>&1"
 
 # Check if the cron job already exists
 crontab -l 2>/dev/null | grep -F "$CRON_JOB" >/dev/null

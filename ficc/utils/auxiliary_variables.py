@@ -1,16 +1,19 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2021-12-17
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-01-08
- '''
+Author: Ahmad Shayaan
+Date: 2021-12-17
+Last Editor: Mitas Ray
+Last Edit Date: 2025-05-13
+'''
 NUM_OF_DAYS_IN_YEAR = 360
+
+PROJECT_ID = 'eng-reactor-287421'
 
 IS_BOOKKEEPING = 'is_bookkeeping'
 IS_SAME_DAY = 'is_same_day'
 IS_REPLICA = 'is_replica'
 NTBC_PRECURSOR = 'ntbc_precursor'
 REPLICA_COUNT = 'replica_count'
+
 
 import numpy as np
 from ficc.utils.trade_mapping import TRADE_TYPE_MAPPING, TRADE_TYPE_CROSS_PRODUCT_MAPPING

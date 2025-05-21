@@ -1,19 +1,27 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2023-04-16
- # @ Modified by: Mitas Ray
- # @ Modified date: 2023-04-18
- # @ Description: Refer to Isaac's work in https://github.com/Ficc-ai/ficc/blob/dev/VertexAI/VertexAI-Experiment/Create%20model%20template.ipynb for previous experiments 
- regarding additional trade history sequences. Isaac's experiment results: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs?authuser=1&project=eng-reactor-287421.
- '''
+Author: Mitas Ray
+Date: 2023-04-16
+Last Editor: Mitas Ray
+Last Edit Date: 2023-04-18
+Description: Refer to Isaac's work in https://github.com/Ficc-ai/ficc/blob/dev/VertexAI/VertexAI-Experiment/Create%20model%20template.ipynb for previous experiments 
+             regarding additional trade history sequences. Isaac's experiment results: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs?authuser=1&project=eng-reactor-287421.
+'''
+import os
+import sys
+
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 
-from auxiliary_variables import BATCH_SIZE, DROPOUT
-from set_random_seed import set_seed
+
+ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))    # get the directory containing the 'ficc_python/' package
+sys.path.append(ficc_package_dir)    # add the directory to sys.path
+
+
+from automated_training.auxiliary_variables import BATCH_SIZE, DROPOUT
+from automated_training.set_random_seed import set_seed
 
 
 set_seed()

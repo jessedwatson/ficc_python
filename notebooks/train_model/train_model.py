@@ -8,7 +8,7 @@ Description: Used to train a model with a processed data file. Heavily uses code
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u train_model.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
 Breakdown:
 1. `nohup`: This allows the script to continue running even after you log out or close the terminal.
-2. python -u train_model.py: This part is executing your Python script in unbuffered mode, forcing Python to write output immediately. If you are using Python 3, you might want to specify python3 instead of just python, depending on your environment.
+2. python -u train_model.py: This part is executing your Python script in unbuffered mode, forcing Python to write output immediately.
 3. >> output.txt 2>&1:
     * >> output.txt appends the standard output (stdout) of the script to output.txt instead of overwriting it.
     * 2>&1 redirects standard error (stderr) to the same file as standard output, so both stdout and stderr go into output.txt.
@@ -73,10 +73,12 @@ def restrict_trades_by_trade_datetime(df: pd.DataFrame,
 def get_processed_data_pickle_file(model: str = MODEL) -> pd.DataFrame:
     file_name = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[model]
     if os.path.isfile(file_name):
+        print(f'Loading data from {file_name} which was found locally...')
         with open(file_name, 'rb') as file:
             data = pickle.load(file)
         most_recent_trade_datetime = data.trade_datetime.max()
     else:
+        print(f'Did not find {file_name} locally so downloading it from Google Cloud Storage...')
         data, most_recent_trade_datetime, _ = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
         with open(file_name, 'wb') as file:
             pickle.dump(data, file)

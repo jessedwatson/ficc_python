@@ -1,11 +1,11 @@
 # Author: Mitas Ray
 # Date: 2025-01-06
 # Last Editor: Mitas Ray
-# Last Edit Date: 2025-02-05
+# Last Edit Date: 2025-05-20
 # Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price". 
 #              The below are the cron jobs for the yield spread with similar trades and dollar price models set up on their respective automated training VMs.
-#              45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh dollar_price >> /home/mitas/training_logs/dollar_price_training_$(date +\%Y-\%m-\%d).log 2>&1
-#              45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh yield_spread_with_similar_trades >> /home/mitas/training_logs/yield_spread_with_similar_trades_training_$(date +\%Y-\%m-\%d).log 2>&1
+#              45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh dollar_price >> /home/mitas/training_logs/dollar_price_training_$(TZ=America/New_York date +\%Y-\%m-\%d).log 2>&1
+#              45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh yield_spread_with_similar_trades >> /home/mitas/training_logs/yield_spread_with_similar_trades_training_$(TZ=America/New_York date +\%Y-\%m-\%d).log 2>&1
 
 #!/bin/bash
 
@@ -36,7 +36,7 @@ esac
 who
 HOME_DIRECTORY='/home/mitas'
 AUTOMATED_TRAINING_DIRECTORY="$HOME_DIRECTORY/ficc_python/automated_training"
-DATE_WITH_YEAR=$(date +%Y-%m-%d)    # Create date before training so that in case the training takes too long and goes into the next day, the date is correct
+DATE_WITH_YEAR=$(TZ="America/New_York" date +%Y-%m-%d)    # Create date before training so that in case the training takes too long and goes into the next day, the date is correct
 REGION='us-east4'
 
 if [ "$1" == "yield_spread_with_similar_trades" ]; then

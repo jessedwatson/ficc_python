@@ -16,7 +16,7 @@ ficc_package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 sys.path.append(ficc_package_dir)    # add the directory to sys.path
 
 
-from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `auxiliary_functions.py`
+from ficc.utils.auxiliary_variables import NUM_OF_DAYS_IN_YEAR, PROJECT_ID, CATEGORICAL_FEATURES, CATEGORICAL_FEATURES_DOLLAR_PRICE, NON_CAT_FEATURES, NON_CAT_FEATURES_DOLLAR_PRICE, BINARY, BINARY_DOLLAR_PRICE, PREDICTORS, PREDICTORS_DOLLAR_PRICE    # the unused imports here are used in `auxiliary_functions.py` and we import them here so that if we make modifications to them, then they will be preserved before the training procedure is called in `auxiliary_functions.py`
 
 
 EASTERN = timezone('US/Eastern')
@@ -43,9 +43,7 @@ EARLIEST_TRADE_DATETIME = (datetime.now().date() - timedelta(days=MAX_NUM_DAYS_I
 HOME_DIRECTORY = os.path.expanduser('~')    # use of relative path omits the need to hardcode home directory like `home/mitas`; `os.path.expanduser('~')` parses `~` because pickle cannot read `~` as is
 WORKING_DIRECTORY = f'{HOME_DIRECTORY}/ficc_python'
 
-PROJECT_ID = 'eng-reactor-287421'
 AUXILIARY_VIEWS_DATASET_NAME = 'auxiliary_views_v2'
-YIELD_CURVE_DATASET_NAME = 'yield_curves_v2'
 HISTORICAL_PREDICTION_TABLE = {'yield_spread': f'{PROJECT_ID}.historic_predictions.historical_predictions', 
                                'yield_spread_with_similar_trades': f'{PROJECT_ID}.historic_predictions.historical_predictions_similar_trades_v2'}
 

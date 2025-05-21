@@ -2,13 +2,15 @@
 Author: Anis Ahmad 
 Date: 2021-12-15
 Last Editor: Mitas Ray
-Last Edit Date: 2025-02-12
+Last Edit Date: 2025-05-08
 Description: This file contains function to help the functions to process training data
 '''
+import os
 import time
 from functools import wraps
 from datetime import datetime, timedelta
 import warnings
+import pickle
 
 import urllib3
 import requests
@@ -155,32 +157,17 @@ def calculate_a_over_e(df):
         return df['accrued_days'] / NUM_OF_DAYS_IN_YEAR
 
 
-def convert_calc_date_to_category(row):
-    '''Converts calc date to calc date category these labels are used to train the calc date model.'''
-    if row.last_calc_date == row.next_call_date:
-        calc_date_selection = 0
-    elif row.last_calc_date == row.par_call_date:
-        calc_date_selection = 1
-    elif row.last_calc_date == row.maturity_date:
-        calc_date_selection = 2
-    elif row.last_calc_date == row.refund_date:
-        calc_date_selection = 3
-    else:
-        calc_date_selection = 4
-    return calc_date_selection
-
-
 def calculate_dollar_error(df, predicted_ys):
     '''Computes the dollar error from the predicted yield spreads and MSRB data. 
     Assumes that the predicted yield spreads are in basis points.'''
     assert len(predicted_ys) == len(df), 'There must be a predicted yield spread for each of the trades in the passed in dataframe'
     columns_set = set(df.columns)
     assert 'quantity' in columns_set    # assumes that the quantity is log10 transformed
-    assert 'ficc_ycl' in columns_set    # represents the ficc yield curve level
+    assert 'new_ficc_ycl' in columns_set    # represents the ficc yield curve level
     assert 'yield' in columns_set    # represents yield to worst from the MSRB data
     assert 'calc_date' in columns_set and 'settlement_date' in columns_set    # need these two features to compute the number of years from the settlement date to the calc date
     years_to_calc_date = diff_in_days_two_dates(df.calc_date,df.settlement_date) / NUM_OF_DAYS_IN_YEAR    # the division by `np.timedelta64(NUM_OF_DAYS_IN_YEAR, 'D')` converts the quantity to years according to the MSRB convention of NUM_OF_DAYS_IN_YEAR in a year
-    ytw_error = ((predicted_ys + df['ficc_ycl']) / 100 - df['yield']) / 100    # the second divide by 100 is because the unit of the dividend is in percent
+    ytw_error = ((predicted_ys + df['new_ficc_ycl']) / 100 - df['yield']) / 100    # the second divide by 100 is because the unit of the dividend is in percent
     return ytw_error * (10 ** df['quantity']) * years_to_calc_date    # dollar error = duration * quantity * ytw error; duration = calc_date - settlement_date [in years]
 
 
@@ -192,3 +179,20 @@ def get_ys_trade_history_features(treasury_spread=False):
 
 def get_dp_trade_history_features():
     return DP_BASE_TRADE_HISTORY_FEATURES
+
+
+def check_if_pickle_file_exists_and_matches_query(query: str, path: str) -> pd.DataFrame | None:
+    '''Checks if the pickle file exists and if it matches the query. If it does, it loads the data from the pickle file. 
+    Otherwise, it returns None.'''
+    if os.path.isfile(path):
+        print(f'Data file {path} found, reading data from it')
+        with open(path, 'rb') as f: 
+            (query_in_file, df) = pickle.load(f)
+        if query_in_file == query:
+            return df
+        else:
+            print('Query does not match. Returning None')
+            return None    # raise Exception(f'Saved query is incorrect:\n{q}')
+    else:
+        print(f'Data file {path} not found, returning None')
+        return None

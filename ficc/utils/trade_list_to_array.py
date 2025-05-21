@@ -1,12 +1,10 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2021-12-16
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-02-13
- # @ Description:The trade_list_to_array function uses the trade_dict_to_list 
- # function to unpack the list of dictionaries and creates a list of historical trades. 
- # With each element in the list containing all the information for that particular trade
- '''
+Author: Ahmad Shayaan
+Date: 2021-12-16
+Last Editor: Mitas Ray
+Last Edit Date: 2025-05-07
+Description: Uses `trade_dict_to_list(...)` to unpack the list of dictionaries and creates a list of historical trades, with each element in the list containing all the information for that particular trade.
+'''
 import numpy as np
 from ficc.utils.trade_dict_to_list import trade_dict_to_list
 
@@ -18,10 +16,11 @@ def trade_list_to_array(trade_history,
                         add_rtrs_in_history: bool,
                         only_dollar_price_history: bool, 
                         yield_curve_to_use: str, 
-                        treasury_rate_dict: dict = None, 
-                        nelson_params: dict = None, 
-                        scalar_params: dict = None, 
-                        shape_parameter: dict = None):
+                        treasury_rate_dict: dict, 
+                        nelson_params: dict, 
+                        scalar_params: dict, 
+                        shape_parameter: dict, 
+                        end_of_day: bool):
     empty_last_trade_features = [None] * 16
     if len(trade_history) == 0: return np.array([]), empty_last_trade_features
 
@@ -38,7 +37,8 @@ def trade_list_to_array(trade_history,
                                                         treasury_rate_dict, 
                                                         nelson_params, 
                                                         scalar_params, 
-                                                        shape_parameter)
+                                                        shape_parameter, 
+                                                        end_of_day)
         if trades is not None: trades_list.append(trades)
         if last_trade_features is None: last_trade_features = temp_last_features
         
