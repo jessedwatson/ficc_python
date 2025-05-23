@@ -2,20 +2,23 @@
 Author: Ahmad Shayaan
 Date: 2021-12-17
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-20
+Last Edit Date: 2025-05-22
 '''
 import os
 import pickle
 
 import pandas as pd
 
+from google.cloud import storage
+
 from ficc.utils.auxiliary_functions import sqltodf, process_ratings, check_if_pickle_file_exists_and_matches_query
 from ficc.utils.pad_trade_history import pad_trade_history
 from ficc.utils.trade_list_to_array import trade_list_to_array
 from ficc.utils.initialize_pandarallel import initialize_pandarallel
+from ficc.utils.gcp_storage_functions import upload_data
 
 
-def fetch_trade_data(query: str, bq_client, path: str = 'data.pkl', save_data: bool = True):
+def fetch_trade_data(query: str, bq_client, path: str = 'data.pkl', save_data: bool = True, performing_automated_training: bool = False):
     trades_df = check_if_pickle_file_exists_and_matches_query(query, path)
     if trades_df is not None:
         print(f'Using cached data from {path} since the query matches the one in the file')
@@ -32,6 +35,10 @@ def fetch_trade_data(query: str, bq_client, path: str = 'data.pkl', save_data: b
             os.makedirs(dir_name, exist_ok=True)    # `os.makedirs(...)` creates directories along with any missing parent directories; `exist_ok=True` parameter ensures that no error is raised if the directory already exists
         with open(path, 'wb') as f: 
             pickle.dump((query, trades_df), f)
+
+        if performing_automated_training:
+            print(f'Also saving data to {path} in Google Cloud Storage')
+            upload_data(storage.Client(), 'automated_training', f'raw_data/{path}', path)
     return trades_df
 
 
@@ -78,9 +85,10 @@ def process_trade_history(query: str,
                           save_data: bool = True, 
                           process_similar_trades_history: bool = False, 
                           use_multiprocessing: bool = True, 
-                          end_of_day: bool = False):
+                          end_of_day: bool = False, 
+                          performing_automated_training: bool = False) -> pd.DataFrame:
     if use_multiprocessing: initialize_pandarallel()
-    trades_df = fetch_trade_data(query, bq_client, file_path, save_data)
+    trades_df = fetch_trade_data(query, bq_client, file_path, save_data, performing_automated_training)
     if len(trades_df) == 0:
         print('Raw data contains 0 trades')
         return None
