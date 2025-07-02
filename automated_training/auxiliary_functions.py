@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2023-12-18
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-20
+Last Edit Date: 2025-07-01
 '''
 import warnings
 import math
@@ -81,7 +81,8 @@ from automated_training.auxiliary_variables import CATEGORICAL_FEATURES, \
                                                     MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER, \
                                                     TESTING, \
                                                     USE_PICKLED_DATA, \
-                                                    ROW_NAME_DETERMINING_MODEL_SWITCH
+                                                    ROW_NAME_DETERMINING_MODEL_SWITCH, \
+                                                    USE_END_OF_DAY_YIELD_CURVE_COEFFICIENTS
 from automated_training.yield_with_similar_trades_model import yield_spread_with_similar_trades_model
 from automated_training.dollar_model import dollar_price_model
 from automated_training.set_random_seed import set_seed
@@ -284,6 +285,7 @@ def get_new_data(file_name,
                                                  save_data=save_data, 
                                                  process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
                                                  use_multiprocessing=use_multiprocessing, 
+                                                 end_of_day=USE_END_OF_DAY_YIELD_CURVE_COEFFICIENTS, 
                                                  **optional_arguments_for_process_data)
     
     if data_from_last_trade_datetime is not None:
@@ -328,7 +330,7 @@ def combine_new_data_with_old_data(old_data: pd.DataFrame, new_data: pd.DataFram
 
     new_data['yield'] = new_data['yield'] * 100
     if 'yield_spread' in model:
-        new_data = add_yield_curve(new_data, BQ_CLIENT)    # adds `new_ficc_ycl` column to `new_data`
+        new_data = add_yield_curve(new_data, BQ_CLIENT, end_of_day=USE_END_OF_DAY_YIELD_CURVE_COEFFICIENTS)    # adds `new_ficc_ycl` column to `new_data`
         if use_treasury_spread: new_data = add_treasury_spread(new_data)    # adds `ficc_treasury_spread` column to `new_data`
     new_data['target_attention_features'] = new_data.parallel_apply(target_trade_processing_for_attention, axis=1)
 

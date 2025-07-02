@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2025-01-21
 Last Editor: Mitas Ray
-Last Edit Date: 2025-03-07
+Last Edit Date: 2025-07-01
 Description: Used to train a model with a processed data file. Heavily uses code from `automated_training/`. Note: update `auxiliary_functions.py::get_creds(...)` with the correct file path.
 
 **NOTE**: To run the procedure in the background, use the command: $ nohup python -u train_model.py >> output.txt 2>&1 &. This will return a process number such as [1] 66581, which can be used to kill the process.
@@ -100,8 +100,9 @@ def train_model_from_data_file(data: pd.DataFrame, num_days: int, output_file_pa
     for day_idx in range(num_days):
         date_for_test_set, most_recent_date_for_training_set = most_recent_dates[day_idx], most_recent_dates[day_idx + 1]
         data = data[data['trade_date'] <= date_for_test_set]    # iteratively remove the last date from `data`
-        model, _, _, _, _, mae, (mae_df, _), _ = train_model(data, most_recent_date_for_training_set, MODEL, get_num_features_for_each_trade_in_history(), exclusions_function=exclusions_function)
+        trained_model, _, _, _, _, mae, (mae_df, _), _ = train_model(data, most_recent_date_for_training_set, MODEL, get_num_features_for_each_trade_in_history(), exclusions_function=exclusions_function)
         if output_file_path is not None: remove_lines_with_tensorflow_progress_bar(output_file_path)
+        trained_model.save(f'{MODEL}_{date_for_test_set}')
         
 
 if __name__ == '__main__':

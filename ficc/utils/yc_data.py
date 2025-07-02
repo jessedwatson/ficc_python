@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2025-05-13
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-13
+Last Edit Date: 2025-07-01
 '''
 import pandas as pd
 
@@ -40,8 +40,8 @@ def add_yield_curve(data, bq_client, end_of_day: bool = False, use_last_calc_day
     scalar_daily_params = get_parameters('standardscaler_parameters_daily', bq_client)
     shape_params = get_parameters('shape_parameters', bq_client, 'Date')    # 'Date' is capitalized for this table which is a typo when initially created
 
-    columns_needed_to_compute_ycl = ['calc_date', 'settlement_date', 'trade_datetime', 'last_calc_day_cat', 'is_called', 'is_callable', 'refund_date', 'next_call_date', 'par_call_date', 'maturity_date']
-    columns_received_from_computing_ycl = ['new_ficc_ycl', 'const', 'exponential', 'laguerre', 'target_datetime_for_nelson_params', 'exponential_mean', 'exponential_std', 'laguerre_mean', 'laguerre_std', 'target_date_for_scaler_params', 'shape_parameter', 'target_date_for_shape_parameter']
+    columns_needed_to_compute_ycl = ['calc_date', 'trade_date', 'settlement_date', 'trade_datetime', 'last_calc_day_cat', 'is_called', 'is_callable', 'refund_date', 'next_call_date', 'par_call_date', 'maturity_date']
+    columns_received_from_computing_ycl = ['new_ficc_ycl', 'duration_for_ycl', 'const', 'exponential', 'laguerre', 'target_datetime_for_nelson_params', 'exponential_mean', 'exponential_std', 'laguerre_mean', 'laguerre_std', 'target_date_for_scaler_params', 'shape_parameter', 'target_date_for_shape_parameter']
     get_yield_curve_level_caller = lambda row: get_yield_curve_level(row, nelson_params, scalar_daily_params, shape_params, end_of_day, use_last_calc_day_cat)
     data[columns_received_from_computing_ycl] = data[columns_needed_to_compute_ycl].parallel_apply(get_yield_curve_level_caller, axis=1, result_type='expand')
     return data

@@ -2,8 +2,8 @@
 Author: Issac Lim
 Date: 2021-08-23
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-13
-Description: Implementation of the Nelson-Seigel interest rate model to predict the yield curve. Nelson-Seigel coefficeints are used from a dataframe instead of grabbing them from memory store.
+Last Edit Date: 2025-07-01
+Description: Implementation of the Nelson-Siegel interest rate model to predict the yield curve. Nelson-Siegel coefficeints are used from a dataframe instead of grabbing them from memory store.
 '''
 from functools import wraps
 import warnings
@@ -40,7 +40,7 @@ BUSINESS_DAY = CustomBusinessDay(calendar=USHolidayCalendarWithGoodFriday())    
 def cache(function):
     @wraps(function)
     def wrapper(*args, **kwargs):
-        # creating a key using maturity and target date
+        # creating a key using maturity and target datetime
         cache_key = str(args[0]) + str(args[1])
         if cache_key in wrapper.cache:
             output = wrapper.cache[cache_key]
@@ -64,7 +64,7 @@ def get_duration(row, use_last_calc_day_cat: bool) -> float:
     subprocedure to infer what the calc date is, so it makes sense to train a model that performs as well 
     as possible if the calc date were to be correct. Subpoint: in most cases, the calc date is known (e.g., 
     for bond without a call option, a called bond, etc.).'''
-    start_date = row['settlement_date']    # this value is never null (verified from inspecting the materialized trade history on 2025-05-13)
+    start_date = row['trade_date']    # this value is never null (verified from inspecting the materialized trade history on 2025-05-13); previously used `settlement_date` here but there are some discrepancies with the `trade_date` especially for new issues (see Jira task: https://ficcai.atlassian.net/browse/FA-2980)
     
     maturity_date = row['maturity_date']    # this value is never null (verified from inspecting the materialized trade history on 2025-05-13)
     if use_last_calc_day_cat:
@@ -229,4 +229,4 @@ def yield_curve_level(maturity: float, target_datetime, nelson_params, scalar_pa
     exponential_mean, exponential_std, laguerre_mean, laguerre_std, target_date_for_scaler_params = scaler_daily_parameters
     shape_parameter, target_date_for_shape_parameter = shape_parameter
     ycl_prediction = predict_yield_curve_level(maturity, const, exponential, laguerre, exponential_mean, exponential_std, laguerre_mean, laguerre_std, shape_parameter)
-    return ycl_prediction, const, exponential, laguerre, target_datetime_for_nelson_params, exponential_mean, exponential_std, laguerre_mean, laguerre_std, target_date_for_scaler_params, shape_parameter, target_date_for_shape_parameter
+    return ycl_prediction, maturity, const, exponential, laguerre, target_datetime_for_nelson_params, exponential_mean, exponential_std, laguerre_mean, laguerre_std, target_date_for_scaler_params, shape_parameter, target_date_for_shape_parameter
