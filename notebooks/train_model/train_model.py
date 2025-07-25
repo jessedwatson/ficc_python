@@ -125,7 +125,7 @@ def get_processed_data_pickle_file(model: str = MODEL) -> pd.DataFrame:
             pickle.dump(data, file)
         file_name = f'gs://{BUCKET_NAME}/processed_data/{file_name}'    # used for print
     print(f'Loaded data from {file_name}. Most recent trade datetime: {most_recent_trade_datetime}')
-    # data = data[data['trade_date'] <= '2025-04-07'] # *** restrict to trades before 2025-04-03
+    data = data[data['trade_date'] <= '2025-05-16'] # *** restrict to trades before 2025-04-03
     return data
 
 
@@ -279,31 +279,19 @@ def evaluate_model_on_single_day(
     }
 
 
-def evaluate_models_on_production_dates(data: pd.DataFrame = None, upload_to_bq: bool = True, 
-                                       start_date: str = None, end_date: str = None):
+def evaluate_latest_model_for_all_dates(data: pd.DataFrame = None, upload_to_bq: bool = True, 
+                                        start_date: str = None, end_date: str = None):
     """
-    Evaluate each model on all dates it would have been in production.
-    For each model, test from the day after it was trained until the next model was trained.
-    
-    Args:
-        start_date: Only evaluate models from this date onwards
-        end_date: Only evaluate models up to this date
+    For each date in the data, use the most recent model available to make predictions.
+    This simulates production where we use the latest model until a new one is trained.
     """
     import pandas as pd
-    from datetime import datetime, timedelta
+    from datetime import datetime
     
     # Get all available models
     models = list_similar_trades_models()
     model_dates = [m['date'] for m in models]
     model_dates.sort()  # Ensure chronological order
-    
-    # Filter model dates if range specified
-    if start_date:
-        model_dates = [d for d in model_dates if d >= start_date]
-    if end_date:
-        model_dates = [d for d in model_dates if d <= end_date]
-    
-    print(f"Found {len(model_dates)} models in date range from {model_dates[0]} to {model_dates[-1]}")
     
     # Load data if not provided
     if data is None:
@@ -312,49 +300,40 @@ def evaluate_models_on_production_dates(data: pd.DataFrame = None, upload_to_bq:
     # Get all available test dates
     all_dates = sorted(data['trade_date'].unique())
     
+    # Filter dates if range specified
+    if start_date:
+        all_dates = [d for d in all_dates if str(d) >= start_date]
+    if end_date:
+        all_dates = [d for d in all_dates if str(d) <= end_date]
+    
     results = []
     
-    # For each model, test on all days until the next model
-    for i, model_date in enumerate(model_dates):
-        # Convert to datetime for comparison
-        model_datetime = pd.to_datetime(model_date)
+    # For each date, find the most recent model
+    for test_date in all_dates:
+        # Find the most recent model before this date
+        available_models = [m for m in model_dates if m < str(test_date)]
         
-        # Find the next model date (or use last available date if this is the last model)
-        if i < len(model_dates) - 1:
-            next_model_date = pd.to_datetime(model_dates[i + 1])
-        else:
-            next_model_date = pd.to_datetime(all_dates[-1]) + timedelta(days=1)
-        
-        # Get all dates between this model and the next
-        test_dates = [d for d in all_dates 
-                     if pd.to_datetime(d) > model_datetime 
-                     and pd.to_datetime(d) < next_model_date]
-        
-        if not test_dates:
-            print(f"\nNo test dates for model {model_date}")
+        if not available_models:
+            print(f"No model available for {test_date}")
             continue
-            
-        print(f"\n{'='*80}")
-        print(f"Model {model_date} will be tested on {len(test_dates)} days:")
-        print(f"From {test_dates[0]} to {test_dates[-1]}")
-        print(f"{'='*80}")
         
-        # Evaluate this model on each of its production dates
-        for test_date in test_dates:
-            try:
-                print(f"\n  Testing {model_date} on {test_date}...")
-                result = evaluate_model_on_single_day(
-                    model_date, 
-                    test_date, 
-                    data=data,
-                    upload_to_bq=upload_to_bq
-                )
-                if result:
-                    results.append(result)
-                    print(f"  ✓ MAE: {result['mae']:.2f}, RMSE: {result['rmse']:.2f}")
-            except Exception as e:
-                print(f"  ✗ Error: {e}")
-                continue
+        model_date = available_models[-1]  # Most recent model
+        
+        try:
+            print(f"Testing {test_date} using model from {model_date}...")
+            result = evaluate_model_on_single_day(
+                model_date, 
+                test_date, 
+                data=data,
+                upload_to_bq=upload_to_bq
+            )
+            if result:
+                results.append(result)
+                days_old = (pd.to_datetime(test_date) - pd.to_datetime(model_date)).days
+                print(f"  ✓ MAE: {result['mae']:.2f}, RMSE: {result['rmse']:.2f}, Model age: {days_old} days")
+        except Exception as e:
+            print(f"  ✗ Error: {e}")
+            continue
     
     # Create summary DataFrame
     summary_data = []
@@ -432,7 +411,7 @@ if __name__ == '__main__':
         print("This will test each model on all days it was in production.")
         print("This may take several hours to complete.\n")
         
-        summary_df, model_summary = evaluate_models_on_production_dates(
+        summary_df, model_summary = evaluate_latest_model_for_all_dates(  # <-- FIXED
             upload_to_bq=True, 
             start_date=args.start_date,
             end_date=args.end_date
