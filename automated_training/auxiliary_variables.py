@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2024-03-28
 Last Editor: Mitas Ray
-Last Edit Date: 2025-03-27
+Last Edit Date: 2025-07-01
 '''
 import os
 import sys
@@ -183,6 +183,9 @@ MODEL_NAME_TO_ARCHIVED_MODEL_FOLDER = {'yield_spread': 'yield_spread_model',
 
 
 ROW_NAME_DETERMINING_MODEL_SWITCH = 'Investment Grade'
+
+
+USE_END_OF_DAY_YIELD_CURVE_COEFFICIENTS = False    # boolean indicating whether to use the end-of-day yield curve coefficients; set to `False` if using the real-time (minute) yield curve coefficients
 
 
 # setting variables for when `TESTING` is `True`

@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Create Date: 2024-11-07
 Last Editor: Mitas Ray
-Last Edit Date: 2024-11-07
+Last Edit Date: 2025-07-02
 '''
 import os
 
@@ -14,7 +14,7 @@ def is_pandarallel_initialized():
     return hasattr(pd.DataFrame, 'parallel_apply')
 
 
-def initialize_pandarallel(num_cores_for_pandarallel: int = os.cpu_count() // 2):
+def initialize_pandarallel(num_cores_for_pandarallel: int = os.cpu_count() // 3):
     if is_pandarallel_initialized():
         print('pandarallel has already been initialized')
     else:

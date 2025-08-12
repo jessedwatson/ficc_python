@@ -1,23 +1,23 @@
 '''
- # @ Author: Ahmad Shayaan
- # @ Create date: 2021-12-17
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-04-10
- # @ Description:
- '''
+Author: Ahmad Shayaan
+Date: 2021-12-17
+Last Editor: Mitas Ray
+Last Edit Date: 2025-07-01
+'''
 import warnings
 
 import numpy as np
 import pandas as pd
+
 from ficc.utils.auxiliary_variables import COUPON_FREQUENCY_DICT
 from ficc.utils.diff_in_days import diff_in_days
 from ficc.utils.days_in_interest_payment import days_in_interest_payment
 from ficc.utils.fill_missing_values import fill_missing_values
-from ficc.utils.auxiliary_functions import calculate_a_over_e
+from ficc.utils.auxiliary_functions import calculate_a_over_e, function_timer
 
 
+@function_timer
 def process_features(df):
-    print('Processing features')
     df.interest_payment_frequency.fillna(0, inplace=True)
     df.loc[:, 'interest_payment_frequency'] = df.interest_payment_frequency.apply(lambda x: COUPON_FREQUENCY_DICT[x])
     # TODO: why are some of these features `np.float32` and some are `float`?
@@ -47,10 +47,10 @@ def process_features(df):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', RuntimeWarning)    # ignore `pandas/core/arraylike.py:364: RuntimeWarning: invalid value encountered in log10` since we handle this directly by filling in -np.inf with np.nan
         warnings.simplefilter('ignore', pd.errors.SettingWithCopyWarning)    # the following np.log10 assignments cause `SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame. Try using .loc[row_indexer,col_indexer] = value instead`
-        df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.settlement_date).dt.days)
-        df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.settlement_date).dt.days)
-        df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.settlement_date).dt.days)    # NOTE: this feature is currently not used for model training
-        df.loc[:, 'days_to_par'] = np.log10(1 + (df.par_call_date - df.settlement_date).dt.days)
+        df.loc[:, 'days_to_maturity'] =  np.log10(1 + (df.maturity_date - df.trade_date).dt.days)
+        df.loc[:, 'days_to_call'] = np.log10(1 + (df.next_call_date - df.trade_date).dt.days)
+        df.loc[:, 'days_to_refund'] = np.log10(1 + (df.refund_date - df.trade_date).dt.days)    # NOTE: this feature is currently not used for model training
+        df.loc[:, 'days_to_par'] = np.log10(1 + (df.par_call_date - df.trade_date).dt.days)
         df.loc[:, 'call_to_maturity'] = np.log10(1 + (df.maturity_date - df.next_call_date).dt.days)
 
     with warnings.catch_warnings():
@@ -63,7 +63,7 @@ def process_features(df):
         # Adding features from MSRB rule 33G
         df.loc[:, 'accrued_days'] = df.apply(diff_in_days, calc_type='accrual', axis=1)
         df.loc[:, 'days_in_interest_payment'] = df.apply(days_in_interest_payment, axis=1)
-        df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360/df['days_in_interest_payment'])
+        df.loc[:, 'scaled_accrued_days'] = df['accrued_days'] / (360 / df['days_in_interest_payment'])
         df.loc[:, 'A/E'] = df.apply(calculate_a_over_e, axis=1)
     
     df = fill_missing_values(df)

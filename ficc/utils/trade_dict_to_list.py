@@ -2,7 +2,7 @@
 Author: Ahmad Shayaan
 Date: 2021-12-16
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-20
+Last Edit Date: 2025-07-01
 Description: Converts the recent trade dictionary to a list. The SQL arrays from BigQuery are converted to a dictionary when read as a pandas dataframe. 
 '''
 import numpy as np
@@ -60,9 +60,10 @@ def trade_dict_to_list(trade_dict: dict,
         yield_spread = None
         trade_list.append(trade_dict['dollar_price'])
     else:
+        trade_date = trade_datetime.date()
         if remove_short_maturity is True:
             try:
-                days_to_maturity = diff_in_days_two_dates(trade_dict['maturity_date'], trade_dict['settlement_date'])
+                days_to_maturity = diff_in_days_two_dates(trade_dict['maturity_date'], trade_date)
                 if days_to_maturity < 400:
                     return None, None
             except Exception as e:
@@ -71,7 +72,6 @@ def trade_dict_to_list(trade_dict: dict,
                     print(f'{key}: {value}')
                 return None, None
 
-        trade_date = trade_datetime.date()
         calc_date = trade_dict['calc_date']
         time_to_maturity = diff_in_days_two_dates(calc_date, trade_date) / NUM_OF_DAYS_IN_YEAR
 
