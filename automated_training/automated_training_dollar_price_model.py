@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2024-01-24
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-22
+Last Edit Date: 2025-05-22
 '''
 import os
 import sys
@@ -21,7 +21,7 @@ from ficc.utils.auxiliary_functions import function_timer
 @function_timer
 def main():
     current_date_passed_in = sys.argv[1] if len(sys.argv) == 2 else None
-    return train_save_evaluate_model('dollar_price', current_date=current_date_passed_in)
+    return train_save_evaluate_model('dollar_price', current_date=current_date_passed_in, performing_automated_training=True)
 
 
 if __name__ == '__main__':

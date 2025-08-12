@@ -264,9 +264,11 @@ def get_new_data(file_name,
                  data_query: str = None, 
                  save_data: bool = SAVE_MODEL_AND_DATA, 
                  use_multiprocessing: bool = True, 
-                 raw_data_file_path: str = None):
+                 raw_data_file_path: str = None, 
+                 performing_automated_training: bool = False) -> tuple:
     '''`data_query` will always be `None` unless the user is attempting to get processed data for a specific 
-    slice of data by calling `get_new_data(...)` from another function.'''
+    slice of data by calling `get_new_data(...)` from another function. If `performing_automated_training` is `True`, 
+    then the raw data file will be uploaded to Google Cloud Storage.'''
     check_that_model_is_supported(model)
     old_data, last_trade_datetime, last_trade_date = get_data_and_last_trade_datetime(BUCKET_NAME, file_name)
     print(f'last trade datetime: {last_trade_datetime}')
@@ -276,7 +278,7 @@ def get_new_data(file_name,
     trade_history_features = get_ys_trade_history_features(use_treasury_spread) if 'yield_spread' in model else get_dp_trade_history_features()
     num_features_for_each_trade_in_history = len(trade_history_features)
     num_trades_in_history = NUM_TRADES_IN_HISTORY_YIELD_SPREAD_MODEL if 'yield_spread' in model else NUM_TRADES_IN_HISTORY_DOLLAR_PRICE_MODEL
-    if raw_data_file_path is None: raw_data_file_path = f'raw_data_{file_date}.pkl'
+    if raw_data_file_path is None: raw_data_file_path = f'raw_data_{file_date}_{model}.pkl'
     data_from_last_trade_datetime = process_data(data_query, 
                                                  BQ_CLIENT, 
                                                  num_trades_in_history, 
@@ -285,6 +287,7 @@ def get_new_data(file_name,
                                                  save_data=save_data, 
                                                  process_similar_trades_history=(model == 'yield_spread_with_similar_trades'), 
                                                  use_multiprocessing=use_multiprocessing, 
+                                                 performing_automated_training=performing_automated_training, 
                                                  end_of_day=USE_END_OF_DAY_YIELD_CURVE_COEFFICIENTS, 
                                                  **optional_arguments_for_process_data)
     
@@ -542,7 +545,8 @@ def get_optional_arguments_for_process_data(model):
     return OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_YIELD_SPREAD if 'yield_spread' in model else OPTIONAL_ARGUMENTS_FOR_PROCESS_DATA_DOLLAR_PRICE
 
 
-def update_data(model: str):
+def update_data(model: str, 
+                performing_automated_training: bool = False) -> tuple:
     check_that_model_is_supported(model)
     filename = MODEL_TO_CUMULATIVE_DATA_PICKLE_FILENAME[model]
     optional_arguments_for_process_data = get_optional_arguments_for_process_data(model)
@@ -550,6 +554,7 @@ def update_data(model: str):
     data_before_last_trade_datetime, data_from_last_trade_datetime, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = get_new_data(filename, 
                                                                                                                                                               model, 
                                                                                                                                                               use_treasury_spread=use_treasury_spread, 
+                                                                                                                                                              performing_automated_training=performing_automated_training,
                                                                                                                                                               optional_arguments_for_process_data=optional_arguments_for_process_data)
     if data_from_last_trade_datetime is not None:    # no need to continue this procedure if there are no new trades since the below subprocedures were performed on the data before storing it on Google Cloud Storage
         data = combine_new_data_with_old_data(data_before_last_trade_datetime, data_from_last_trade_datetime, model, use_treasury_spread)
@@ -562,7 +567,8 @@ def update_data(model: str):
 
 
 @function_timer
-def save_update_data_results_to_pickle_files(model: str):
+def save_update_data_results_to_pickle_files(model: str, 
+                                             performing_automated_training: bool = False):
     '''The function specified in `update_data` is called, and the 3 return values are stored as pickle files. If 
     testing, then first check whether the pickle files exist, before calling `update_data`. `suffix` is appended 
     to the end of the filename for each pickle file.'''
@@ -579,7 +585,7 @@ def save_update_data_results_to_pickle_files(model: str):
         with open(last_trade_data_from_update_data_pickle_filepath, 'rb') as file: last_trade_date = pickle.load(file)
         with open(num_features_for_each_trade_in_history_pickle_filepath, 'rb') as file: num_features_for_each_trade_in_history = pickle.load(file)
     else:
-        data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = update_data(model)
+        data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = update_data(model, performing_automated_training)
         data.to_pickle(data_pickle_filepath)
         with open(last_trade_data_from_update_data_pickle_filepath, 'wb') as file: pickle.dump(last_trade_date, file)
         with open(num_features_for_each_trade_in_history_pickle_filepath, 'wb') as file: pickle.dump(num_features_for_each_trade_in_history, file)
@@ -1173,14 +1179,14 @@ def remove_file(file_path: str) -> None:
         print(f'{type(e)}: {e}')
 
 
-def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None) -> bool:
+def train_save_evaluate_model(model: str, exclusions_function: callable = None, current_date: str = None, performing_automated_training: bool = False) -> bool:
     '''Returns a boolean indicating whether the model traffic should be switched based to the newly trained model.'''
     check_that_model_is_supported(model)
     print(f'Python version: {sys.version}')
     current_datetime = datetime.now(EASTERN)
     print(f'automated_training_{model}_model.py starting at {current_datetime} ET')
 
-    data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model)
+    data, last_trade_date, num_features_for_each_trade_in_history, raw_data_filepath = save_update_data_results_to_pickle_files(model, performing_automated_training)
     if data is None or len(data) == 0: raise RuntimeError('`data` is empty')
     if current_date is None:
         current_date = current_datetime.date().strftime(YEAR_MONTH_DAY)

@@ -1,9 +1,9 @@
 '''
- # @ Author: Mitas Ray
- # @ Create date: 2024-01-24
- # @ Modified by: Mitas Ray
- # @ Modified date: 2024-11-15
- '''
+Author: Mitas Ray
+Date: 2024-01-24
+Last Editor: Mitas Ray
+Last Edit date: 2025-05-22
+'''
 import sys
 from ficc.utils.auxiliary_functions import function_timer
 
@@ -13,7 +13,7 @@ from auxiliary_functions import setup_gpus, train_save_evaluate_model, apply_exc
 @function_timer
 def main():
     current_date_passed_in = sys.argv[1] if len(sys.argv) == 2 else None
-    train_save_evaluate_model('yield_spread', apply_exclusions, current_date_passed_in)
+    train_save_evaluate_model('yield_spread', apply_exclusions, current_date_passed_in, True)
 
 
 if __name__ == '__main__':

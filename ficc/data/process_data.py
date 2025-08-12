@@ -2,7 +2,7 @@
 Author: Ahmad Shayaan
 Date: 2021-12-16
 Last Editor: Mitas Ray
-Last Edit Date: 2025-05-08
+Last Edit Date: 2025-05-22
 '''
 import warnings
 import numpy as np
@@ -36,7 +36,8 @@ def process_data(query,
                  save_data: bool = True, 
                  process_similar_trades_history: bool = False, 
                  use_multiprocessing: bool = True, 
-                 end_of_day: bool = False,
+                 end_of_day: bool = False, 
+                 performing_automated_training: bool = False,
                  **kwargs):
     if len(kwargs) != 0: warnings.warn(f'**kwargs is not empty and has following arguments: {kwargs.keys()}', category=RuntimeWarning)
         
@@ -72,7 +73,8 @@ def process_data(query,
                                       shape_parameter, 
                                       save_data, 
                                       process_similar_trades_history, 
-                                      end_of_day=end_of_day)
+                                      end_of_day=end_of_day, 
+                                      performing_automated_training=performing_automated_training)
     if use_multiprocessing: initialize_pandarallel()
     
     if trades_df is None: return None    # no new trades

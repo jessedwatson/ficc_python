@@ -2,7 +2,7 @@
 Author: Mitas Ray
 Date: 2024-04-15
 Last Editor: Mitas Ray
-Last Edit Date: 2025-01-22
+Last Edit Date: 2025-05-22
 '''
 import os
 import sys
@@ -21,7 +21,7 @@ from ficc.utils.auxiliary_functions import function_timer
 @function_timer
 def main():
     current_date_passed_in = sys.argv[1] if len(sys.argv) == 2 else None
-    return train_save_evaluate_model('yield_spread_with_similar_trades', apply_exclusions, current_date_passed_in)
+    return train_save_evaluate_model('yield_spread_with_similar_trades', apply_exclusions, current_date_passed_in, True)
 
 
 if __name__ == '__main__':
