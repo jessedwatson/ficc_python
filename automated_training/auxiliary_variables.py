@@ -27,7 +27,7 @@ SAVE_MODEL_AND_DATA = True    # boolean indicating whether the trained model wil
 USE_PICKLED_DATA = False    # boolean indicating whether the data used to train the model will be loaded from a local pickle file; set to `True` if testing
 
 SENDER_EMAIL = 'notifications@ficc.ai'
-EMAIL_RECIPIENTS_FOR_LOGS = ['jesse@ficc.ai', 'gil@ficc.ai', 'mitas@ficc.ai']    # recipients for training logs, which should be a more technical subset of `EMAIL_RECIPIENTS`
+EMAIL_RECIPIENTS_FOR_LOGS = ['ficc-eng@ficc.ai']    # recipients for training logs, which should be a more technical subset of `EMAIL_RECIPIENTS`
 EMAIL_RECIPIENTS = EMAIL_RECIPIENTS_FOR_LOGS    # + ['myles@ficc.ai']    # recieve an email following a successful run of the training script; set to only your email if testing
 
 BUCKET_NAME = 'automated_training'
