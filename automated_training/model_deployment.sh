@@ -37,7 +37,7 @@ who
 HOME_DIRECTORY='/home/mitas'
 AUTOMATED_TRAINING_DIRECTORY="$HOME_DIRECTORY/ficc_python/automated_training"
 DATE_WITH_YEAR=$(TZ="America/New_York" date +%Y-%m-%d)    # Create date before training so that in case the training takes too long and goes into the next day, the date is correct
-REGION='us-central1' 
+REGION='us-central1'
 
 if [ "$1" == "yield_spread_with_similar_trades" ]; then
   TRAINED_MODELS_PATH="$HOME_DIRECTORY/trained_models/yield_spread_with_similar_trades_models"
@@ -46,7 +46,7 @@ if [ "$1" == "yield_spread_with_similar_trades" ]; then
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_yield_spread_with_similar_trades_model.py"
   MODEL_NAME="similar-trades-v2-model-${DATE_WITH_YEAR}"
   MODEL_ZIP_NAME='model_similar_trades_v2'    # must match `auxiliary_functions.py::get_model_zip_filename(...)`
-  ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='similar-trades-v3')
+  ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='yield_spread_with_similar_trades_model')
   ARCHIVED_DIRECTORY_IN_BUCKET='similar_trades_v2_model_inaccurate'
 else
   TRAINED_MODELS_PATH="$HOME_DIRECTORY/trained_models/dollar_price_model"
@@ -55,7 +55,7 @@ else
   TRAINING_SCRIPT="$AUTOMATED_TRAINING_DIRECTORY/automated_training_dollar_price_model.py"
   MODEL_NAME="dollar-v2-model-${DATE_WITH_YEAR}"
   MODEL_ZIP_NAME='model_dollar_price_v2'    # must match `auxiliary_functions.py::get_model_zip_filename(...)`
-  ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_v3')
+  ENDPOINT_ID=$(gcloud ai endpoints list --region=$REGION --format='value(ENDPOINT_ID)' --filter=display_name='dollar_price_model')
   ARCHIVED_DIRECTORY_IN_BUCKET='dollar_price_model_v2_inaccurate'
 fi
 
