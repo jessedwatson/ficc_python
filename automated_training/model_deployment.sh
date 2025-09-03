@@ -1,7 +1,7 @@
 # Author: Mitas Ray
 # Date: 2025-01-06
-# Last Editor: Gil
-# Last Edit Date: 2025-08-27
+# Last Editor: Jesse Watson
+# Last Edit Date: 2025-09-03
 # Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price". 
 #              The below are the cron jobs for the yield spread with similar trades and dollar price models set up on their respective automated training VMs.
 #              45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh dollar_price >> /home/mitas/training_logs/dollar_price_training_$(TZ=America/New_York date +\%Y-\%m-\%d).log 2>&1
@@ -143,7 +143,13 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   echo "OLD_DEPLOYED_MODEL_ID $OLD_DEPLOYED_MODEL_ID"
 
   echo "Deploying model with model ID: $NEW_MODEL_ID to endpoint: $ENDPOINT_ID"
-  gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
+
+  if [ "$MODEL" == "yield_spread_with_similar_trades" ]; then
+    gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-highmem-4 --accelerator=type=nvidia-tesla-p100,count=2 --min-replica-count=2 --max-replica-count=2
+  else
+    gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
+  fi
+
   EXIT_CODE=$?
   if [ $EXIT_CODE -ne 0 ]; then
     echo "Model deployment to Vertex AI endpoint: $ENDPOINT_ID failed with exit code $EXIT_CODE"
