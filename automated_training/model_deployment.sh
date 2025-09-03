@@ -1,7 +1,7 @@
 # Author: Mitas Ray
 # Date: 2025-01-06
-# Last Editor: Mitas Ray
-# Last Edit Date: 2025-05-20
+# Last Editor: Gil
+# Last Edit Date: 2025-08-27
 # Description: Use `$ bash model_deployment.sh <MODEL_NAME>` to call this script. `MODEL_NAME` must be either "yield_spread_with_similar_trades" or "dollar_price". 
 #              The below are the cron jobs for the yield spread with similar trades and dollar price models set up on their respective automated training VMs.
 #              45 10 * * 1-5 bash /home/mitas/ficc_python/automated_training/model_deployment.sh dollar_price >> /home/mitas/training_logs/dollar_price_training_$(TZ=America/New_York date +\%Y-\%m-\%d).log 2>&1
@@ -37,7 +37,7 @@ who
 HOME_DIRECTORY='/home/mitas'
 AUTOMATED_TRAINING_DIRECTORY="$HOME_DIRECTORY/ficc_python/automated_training"
 DATE_WITH_YEAR=$(TZ="America/New_York" date +%Y-%m-%d)    # Create date before training so that in case the training takes too long and goes into the next day, the date is correct
-REGION='us-east4'
+REGION='us-central1'
 
 if [ "$1" == "yield_spread_with_similar_trades" ]; then
   TRAINED_MODELS_PATH="$HOME_DIRECTORY/trained_models/yield_spread_with_similar_trades_models"
