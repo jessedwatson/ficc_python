@@ -145,7 +145,7 @@ if [ $SWITCH_TRAFFIC_EXIT_CODE -eq 10 ]; then
   echo "Deploying model with model ID: $NEW_MODEL_ID to endpoint: $ENDPOINT_ID"
 
   if [ "$MODEL" == "yield_spread_with_similar_trades" ]; then
-    gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-highmem-4 --accelerator=type=nvidia-tesla-p100,count=2 --min-replica-count=2 --max-replica-count=2
+    gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
   else
     gcloud ai endpoints deploy-model $ENDPOINT_ID --region=$REGION --display-name=$MODEL_NAME --model=$NEW_MODEL_ID --machine-type=n1-standard-2 --accelerator=type=nvidia-tesla-t4,count=1 --min-replica-count=1 --max-replica-count=1
   fi
