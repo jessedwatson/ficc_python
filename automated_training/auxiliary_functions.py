@@ -105,7 +105,7 @@ MODEL_NAME_TO_KERAS_MODEL = {'dollar_price': dollar_price_model,
 
 
 def get_creds():
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/home/mitas/ficc/mitas_creds.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/Users/jessewatson/creds.json'
     return None
 
 
